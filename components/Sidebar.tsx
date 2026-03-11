@@ -44,18 +44,18 @@ export default function Sidebar() {
       <div
         className={cn(
           "flex items-center border-b border-white/10 shrink-0",
-          collapsed ? "justify-center py-4 px-2" : "px-5 py-4 gap-3"
+          collapsed ? "justify-center py-3 px-2" : "px-4 py-3 gap-2"
         )}
       >
         <Image
           src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo%20sin%20fondo%20-%20Alfa%20Club-wZgRj4RXWHpEBDZCGUmX2BQpTRkF2F.png"
           alt="Alfa Club"
-          width={collapsed ? 32 : 36}
-          height={collapsed ? 38 : 42}
-          className="shrink-0"
+          width={collapsed ? 36 : 52}
+          height={collapsed ? 42 : 62}
+          className="shrink-0 drop-shadow-[0_0_6px_rgba(220,38,38,0.4)]"
         />
         {!collapsed && (
-          <span className="text-white font-bold text-base leading-tight tracking-wide">
+          <span className="text-white font-extrabold text-lg leading-tight tracking-widest uppercase">
             ALFA CLUB
           </span>
         )}
