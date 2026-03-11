@@ -1,20 +1,19 @@
 "use client"
 
 import { useState } from "react"
-import { BarChart2, DollarSign, Eye, EyeOff, ShieldCheck } from "lucide-react"
-import { cn } from "@/lib/utils"
-import Image from "next/image"
-
+import { BarChart2, DollarSign, Eye, EyeOff, ShieldCheck, Settings } from "lucide-react"
 import EstadisticasPage from "@/app/(app)/estadisticas/page"
 import FinanzasPage from "@/app/(app)/finanzas/page"
+import AjustesPage from "@/app/(app)/administracion/ajustes/page"
 
 const PASSWORD = "admin123"
 
-type Tab = "estadisticas" | "finanzas"
+type Tab = "estadisticas" | "finanzas" | "ajustes"
 
-const tabs: { id: Tab; label: string; icon: typeof BarChart2; description: string }[] = [
-  { id: "estadisticas", label: "Estadisticas", icon: BarChart2, description: "Metricas de retencion, churn, asistencia y comportamiento." },
-  { id: "finanzas", label: "Finanzas", icon: DollarSign, description: "Ingresos del mes, deuda acumulada, ticket promedio y LTV." },
+const tabs: { id: Tab; label: string; icon: typeof BarChart2 }[] = [
+  { id: "estadisticas", label: "Estadisticas", icon: BarChart2 },
+  { id: "finanzas", label: "Finanzas", icon: DollarSign },
+  { id: "ajustes", label: "Ajustes de Negocio", icon: Settings },
 ]
 
 function PasswordGate({ onSuccess }: { onSuccess: () => void }) {
@@ -85,6 +84,7 @@ export default function AdministracionPage() {
       <div className="flex-1">
         {activeTab === "estadisticas" && <EstadisticasPage />}
         {activeTab === "finanzas" && <FinanzasPage />}
+        {activeTab === "ajustes" && <AjustesPage />}
       </div>
     </div>
   )
