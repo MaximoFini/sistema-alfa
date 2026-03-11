@@ -38,7 +38,8 @@ export default function LoginPage() {
             src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo%20sin%20fondo%20-%20Alfa%20Club-wZgRj4RXWHpEBDZCGUmX2BQpTRkF2F.png"
             alt="Alfa Club Logo"
             width={320}
-            height={380}
+            height={320}
+            style={{ height: "auto" }}
             className="drop-shadow-2xl"
             priority
           />
@@ -54,7 +55,8 @@ export default function LoginPage() {
               src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo%20sin%20fondo%20-%20Alfa%20Club-wZgRj4RXWHpEBDZCGUmX2BQpTRkF2F.png"
               alt="Alfa Club Logo"
               width={120}
-              height={140}
+              height={120}
+              style={{ height: "auto" }}
               priority
             />
           </div>
