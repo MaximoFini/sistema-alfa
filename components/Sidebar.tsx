@@ -56,10 +56,10 @@ export default function Sidebar() {
         <Image
           src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo%20sin%20fondo%20-%20Alfa%20Club-wZgRj4RXWHpEBDZCGUmX2BQpTRkF2F.png"
           alt="Alfa Club"
-          width={collapsed ? 36 : 52}
-          height={collapsed ? 36 : 52}
-          style={{ height: "auto" }}
-          className="shrink-0 drop-shadow-[0_0_6px_rgba(220,38,38,0.4)]"
+          width={52}
+          height={52}
+          style={{ height: "auto", width: "auto" }}
+          className={cn("shrink-0 drop-shadow-[0_0_6px_rgba(220,38,38,0.4)]", collapsed && "w-9")}
         />
         {!collapsed && (
           <span className="text-lg leading-tight tracking-widest uppercase font-extrabold" style={{ color: "#DC2626" }}>
