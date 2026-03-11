@@ -57,14 +57,13 @@ export default function Sidebar() {
           collapsed ? "justify-center py-3 px-2" : "px-4 py-3 gap-2"
         )}
       >
-        <Image
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
           src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo%20sin%20fondo%20-%20Alfa%20Club-wZgRj4RXWHpEBDZCGUmX2BQpTRkF2F.png"
           alt="Alfa Club"
           width={52}
-          height={52}
-          style={{ width: 52, height: "auto" }}
           className="shrink-0 drop-shadow-[0_0_6px_rgba(220,38,38,0.4)]"
-          priority
+          style={{ height: "auto" }}
         />
         {!collapsed && (
           <span className="text-lg leading-tight tracking-widest uppercase font-extrabold" style={{ color: "#DC2626" }}>

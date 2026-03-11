@@ -34,14 +34,13 @@ export default function LoginPage() {
           }}
         />
         <div className="relative z-10 flex flex-col items-center gap-4">
-          <Image
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
             src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo%20sin%20fondo%20-%20Alfa%20Club-wZgRj4RXWHpEBDZCGUmX2BQpTRkF2F.png"
             alt="Alfa Club Logo"
             width={320}
-            height={320}
             style={{ height: "auto" }}
             className="drop-shadow-2xl"
-            priority
           />
         </div>
       </div>
@@ -51,13 +50,12 @@ export default function LoginPage() {
         <div className="w-full max-w-sm">
           {/* Mobile logo */}
           <div className="flex justify-center mb-8 lg:hidden">
-            <Image
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
               src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo%20sin%20fondo%20-%20Alfa%20Club-wZgRj4RXWHpEBDZCGUmX2BQpTRkF2F.png"
               alt="Alfa Club Logo"
               width={120}
-              height={120}
               style={{ height: "auto" }}
-              priority
             />
           </div>
 

@@ -110,14 +110,13 @@ export default function IngresoWebPage() {
       <header className="bg-[#111111] border-b border-white/10 px-6 py-3 flex items-center justify-between shrink-0 gap-4">
         {/* Brand */}
         <div className="flex items-center gap-3 shrink-0">
-          <Image
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
             src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo%20sin%20fondo%20-%20Alfa%20Club-hOsH0uOCuWZI7ZmhijLi7O81WvZXr7.png"
             alt="Alfa Club"
             width={38}
-            height={38}
-            style={{ width: 38, height: "auto" }}
+            style={{ height: "auto" }}
             className="drop-shadow-[0_0_6px_rgba(220,38,38,0.4)]"
-            priority
           />
           <div className="leading-none">
             <p className="font-extrabold text-base tracking-widest uppercase" style={{ color: "#DC2626" }}>
