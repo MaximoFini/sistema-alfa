@@ -233,57 +233,53 @@ function FilterPanel({
   function set(k: string, v: string) { setLocal((f) => ({ ...f, [k]: v })) }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl shadow-lg p-5 flex flex-col gap-4 w-full md:w-80">
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-bold text-gray-800">Filtros</span>
-        <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
-          <X size={15} />
-        </button>
-      </div>
-
-      {/* Rango de edad */}
-      <div className="flex flex-col gap-2">
-        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Edad</span>
-        <div className="flex items-center gap-2">
-          <input type="number" placeholder="Min" min={0} max={100} value={local.edadMin}
-            onChange={(e) => set("edadMin", e.target.value)}
-            className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-red-400 transition-all" />
-          <span className="text-gray-400 text-xs">–</span>
-          <input type="number" placeholder="Max" min={0} max={100} value={local.edadMax}
-            onChange={(e) => set("edadMax", e.target.value)}
-            className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-red-400 transition-all" />
+    <div className="bg-white border border-gray-200 rounded-xl shadow-lg p-4 w-full">
+      <div className="flex flex-col sm:flex-row sm:items-end gap-4">
+        {/* Rango de edad */}
+        <div className="flex flex-col gap-2 flex-1 min-w-0">
+          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Edad</span>
+          <div className="flex items-center gap-2">
+            <input type="number" placeholder="Min" min={0} max={100} value={local.edadMin}
+              onChange={(e) => set("edadMin", e.target.value)}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-red-400 transition-all" />
+            <span className="text-gray-400 text-xs shrink-0">–</span>
+            <input type="number" placeholder="Max" min={0} max={100} value={local.edadMax}
+              onChange={(e) => set("edadMax", e.target.value)}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-red-400 transition-all" />
+          </div>
         </div>
-      </div>
 
-      {/* Rango de inscripción */}
-      <div className="flex flex-col gap-2">
-        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Fecha de inscripción</span>
-        <div className="flex items-center gap-2">
-          <input type="date" value={local.desdeInscripcion}
-            onChange={(e) => set("desdeInscripcion", e.target.value)}
-            className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-red-400 transition-all" />
-          <span className="text-gray-400 text-xs">–</span>
-          <input type="date" value={local.hastaInscripcion}
-            onChange={(e) => set("hastaInscripcion", e.target.value)}
-            className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-red-400 transition-all" />
+        {/* Rango de inscripción */}
+        <div className="flex flex-col gap-2 flex-1 min-w-0">
+          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Fecha de inscripción</span>
+          <div className="flex items-center gap-2">
+            <input type="date" value={local.desdeInscripcion}
+              onChange={(e) => set("desdeInscripcion", e.target.value)}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-red-400 transition-all" />
+            <span className="text-gray-400 text-xs shrink-0">–</span>
+            <input type="date" value={local.hastaInscripcion}
+              onChange={(e) => set("hastaInscripcion", e.target.value)}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-red-400 transition-all" />
+          </div>
         </div>
-      </div>
 
-      <div className="flex gap-2 pt-1">
-        <button
-          onClick={() => {
-            const vacío = { edadMin: "", edadMax: "", desdeInscripcion: "", hastaInscripcion: "" }
-            setLocal(vacío); setFiltros(vacío)
-          }}
-          className="flex-1 text-sm text-gray-500 border border-gray-200 rounded-lg py-2 hover:bg-gray-50 transition-colors">
-          Limpiar
-        </button>
-        <button
-          onClick={() => { setFiltros(local); onClose() }}
-          className="flex-1 text-sm text-white font-semibold rounded-lg py-2 hover:brightness-110 transition-all"
-          style={{ backgroundColor: "#DC2626" }}>
-          Aplicar
-        </button>
+        {/* Botones */}
+        <div className="flex gap-2 shrink-0">
+          <button
+            onClick={() => {
+              const vacío = { edadMin: "", edadMax: "", desdeInscripcion: "", hastaInscripcion: "" }
+              setLocal(vacío); setFiltros(vacío)
+            }}
+            className="text-sm text-gray-500 border border-gray-200 rounded-lg px-4 py-2 hover:bg-gray-50 transition-colors whitespace-nowrap">
+            Limpiar
+          </button>
+          <button
+            onClick={() => { setFiltros(local); onClose() }}
+            className="text-sm text-white font-semibold rounded-lg px-4 py-2 hover:brightness-110 transition-all whitespace-nowrap"
+            style={{ backgroundColor: "#DC2626" }}>
+            Aplicar
+          </button>
+        </div>
       </div>
     </div>
   )

@@ -55,7 +55,7 @@ export default function Sidebar() {
           className="shrink-0 drop-shadow-[0_0_6px_rgba(220,38,38,0.4)]"
         />
         {!collapsed && (
-          <span className="text-white font-extrabold text-lg leading-tight tracking-widest uppercase">
+          <span className="text-lg leading-tight tracking-widest uppercase font-extrabold" style={{ color: "#DC2626" }}>
             ALFA CLUB
           </span>
         )}
