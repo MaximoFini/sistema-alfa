@@ -13,11 +13,13 @@ import {
   ChevronLeft,
   ChevronRight,
   User,
+  MonitorCheck,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const navItems = [
   { href: "/inicio", label: "Alumnos", icon: Users },
+  { href: "/ingreso-web", label: "Ingreso Web", icon: MonitorCheck },
   { href: "/estadisticas", label: "Estadísticas", icon: BarChart2 },
   { href: "/finanzas", label: "Finanzas", icon: DollarSign },
   { href: "/comunicacion", label: "Comunicación", icon: MessageSquare },
