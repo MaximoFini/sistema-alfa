@@ -1,316 +1,198 @@
 "use client"
 
 import { useState } from "react"
-import { Send, Search, Plus, Paperclip, Megaphone, Bell, ChevronDown } from "lucide-react"
+import { MessageCircle, Send, Users, ChevronDown, CheckCheck, Clock } from "lucide-react"
 
-interface Mensaje {
+interface MensajeEnviado {
   id: number
-  de: string
-  para: string
-  asunto: string
-  cuerpo: string
-  hora: string
-  leido: boolean
-  tipo: "inbox" | "enviado"
+  texto: string
+  destinatarios: string
+  fecha: string
+  cantidad: number
 }
 
-const mensajes: Mensaje[] = [
+const historial: MensajeEnviado[] = [
   {
     id: 1,
-    de: "Secretaría",
-    para: "Carlos Mendoza",
-    asunto: "Recordatorio de pago",
-    cuerpo: "Hola Carlos, te recordamos que tu cuota mensual de Boxeo está pendiente de pago. Por favor acércate a la secretaría o realiza el pago por transferencia. Gracias.",
-    hora: "Hoy 10:30",
-    leido: false,
-    tipo: "inbox",
+    texto: "El gimnasio abre el feriado de 9hs a 13hs. Los esperamos!",
+    destinatarios: "Todos los alumnos activos",
+    fecha: "08 Mar 2026 - 10:42",
+    cantidad: 47,
   },
   {
     id: 2,
-    de: "Rodrigo Alves",
-    para: "Secretaría",
-    asunto: "Consulta sobre horarios",
-    cuerpo: "Buenos días, quería consultar si el horario de Kickboxing del martes cambia la próxima semana.",
-    hora: "Hoy 09:15",
-    leido: false,
-    tipo: "inbox",
+    texto: "Recordamos que las cuotas deben abonarse antes del día 10. Muchas gracias.",
+    destinatarios: "Todos los alumnos activos",
+    fecha: "01 Mar 2026 - 09:15",
+    cantidad: 47,
   },
   {
     id: 3,
-    de: "Secretaría",
-    para: "Todos",
-    asunto: "Nuevo torneo de MMA en Abril",
-    cuerpo: "Estimados alumnos, comunicamos que el próximo mes habrá un torneo interno de MMA para alumnos intermedios y avanzados. Inscripciones abiertas hasta el 20 de marzo.",
-    hora: "Ayer",
-    leido: true,
-    tipo: "enviado",
-  },
-  {
-    id: 4,
-    de: "Laura Ramírez",
-    para: "Secretaría",
-    asunto: "Inasistencia justificada",
-    cuerpo: "Hola, quería avisar que no voy a poder asistir a la clase de MMA del jueves por motivos médicos. Adjunto el certificado.",
-    hora: "Ayer",
-    leido: true,
-    tipo: "inbox",
-  },
-  {
-    id: 5,
-    de: "Secretaría",
-    para: "Andrés Solis",
-    asunto: "Plan de entrenamiento actualizado",
-    cuerpo: "Andres, te informamos que tu plan de BJJ fue actualizado. Revisá el nuevo cronograma desde la app.",
-    hora: "Lun",
-    leido: true,
-    tipo: "enviado",
+    texto: "Este sábado no hay clases por mantenimiento del salón principal. Disculpen las molestias.",
+    destinatarios: "Todos los alumnos activos",
+    fecha: "22 Feb 2026 - 18:30",
+    cantidad: 44,
   },
 ]
 
-const anuncios = [
-  {
-    id: 1,
-    titulo: "Torneo Interno MMA - Abril 2026",
-    texto: "Inscripciones abiertas para alumnos intermedios y avanzados. Cupos limitados.",
-    fecha: "05 Mar 2026",
-    tipo: "evento",
-  },
-  {
-    id: 2,
-    titulo: "Nuevo horario de Muay Thai",
-    texto: "A partir del 15 de marzo, la clase de Muay Thai pasará a las 20:00hs los miércoles.",
-    fecha: "03 Mar 2026",
-    tipo: "cambio",
-  },
-  {
-    id: 3,
-    titulo: "Recordatorio de cuotas",
-    texto: "Se recuerda a todos los alumnos que las cuotas deben abonarse antes del día 10 de cada mes.",
-    fecha: "01 Mar 2026",
-    tipo: "aviso",
-  },
-]
-
-function tipoBadge(tipo: string) {
-  const map: Record<string, { label: string; color: string; bg: string }> = {
-    evento: { label: "Evento", color: "#2563eb", bg: "#eff6ff" },
-    cambio: { label: "Cambio", color: "#d97706", bg: "#fffbeb" },
-    aviso: { label: "Aviso", color: "#DC2626", bg: "#fef2f2" },
-  }
-  const s = map[tipo] ?? map.aviso
-  return (
-    <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ color: s.color, backgroundColor: s.bg }}>
-      {s.label}
-    </span>
-  )
-}
+const LIMITE = 250
 
 export default function ComunicacionPage() {
-  const [tabMain, setTabMain] = useState<"mensajes" | "anuncios">("mensajes")
-  const [tabMsj, setTabMsj] = useState<"todos" | "inbox" | "enviado">("todos")
-  const [selectedId, setSelectedId] = useState<number | null>(1)
-  const [newMsg, setNewMsg] = useState("")
-  const [search, setSearch] = useState("")
+  const [mensaje, setMensaje] = useState("")
+  const [enviando, setEnviando] = useState(false)
+  const [enviado, setEnviado] = useState(false)
+  const [msgs, setMsgs] = useState(historial)
+  const [expandido, setExpandido] = useState<number | null>(null)
 
-  const filtrados = mensajes.filter((m) => {
-    const matchTab = tabMsj === "todos" || m.tipo === tabMsj
-    const matchSearch =
-      m.asunto.toLowerCase().includes(search.toLowerCase()) ||
-      m.de.toLowerCase().includes(search.toLowerCase()) ||
-      m.para.toLowerCase().includes(search.toLowerCase())
-    return matchTab && matchSearch
-  })
+  const restantes = LIMITE - mensaje.length
+  const puedeEnviar = mensaje.trim().length > 0 && mensaje.length <= LIMITE
 
-  const selected = mensajes.find((m) => m.id === selectedId)
+  async function handleEnviar() {
+    if (!puedeEnviar) return
+    setEnviando(true)
+    await new Promise((r) => setTimeout(r, 1200))
+    const nuevo: MensajeEnviado = {
+      id: Date.now(),
+      texto: mensaje.trim(),
+      destinatarios: "Todos los alumnos activos",
+      fecha: new Date().toLocaleString("es-AR", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+      cantidad: 47,
+    }
+    setMsgs((prev) => [nuevo, ...prev])
+    setMensaje("")
+    setEnviando(false)
+    setEnviado(true)
+    setTimeout(() => setEnviado(false), 3000)
+  }
 
   return (
-    <div className="p-6 lg:p-8 max-w-6xl mx-auto">
+    <div className="p-6 lg:p-8 max-w-3xl mx-auto">
+
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Comunicación</h1>
-        <div className="flex items-center gap-2">
-          <button
-            className="flex items-center gap-2 text-sm font-medium bg-white border border-gray-200 rounded-lg px-3 py-2 hover:bg-gray-50 transition-colors text-gray-700"
-          >
-            <Megaphone size={15} />
-            <span className="hidden sm:inline">Nuevo Anuncio</span>
-          </button>
-          <button
-            className="flex items-center gap-2 text-sm font-semibold text-white px-4 py-2 rounded-lg hover:brightness-110 transition-all"
-            style={{ backgroundColor: "#DC2626" }}
-          >
-            <Plus size={15} />
-            <span className="hidden sm:inline">Nuevo Mensaje</span>
-          </button>
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-gray-900">Comunicacion</h1>
+        <p className="text-sm text-gray-500 mt-1">
+          Envia mensajes de WhatsApp a todos los alumnos activos del gimnasio.
+        </p>
+      </div>
+
+      {/* Compose card */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-6">
+        {/* Card header */}
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100">
+          <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: "#fef2f2" }}>
+            <MessageCircle size={18} style={{ color: "#DC2626" }} />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-gray-900">Mensaje General</p>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <Users size={12} className="text-gray-400" />
+              <span className="text-xs text-gray-500">Todos los alumnos activos · 47 contactos</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Textarea */}
+        <div className="p-5">
+          <textarea
+            value={mensaje}
+            onChange={(e) => setMensaje(e.target.value)}
+            placeholder={"Ej: El gimnasio abre el feriado de 9hs a 13hs. Los esperamos!"}
+            rows={5}
+            maxLength={LIMITE}
+            className="w-full text-sm text-gray-800 placeholder:text-gray-400 outline-none resize-none leading-relaxed"
+          />
+          <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
+            <span
+              className="text-xs"
+              style={{ color: restantes < 30 ? "#DC2626" : "#9ca3af" }}
+            >
+              {restantes} caracteres restantes
+            </span>
+            <button
+              onClick={handleEnviar}
+              disabled={!puedeEnviar || enviando}
+              className="flex items-center gap-2 text-sm font-semibold text-white px-5 py-2 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ backgroundColor: "#DC2626" }}
+            >
+              {enviando ? (
+                <>
+                  <Clock size={14} className="animate-spin" />
+                  Enviando...
+                </>
+              ) : enviado ? (
+                <>
+                  <CheckCheck size={14} />
+                  Enviado
+                </>
+              ) : (
+                <>
+                  <Send size={14} />
+                  Enviar por WhatsApp
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Main tabs */}
-      <div className="flex items-center gap-1 mb-5 bg-gray-100 p-1 rounded-lg w-fit">
-        {(["mensajes", "anuncios"] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTabMain(t)}
-            className="px-4 py-1.5 rounded-md text-sm font-medium transition-all capitalize"
-            style={
-              tabMain === t
-                ? { backgroundColor: "#fff", color: "#111", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }
-                : { color: "#6b7280" }
-            }
-          >
-            {t === "mensajes" ? "Mensajes" : "Anuncios"}
-          </button>
-        ))}
-      </div>
-
-      {tabMain === "mensajes" && (
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4" style={{ minHeight: 520 }}>
-          {/* List */}
-          <div className="lg:col-span-2 bg-white rounded-xl border border-gray-100 flex flex-col overflow-hidden">
-            {/* Search */}
-            <div className="p-3 border-b border-gray-100">
-              <div className="flex items-center gap-2 bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">
-                <Search size={13} className="text-gray-400 shrink-0" />
-                <input
-                  type="text"
-                  placeholder="Buscar mensaje..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="flex-1 text-xs outline-none bg-transparent text-gray-700 placeholder:text-gray-400"
-                />
-              </div>
-            </div>
-            {/* Sub-tabs */}
-            <div className="flex border-b border-gray-100 shrink-0">
-              {(["todos", "inbox", "enviado"] as const).map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setTabMsj(t)}
-                  className="flex-1 py-2 text-xs font-medium capitalize transition-colors border-b-2"
-                  style={
-                    tabMsj === t
-                      ? { color: "#DC2626", borderColor: "#DC2626" }
-                      : { color: "#9ca3af", borderColor: "transparent" }
-                  }
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
-            {/* Items */}
-            <div className="flex-1 overflow-y-auto divide-y divide-gray-50">
-              {filtrados.map((m) => (
-                <button
-                  key={m.id}
-                  onClick={() => setSelectedId(m.id)}
-                  className="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors"
-                  style={selectedId === m.id ? { backgroundColor: "#fef2f2" } : {}}
-                >
-                  <div className="flex items-start justify-between gap-2 mb-0.5">
-                    <div className="flex items-center gap-1.5">
-                      {!m.leido && (
-                        <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: "#DC2626" }} />
-                      )}
-                      <span className={`text-xs font-semibold ${!m.leido ? "text-gray-900" : "text-gray-500"}`}>
-                        {m.tipo === "inbox" ? m.de : `Para: ${m.para}`}
-                      </span>
-                    </div>
-                    <span className="text-xs text-gray-400 shrink-0">{m.hora}</span>
-                  </div>
-                  <p className={`text-xs truncate ${!m.leido ? "font-semibold text-gray-800" : "text-gray-500"}`}>
-                    {m.asunto}
-                  </p>
-                  <p className="text-xs text-gray-400 truncate mt-0.5">{m.cuerpo}</p>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Detail */}
-          <div className="lg:col-span-3 bg-white rounded-xl border border-gray-100 flex flex-col overflow-hidden">
-            {selected ? (
-              <>
-                <div className="p-5 border-b border-gray-100">
-                  <h3 className="font-semibold text-gray-900 text-base mb-2">{selected.asunto}</h3>
-                  <div className="flex items-center gap-4 text-xs text-gray-400">
-                    <span>De: <strong className="text-gray-600">{selected.de}</strong></span>
-                    <span>Para: <strong className="text-gray-600">{selected.para}</strong></span>
-                    <span>{selected.hora}</span>
-                  </div>
-                </div>
-                <div className="flex-1 p-5 overflow-y-auto">
-                  <p className="text-sm text-gray-700 leading-relaxed">{selected.cuerpo}</p>
-                </div>
-                <div className="p-4 border-t border-gray-100">
-                  <div className="flex items-end gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 focus-within:border-red-300 transition-all">
-                    <textarea
-                      value={newMsg}
-                      onChange={(e) => setNewMsg(e.target.value)}
-                      placeholder="Escribe una respuesta..."
-                      rows={2}
-                      className="flex-1 text-sm outline-none bg-transparent resize-none text-gray-700 placeholder:text-gray-400"
-                    />
-                    <div className="flex items-center gap-2 pb-0.5 shrink-0">
-                      <button className="text-gray-400 hover:text-gray-600 transition-colors">
-                        <Paperclip size={15} />
-                      </button>
-                      <button
-                        className="w-8 h-8 rounded-lg flex items-center justify-center text-white transition-all hover:brightness-110"
-                        style={{ backgroundColor: "#DC2626" }}
-                        onClick={() => setNewMsg("")}
-                      >
-                        <Send size={13} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center p-8">
-                <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
-                  <Bell size={22} className="text-gray-400" />
-                </div>
-                <p className="font-medium text-gray-500">Selecciona un mensaje para leerlo</p>
-              </div>
-            )}
-          </div>
+      {/* Aviso de confirmacion */}
+      {enviado && (
+        <div className="flex items-center gap-3 bg-green-50 border border-green-200 text-green-700 rounded-xl px-4 py-3 mb-6 text-sm font-medium">
+          <CheckCheck size={16} />
+          Mensaje enviado correctamente a 47 alumnos.
         </div>
       )}
 
-      {tabMain === "anuncios" && (
-        <div className="flex flex-col gap-3">
-          {anuncios.map((a) => (
-            <div key={a.id} className="bg-white rounded-xl border border-gray-100 p-5 hover:shadow-sm transition-all">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    {tipoBadge(a.tipo)}
-                    <span className="text-xs text-gray-400">{a.fecha}</span>
+      {/* Historial */}
+      <div>
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Historial de envios</p>
+        <div className="flex flex-col gap-2">
+          {msgs.map((m) => (
+            <div
+              key={m.id}
+              className="bg-white rounded-xl border border-gray-100 overflow-hidden"
+            >
+              <button
+                className="w-full flex items-start justify-between gap-4 px-5 py-4 text-left hover:bg-gray-50 transition-colors"
+                onClick={() => setExpandido(expandido === m.id ? null : m.id)}
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-gray-800 truncate font-medium">{m.texto}</p>
+                  <div className="flex items-center gap-3 mt-1">
+                    <div className="flex items-center gap-1">
+                      <CheckCheck size={12} className="text-green-500" />
+                      <span className="text-xs text-gray-400">{m.cantidad} alumnos</span>
+                    </div>
+                    <span className="text-xs text-gray-400">{m.fecha}</span>
                   </div>
-                  <h3 className="font-semibold text-gray-900 mb-1">{a.titulo}</h3>
-                  <p className="text-sm text-gray-500 leading-relaxed">{a.texto}</p>
                 </div>
-                <button className="text-gray-400 hover:text-gray-600 transition-colors shrink-0">
-                  <ChevronDown size={16} />
-                </button>
-              </div>
+                <ChevronDown
+                  size={15}
+                  className="text-gray-400 shrink-0 mt-0.5 transition-transform"
+                  style={{ transform: expandido === m.id ? "rotate(180deg)" : "rotate(0deg)" }}
+                />
+              </button>
+              {expandido === m.id && (
+                <div className="px-5 pb-4 border-t border-gray-50">
+                  <p className="text-sm text-gray-600 leading-relaxed mt-3">{m.texto}</p>
+                  <div className="flex items-center gap-2 mt-3">
+                    <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
+                      {m.destinatarios}
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
-
-          {/* Crear anuncio card */}
-          <div
-            className="border-2 border-dashed border-gray-200 rounded-xl p-6 flex flex-col items-center gap-3 hover:border-red-300 transition-colors cursor-pointer"
-          >
-            <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: "#fef2f2" }}>
-              <Megaphone size={18} style={{ color: "#DC2626" }} />
-            </div>
-            <div className="text-center">
-              <p className="font-medium text-gray-700 text-sm">Crear nuevo anuncio</p>
-              <p className="text-xs text-gray-400">Comunica novedades a todos los alumnos</p>
-            </div>
-          </div>
         </div>
-      )}
+      </div>
     </div>
   )
 }
