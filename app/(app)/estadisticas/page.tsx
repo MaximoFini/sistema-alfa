@@ -5,7 +5,6 @@ import {
   Pie,
   Cell,
   Tooltip,
-  ResponsiveContainer,
 } from "recharts"
 
 const disciplinaData = [
@@ -208,8 +207,8 @@ export default function EstadisticasPage() {
           <div className="bg-white rounded-xl border border-gray-100 p-5 flex flex-col gap-3">
             <p className="font-semibold text-gray-900">Distribución por Género</p>
             <div className="flex justify-center">
-              <ResponsiveContainer width={160} height={160}>
-                <PieChart>
+              <div style={{ width: 160, height: 160 }}>
+                <PieChart width={160} height={160}>
                   <Pie
                     data={generoData}
                     cx="50%"
@@ -225,7 +224,7 @@ export default function EstadisticasPage() {
                   </Pie>
                   <Tooltip formatter={(v: number) => [`${v} alumnos`]} />
                 </PieChart>
-              </ResponsiveContainer>
+              </div>
             </div>
             <div className="text-center -mt-4">
               <p className="text-xs text-gray-400">Total</p>
