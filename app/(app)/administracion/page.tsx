@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { BarChart2, DollarSign, Eye, EyeOff, ShieldCheck, Settings } from "lucide-react"
+import { cn } from "@/lib/utils"
 import EstadisticasPage from "@/app/(app)/estadisticas/page"
 import FinanzasPage from "@/app/(app)/finanzas/page"
 import AjustesPage from "@/app/(app)/administracion/ajustes/page"
