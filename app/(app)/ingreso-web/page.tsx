@@ -192,15 +192,14 @@ export default function IngresoWebPage() {
         {result === null && !loading && (
           <div className="flex flex-col items-center gap-4 text-center select-none">
             <div
-              className="w-20 h-20 rounded-full flex items-center justify-center"
+              className="w-20 h-20 rounded-full flex items-center justify-center relative overflow-hidden"
               style={{ backgroundColor: "#f3f4f6" }}
             >
               <Image
                 src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo%20sin%20fondo%20-%20Alfa%20Club-wZgRj4RXWHpEBDZCGUmX2BQpTRkF2F.png"
                 alt="Alfa Club"
-                width={48}
-                height={48}
-                style={{ height: "auto" }}
+                fill
+                className="object-contain p-2"
               />
             </div>
             <p className="text-gray-400 text-sm">
