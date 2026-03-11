@@ -62,7 +62,7 @@ export default function Sidebar() {
           alt="Alfa Club"
           width={52}
           height={52}
-          style={{ height: "auto" }}
+          style={{ width: 52, height: "auto" }}
           className="shrink-0 drop-shadow-[0_0_6px_rgba(220,38,38,0.4)]"
           priority
         />

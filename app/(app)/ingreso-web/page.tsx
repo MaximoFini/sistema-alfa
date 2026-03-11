@@ -115,8 +115,9 @@ export default function IngresoWebPage() {
             alt="Alfa Club"
             width={38}
             height={38}
-            style={{ height: "auto" }}
+            style={{ width: 38, height: "auto" }}
             className="drop-shadow-[0_0_6px_rgba(220,38,38,0.4)]"
+            priority
           />
           <div className="leading-none">
             <p className="font-extrabold text-base tracking-widest uppercase" style={{ color: "#DC2626" }}>
