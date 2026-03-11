@@ -14,15 +14,19 @@ import {
   ChevronRight,
   User,
   MonitorCheck,
+  CalendarDays,
+  BookOpen,
+  ShieldCheck,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const navItems = [
   { href: "/inicio", label: "Alumnos", icon: Users },
   { href: "/ingreso-web", label: "Ingreso Web", icon: MonitorCheck },
-  { href: "/estadisticas", label: "Estadísticas", icon: BarChart2 },
-  { href: "/finanzas", label: "Finanzas", icon: DollarSign },
-  { href: "/comunicacion", label: "Comunicación", icon: MessageSquare },
+  { href: "/planificador", label: "Planificador", icon: CalendarDays },
+  { href: "/biblioteca", label: "Biblioteca", icon: BookOpen },
+  { href: "/administrador", label: "Administrador", icon: ShieldCheck },
+  { href: "/comunicacion", label: "Comunicacion", icon: MessageSquare },
 ]
 
 export default function Sidebar() {
