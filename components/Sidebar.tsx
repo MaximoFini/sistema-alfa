@@ -6,8 +6,6 @@ import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
 import {
   Users,
-  BarChart2,
-  DollarSign,
   MessageSquare,
   LogOut,
   ChevronLeft,
@@ -17,26 +15,38 @@ import {
   CalendarDays,
   BookOpen,
   ShieldCheck,
+  Settings,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-const navItems = [
+const mainNavItems = [
   { href: "/inicio", label: "Alumnos", icon: Users },
   { href: "/ingreso-web", label: "Ingreso Web", icon: MonitorCheck },
   { href: "/planificador", label: "Planificador", icon: CalendarDays },
   { href: "/biblioteca", label: "Biblioteca", icon: BookOpen },
-  { href: "/administrador", label: "Administrador", icon: ShieldCheck },
+  { href: "/administracion", label: "Administracion", icon: ShieldCheck },
   { href: "/comunicacion", label: "Comunicacion", icon: MessageSquare },
+]
+
+const adminSubmenu = [
+  { href: "/administracion/ajustes", label: "Ajustes de Negocio", icon: Settings },
 ]
 
 export default function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const [collapsed, setCollapsed] = useState(false)
+  const [adminOpen, setAdminOpen] = useState(
+    pathname.startsWith("/administracion")
+  )
 
   function handleLogout() {
     router.push("/")
   }
+
+  const isAdminActive = pathname.startsWith("/administracion")
 
   return (
     <aside
@@ -70,8 +80,67 @@ export default function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 flex flex-col gap-1 px-2 py-4 overflow-y-auto">
-        {navItems.map(({ href, label, icon: Icon }) => {
-          const active = pathname === href
+        {mainNavItems.map(({ href, label, icon: Icon }) => {
+          const active = pathname === href || (href === "/administracion" && isAdminActive && pathname === "/administracion")
+
+          if (href === "/administracion") {
+            return (
+              <div key={href}>
+                {/* Administracion parent */}
+                <button
+                  onClick={() => {
+                    if (!collapsed) setAdminOpen((o) => !o)
+                    router.push(href)
+                  }}
+                  className={cn(
+                    "w-full flex items-center rounded-lg transition-all duration-150",
+                    collapsed ? "justify-center px-2 py-3" : "gap-3 px-3 py-2.5",
+                    isAdminActive
+                      ? "text-white"
+                      : "text-white/60 hover:text-white hover:bg-white/5"
+                  )}
+                  style={isAdminActive ? { backgroundColor: "#DC2626" } : {}}
+                  title={collapsed ? label : undefined}
+                >
+                  <Icon size={18} className="shrink-0" />
+                  {!collapsed && (
+                    <>
+                      <span className="text-sm font-medium flex-1 text-left">{label}</span>
+                      {adminOpen
+                        ? <ChevronUp size={14} className="shrink-0 opacity-70" />
+                        : <ChevronDown size={14} className="shrink-0 opacity-70" />
+                      }
+                    </>
+                  )}
+                </button>
+
+                {/* Submenu */}
+                {!collapsed && adminOpen && (
+                  <div className="ml-3 mt-0.5 flex flex-col gap-0.5 border-l border-white/10 pl-3">
+                    {adminSubmenu.map(({ href: subHref, label: subLabel, icon: SubIcon }) => {
+                      const subActive = pathname === subHref
+                      return (
+                        <Link
+                          key={subHref}
+                          href={subHref}
+                          className={cn(
+                            "flex items-center gap-2.5 px-2 py-2 rounded-lg transition-all text-xs font-medium",
+                            subActive
+                              ? "text-white bg-white/10"
+                              : "text-white/50 hover:text-white hover:bg-white/5"
+                          )}
+                        >
+                          <SubIcon size={14} className="shrink-0" />
+                          {subLabel}
+                        </Link>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )
+          }
+
           return (
             <Link
               key={href}
@@ -97,7 +166,6 @@ export default function Sidebar() {
 
       {/* Bottom section */}
       <div className="px-2 pb-4 flex flex-col gap-1 border-t border-white/10 pt-3 shrink-0">
-        {/* Collapse toggle */}
         <button
           onClick={() => setCollapsed(!collapsed)}
           className={cn(
@@ -115,24 +183,18 @@ export default function Sidebar() {
           )}
         </button>
 
-        {/* User */}
         {!collapsed && (
           <div className="flex items-center gap-2.5 px-3 py-2">
             <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center shrink-0">
               <User size={14} className="text-white/70" />
             </div>
             <div className="flex flex-col min-w-0">
-              <span className="text-white text-xs font-semibold truncate">
-                Secretaría
-              </span>
-              <span className="text-white/40 text-xs truncate">
-                secretaria@alfaclub.com
-              </span>
+              <span className="text-white text-xs font-semibold truncate">Secretaria</span>
+              <span className="text-white/40 text-xs truncate">secretaria@alfaclub.com</span>
             </div>
           </div>
         )}
 
-        {/* Logout */}
         <button
           onClick={handleLogout}
           className={cn(
