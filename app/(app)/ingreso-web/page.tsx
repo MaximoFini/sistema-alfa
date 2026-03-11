@@ -101,7 +101,8 @@ export default function IngresoWebPage() {
           src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo%20sin%20fondo%20-%20Alfa%20Club-hOsH0uOCuWZI7ZmhijLi7O81WvZXr7.png"
           alt="Alfa Club"
           width={44}
-          height={52}
+          height={44}
+          style={{ height: "auto" }}
           className="drop-shadow-[0_0_6px_rgba(220,38,38,0.4)]"
         />
         <div>
