@@ -6,8 +6,8 @@ import './globals.css'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Alfa Club - Sistema de Gestión',
-  description: 'Sistema de gestión para Alfa Club - Gimnasio de Deportes de Combate',
+  title: 'Alfa Club',
+  description: 'Sistema de gestión para Alfa Club',
 }
 
 export default function RootLayout({
