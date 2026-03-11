@@ -70,6 +70,7 @@ export default function Sidebar() {
           height={52}
           style={{ height: "auto" }}
           className="shrink-0 drop-shadow-[0_0_6px_rgba(220,38,38,0.4)]"
+          priority
         />
         {!collapsed && (
           <span className="text-lg leading-tight tracking-widest uppercase font-extrabold" style={{ color: "#DC2626" }}>

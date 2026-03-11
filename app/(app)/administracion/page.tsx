@@ -32,7 +32,7 @@ function PasswordGate({ onSuccess }: { onSuccess: () => void }) {
   return (
     <div className="min-h-screen bg-[#111111] flex items-center justify-center px-4">
       <div className={cn("bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8 flex flex-col items-center gap-6", shake && "animate-[shake_0.4s_ease-in-out]")}>
-        <Image src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo%20sin%20fondo%20-%20Alfa%20Club-wZgRj4RXWHpEBDZCGUmX2BQpTRkF2F.png" alt="Alfa Club" width={64} height={64} style={{ height: "auto" }} />
+        <Image src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo%20sin%20fondo%20-%20Alfa%20Club-wZgRj4RXWHpEBDZCGUmX2BQpTRkF2F.png" alt="Alfa Club" width={64} height={64} style={{ height: "auto" }} priority />
         <div className="flex flex-col items-center gap-1.5 text-center">
           <div className="flex items-center gap-2">
             <ShieldCheck size={16} style={{ color: "#DC2626" }} />

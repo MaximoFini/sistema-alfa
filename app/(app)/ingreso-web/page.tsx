@@ -199,6 +199,7 @@ export default function IngresoWebPage() {
                 src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo%20sin%20fondo%20-%20Alfa%20Club-wZgRj4RXWHpEBDZCGUmX2BQpTRkF2F.png"
                 alt="Alfa Club"
                 fill
+                priority
                 className="object-contain p-2"
               />
             </div>
