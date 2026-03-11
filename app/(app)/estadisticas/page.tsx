@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import {
   PieChart,
   Pie,
@@ -100,6 +101,8 @@ function ProgressBar({
 
 export default function EstadisticasPage() {
   const totalAlumnos = 10
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
 
   return (
     <div className="p-6 lg:p-8 max-w-6xl mx-auto">
@@ -208,22 +211,24 @@ export default function EstadisticasPage() {
             <p className="font-semibold text-gray-900">Distribución por Género</p>
             <div className="flex justify-center">
               <div style={{ width: 160, height: 160 }}>
-                <PieChart width={160} height={160}>
-                  <Pie
-                    data={generoData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={48}
-                    outerRadius={70}
-                    paddingAngle={3}
-                    dataKey="value"
-                  >
-                    {generoData.map((entry, index) => (
-                      <Cell key={index} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(v: number) => [`${v} alumnos`]} />
-                </PieChart>
+                {mounted && (
+                  <PieChart width={160} height={160}>
+                    <Pie
+                      data={generoData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={48}
+                      outerRadius={70}
+                      paddingAngle={3}
+                      dataKey="value"
+                    >
+                      {generoData.map((entry, index) => (
+                        <Cell key={index} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(v: number) => [`${v} alumnos`]} />
+                  </PieChart>
+                )}
               </div>
             </div>
             <div className="text-center -mt-4">
