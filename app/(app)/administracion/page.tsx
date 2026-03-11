@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Image from "next/image"
 import { BarChart2, DollarSign, Eye, EyeOff, ShieldCheck, Settings } from "lucide-react"
 import { cn } from "@/lib/utils"
 import EstadisticasPage from "@/app/(app)/estadisticas/page"
