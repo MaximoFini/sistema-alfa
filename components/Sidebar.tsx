@@ -21,6 +21,9 @@ import {
   BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getUserProfile, UserProfile } from "@/lib/auth";
+import { useEffect } from "react";
+import { supabase } from "@/lib/supabase";
 
 const planificacionSubmenu = [
   {
@@ -40,11 +43,21 @@ export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [planOpen, setPlanOpen] = useState(
     pathname.startsWith("/planificacion"),
   );
 
-  function handleLogout() {
+  useEffect(() => {
+    async function loadProfile() {
+      const userProfile = await getUserProfile();
+      setProfile(userProfile);
+    }
+    loadProfile();
+  }, []);
+
+  async function handleLogout() {
+    await supabase.auth.signOut();
     router.push("/");
   }
 
@@ -163,23 +176,25 @@ export default function Sidebar() {
         </div>
 
         {/* Administracion */}
-        <Link
-          href="/administracion"
-          className={cn(
-            "flex items-center rounded-lg transition-all duration-150",
-            collapsed ? "justify-center px-2 py-3" : "gap-3 px-3 py-2.5",
-            isAdminActive
-              ? "text-white"
-              : "text-gray-600 hover:text-gray-900 hover:bg-gray-100",
-          )}
-          style={isAdminActive ? { backgroundColor: "#ea580c" } : {}}
-          title={collapsed ? "Administracion" : undefined}
-        >
-          <ShieldCheck size={18} className="shrink-0" />
-          {!collapsed && (
-            <span className="text-sm font-medium">Administracion</span>
-          )}
-        </Link>
+        {profile?.role === "Administrador" && (
+          <Link
+            href="/administracion"
+            className={cn(
+              "flex items-center rounded-lg transition-all duration-150",
+              collapsed ? "justify-center px-2 py-3" : "gap-3 px-3 py-2.5",
+              isAdminActive
+                ? "text-white"
+                : "text-gray-600 hover:text-gray-900 hover:bg-gray-100",
+            )}
+            style={isAdminActive ? { backgroundColor: "#ea580c" } : {}}
+            title={collapsed ? "Administracion" : undefined}
+          >
+            <ShieldCheck size={18} className="shrink-0" />
+            {!collapsed && (
+              <span className="text-sm font-medium">Administracion</span>
+            )}
+          </Link>
+        )}
 
         {/* Comunicacion */}
         <Link
@@ -252,10 +267,10 @@ export default function Sidebar() {
           {!collapsed && (
             <div className="flex flex-col min-w-0">
               <span className="text-gray-900 text-xs font-semibold truncate">
-                Secretaria
+                {profile?.full_name || profile?.role || "Cargando..."}
               </span>
-              <span className="text-gray-500 text-xs truncate">
-                secretaria@alfaclub.com
+              <span className="text-gray-500 text-[10px] truncate">
+                {profile?.email || ""}
               </span>
             </div>
           )}

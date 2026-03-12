@@ -19,6 +19,7 @@ interface Alumno {
   direccion: string;
   telefono: string;
   dni: string;
+  actividad: string;
   initials: string;
   color: string;
 }
@@ -46,6 +47,7 @@ const alumnosIniciales: Alumno[] = [
     direccion: "Av. Siempre Viva 742",
     telefono: "11-4521-0011",
     dni: "32145678",
+    actividad: "Musculación",
     initials: "CM",
     color: "#6b7280",
   },
@@ -57,6 +59,7 @@ const alumnosIniciales: Alumno[] = [
     direccion: "Calle Falsa 123",
     telefono: "11-9988-7766",
     dni: "39012345",
+    actividad: "Crossfit",
     initials: "LR",
     color: "#9ca3af",
   },
@@ -68,6 +71,7 @@ const alumnosIniciales: Alumno[] = [
     direccion: "Rivadavia 1500",
     telefono: "11-3344-5566",
     dni: "35678901",
+    actividad: "Funcional",
     initials: "DT",
     color: "#78716c",
   },
@@ -79,6 +83,7 @@ const alumnosIniciales: Alumno[] = [
     direccion: "San Martín 200",
     telefono: "11-2233-4455",
     dni: "41234567",
+    actividad: "Spinning",
     initials: "VC",
     color: "#a1a1aa",
   },
@@ -90,6 +95,7 @@ const alumnosIniciales: Alumno[] = [
     direccion: "Belgrano 450",
     telefono: "11-5566-7788",
     dni: "29876543",
+    actividad: "Boxeo",
     initials: "AS",
     color: "#374151",
   },
@@ -101,6 +107,7 @@ const alumnosIniciales: Alumno[] = [
     direccion: "Corrientes 890",
     telefono: "11-8877-6655",
     dni: "33210987",
+    actividad: "Pilates",
     initials: "FL",
     color: "#4b5563",
   },
@@ -112,6 +119,7 @@ const alumnosIniciales: Alumno[] = [
     direccion: "Independencia 333",
     telefono: "11-1122-3344",
     dni: "25432109",
+    actividad: "Musculación",
     initials: "RA",
     color: "#111827",
   },
@@ -123,6 +131,7 @@ const alumnosIniciales: Alumno[] = [
     direccion: "Mitre 600",
     telefono: "11-6677-8899",
     dni: "40567890",
+    actividad: "Yoga",
     initials: "CO",
     color: "#1f2937",
   },
@@ -134,6 +143,7 @@ const alumnosIniciales: Alumno[] = [
     direccion: "Sarmiento 1200",
     telefono: "11-9900-1122",
     dni: "22345678",
+    actividad: "Musculación",
     initials: "MP",
     color: "#dc2626",
   },
@@ -145,6 +155,7 @@ const alumnosIniciales: Alumno[] = [
     direccion: "Lavalle 77",
     telefono: "11-4433-2211",
     dni: "43456789",
+    actividad: "Zumba",
     initials: "SG",
     color: "#4338ca",
   },
@@ -165,6 +176,7 @@ function NuevoAlumnoModal({
     direccion: "",
     telefono: "",
     dni: "",
+    actividad: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -334,6 +346,20 @@ function NuevoAlumnoModal({
               placeholder="Ej: 11-4521-0011"
               value={form.telefono}
               onChange={(e) => set("telefono", e.target.value)}
+              className="border border-gray-200 rounded-lg px-4 py-3 text-base min-h-[44px] outline-none focus:border-red-400 focus:ring-2 focus:ring-red-50 transition-all"
+            />
+          </div>
+
+          {/* Actividad */}
+          <div className="flex flex-col gap-2">
+            <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+              Actividad
+            </label>
+            <input
+              type="text"
+              placeholder="Ej: Musculación, Yoga, etc."
+              value={form.actividad}
+              onChange={(e) => set("actividad", e.target.value)}
               className="border border-gray-200 rounded-lg px-4 py-3 text-base min-h-[44px] outline-none focus:border-red-400 focus:ring-2 focus:ring-red-50 transition-all"
             />
           </div>

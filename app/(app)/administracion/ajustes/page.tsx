@@ -15,22 +15,17 @@ import {
   Percent,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { supabase } from "@/lib/supabase"
+import { useEffect } from "react"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Plan {
-  id: number
+  id: string
   nombre: string
   precio: number
+  duracion_dias: number
   activo: boolean
 }
-
-// ─── Initial mock data ────────────────────────────────────────────────────────
-const initialPlanes: Plan[] = [
-  { id: 1, nombre: "Mensual", precio: 8000, activo: true },
-  { id: 2, nombre: "Trimestral", precio: 21000, activo: true },
-  { id: 3, nombre: "Anual", precio: 75000, activo: true },
-  { id: 4, nombre: "Clase suelta", precio: 2000, activo: false },
-]
 
 // ─── Accordion section wrapper ────────────────────────────────────────────────
 function Section({
@@ -110,11 +105,8 @@ function SettingRow({
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function AjustesPage() {
-  // Finanzas
-  const [precioBase, setPrecioBase] = useState("8000")
-  const [recargo, setRecargo] = useState("10")
-
   // Alertas
+  const [settingsId, setSettingsId] = useState<string | null>(null)
   const [diasVencimiento, setDiasVencimiento] = useState("5")
   const [diasSinAsistencia30, setDiasSinAsistencia30] = useState("15")
   const [diasSinAsistencia60, setDiasSinAsistencia60] = useState("30")
@@ -123,39 +115,111 @@ export default function AjustesPage() {
   const [diasPerdido, setDiasPerdido] = useState("90")
 
   // Planes
-  const [planes, setPlanes] = useState<Plan[]>(initialPlanes)
-  const [editingId, setEditingId] = useState<number | null>(null)
+  const [planes, setPlanes] = useState<Plan[]>([])
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [editNombre, setEditNombre] = useState("")
   const [editPrecio, setEditPrecio] = useState("")
+  const [editDuracion, setEditDuracion] = useState("")
   const [newNombre, setNewNombre] = useState("")
   const [newPrecio, setNewPrecio] = useState("")
+  const [newDuracion, setNewDuracion] = useState("")
   const [showNew, setShowNew] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [loading, setLoading] = useState(true)
 
-  function togglePlan(id: number) {
-    setPlanes(p => p.map(x => x.id === id ? { ...x, activo: !x.activo } : x))
+  useEffect(() => {
+    async function loadData() {
+      const { data: settings } = await supabase.from("system_settings").select("*").limit(1).single()
+      if (settings) {
+        setSettingsId(settings.id)
+        setDiasVencimiento(String(settings.notify_days_before_expiration))
+        setDiasSinAsistencia30(String(settings.alert_1_days_no_attendance))
+        setDiasSinAsistencia60(String(settings.alert_2_days_no_attendance))
+        setDiasSinAsistencia90(String(settings.alert_3_days_no_attendance))
+        setDiasInactivo(String(settings.days_after_expiration_inactive))
+        setDiasPerdido(String(settings.days_without_renewal_lost))
+      }
+
+      const { data: plans } = await supabase.from("subscription_plans").select("*").order("price", { ascending: true })
+      if (plans) {
+        setPlanes(plans.map((p: any) => ({
+          id: p.id,
+          nombre: p.name,
+          precio: p.price,
+          duracion_dias: p.duration_days,
+          activo: p.is_active
+        })))
+      }
+      setLoading(false)
+    }
+    loadData()
+  }, [])
+
+  async function togglePlan(plan: Plan) {
+    const { error } = await supabase.from("subscription_plans").update({ is_active: !plan.activo }).eq("id", plan.id)
+    if (!error) {
+       setPlanes(p => p.map(x => x.id === plan.id ? { ...x, activo: !plan.activo } : x))
+    }
   }
 
   function startEdit(plan: Plan) {
     setEditingId(plan.id)
     setEditNombre(plan.nombre)
     setEditPrecio(String(plan.precio))
+    setEditDuracion(String(plan.duracion_dias))
   }
 
-  function saveEdit() {
-    setPlanes(p => p.map(x => x.id === editingId ? { ...x, nombre: editNombre, precio: Number(editPrecio) } : x))
-    setEditingId(null)
+  async function saveEdit() {
+    if (!editingId) return
+    const update = {
+      name: editNombre,
+      price: Number(editPrecio),
+      duration_days: Number(editDuracion)
+    }
+    const { error } = await supabase.from("subscription_plans").update(update).eq("id", editingId)
+    if (!error) {
+      setPlanes(p => p.map(x => x.id === editingId ? { ...x, nombre: editNombre, precio: update.price, duracion_dias: update.duration_days } : x))
+      setEditingId(null)
+    }
   }
 
-  function addPlan() {
-    if (!newNombre.trim() || !newPrecio) return
-    setPlanes(p => [...p, { id: Date.now(), nombre: newNombre.trim(), precio: Number(newPrecio), activo: true }])
-    setNewNombre(""); setNewPrecio(""); setShowNew(false)
+  async function addPlan() {
+    if (!newNombre.trim() || !newPrecio || !newDuracion) return
+    const insert = {
+      name: newNombre.trim(),
+      price: Number(newPrecio),
+      duration_days: Number(newDuracion),
+      is_active: true
+    }
+    const { data, error } = await supabase.from("subscription_plans").insert(insert).select().single()
+    if (data && !error) {
+      setPlanes(p => [...p, { id: data.id, nombre: data.name, precio: data.price, duracion_dias: data.duration_days, activo: data.is_active }])
+      setNewNombre(""); setNewPrecio(""); setNewDuracion(""); setShowNew(false)
+    }
   }
 
-  function handleSaveAll() {
+  async function handleSaveAll() {
+    if (settingsId) {
+      const update = {
+        notify_days_before_expiration: Number(diasVencimiento),
+        alert_1_days_no_attendance: Number(diasSinAsistencia30),
+        alert_2_days_no_attendance: Number(diasSinAsistencia60),
+        alert_3_days_no_attendance: Number(diasSinAsistencia90),
+        days_after_expiration_inactive: Number(diasInactivo),
+        days_without_renewal_lost: Number(diasPerdido)
+      }
+      await supabase.from("system_settings").update(update).eq("id", settingsId)
+    }
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
+  }
+
+  if (loading) {
+    return (
+      <div className="p-12 flex justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#DC2626]"></div>
+      </div>
+    )
   }
 
   return (
@@ -181,25 +245,7 @@ export default function AjustesPage() {
         </button>
       </div>
 
-      {/* ── Finanzas ── */}
-      <Section icon={DollarSign} title="Finanzas" subtitle="Precios y recargos de las suscripciones">
-        <div className="flex flex-col gap-0 pt-2">
-          <SettingRow
-            label="Precio base de suscripcion mensual"
-            description="Monto de referencia por defecto para nuevas suscripciones."
-            value={precioBase}
-            onChange={setPrecioBase}
-            prefix="$"
-          />
-          <SettingRow
-            label="Recargo por pago en cuotas"
-            description="Porcentaje adicional que se aplica cuando el alumno paga en cuotas."
-            value={recargo}
-            onChange={setRecargo}
-            suffix="%"
-          />
-        </div>
-      </Section>
+
 
       {/* ── Alertas ── */}
       <Section icon={Bell} title="Alertas y Notificaciones" subtitle="Parametros para avisos automaticos y seguimiento de alumnos">
@@ -261,33 +307,42 @@ export default function AjustesPage() {
               )}
             >
               {editingId === plan.id ? (
-                <>
+                <div className="flex items-center gap-3 w-full flex-wrap sm:flex-nowrap">
                   <input value={editNombre} onChange={e => setEditNombre(e.target.value)}
-                    className="flex-1 border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm outline-none focus:border-red-400 bg-white" />
+                    placeholder="Nombre" className="flex-1 border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm outline-none focus:border-red-400 bg-white min-w-[120px]" />
                   <div className="flex items-center gap-1">
                     <span className="text-sm text-gray-400">$</span>
                     <input value={editPrecio} onChange={e => setEditPrecio(e.target.value)} type="number"
-                      className="w-24 border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm outline-none focus:border-red-400 bg-white text-right" />
+                      placeholder="Precio" className="w-20 border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm outline-none focus:border-red-400 bg-white text-right" />
                   </div>
-                  <button onClick={saveEdit} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-xs font-bold transition-all hover:brightness-110" style={{ backgroundColor: "#DC2626" }}>
+                  <div className="flex items-center gap-1">
+                    <input value={editDuracion} onChange={e => setEditDuracion(e.target.value)} type="number"
+                      placeholder="Días" className="w-16 border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm outline-none focus:border-red-400 bg-white text-right" />
+                    <span className="text-sm text-gray-400">días</span>
+                  </div>
+                  <button onClick={saveEdit} className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-xs font-bold transition-all hover:brightness-110 sm:w-auto w-full mt-2 sm:mt-0" style={{ backgroundColor: "#DC2626" }}>
                     <Save size={12} /> Guardar
                   </button>
-                </>
+                </div>
               ) : (
                 <>
                   <div className="flex-1 flex flex-col min-w-0">
                     <span className="text-sm font-semibold text-gray-900 truncate">{plan.nombre}</span>
-                    <span className="text-xs text-gray-400">${plan.precio.toLocaleString("es-AR")}</span>
+                    <span className="text-xs text-gray-400">
+                      ${plan.precio.toLocaleString("es-AR")} • {plan.duracion_dias} días
+                    </span>
                   </div>
-                  <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full", plan.activo ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-400")}>
+                  <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full shrink-0", plan.activo ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-400")}>
                     {plan.activo ? "Activo" : "Inactivo"}
                   </span>
-                  <button onClick={() => startEdit(plan)} className="text-gray-400 hover:text-gray-700 transition-colors p-1.5 rounded-lg hover:bg-white" title="Editar">
-                    <Pencil size={14} />
-                  </button>
-                  <button onClick={() => togglePlan(plan.id)} className="text-gray-400 hover:text-gray-700 transition-colors p-1.5 rounded-lg hover:bg-white" title={plan.activo ? "Desactivar" : "Activar"}>
-                    {plan.activo ? <ToggleRight size={18} style={{ color: "#DC2626" }} /> : <ToggleLeft size={18} />}
-                  </button>
+                  <div className="flex items-center shrink-0">
+                    <button onClick={() => startEdit(plan)} className="text-gray-400 hover:text-gray-700 transition-colors p-1.5 rounded-lg hover:bg-white" title="Editar">
+                      <Pencil size={14} />
+                    </button>
+                    <button onClick={() => togglePlan(plan)} className="text-gray-400 hover:text-gray-700 transition-colors p-1.5 rounded-lg hover:bg-white" title={plan.activo ? "Desactivar" : "Activar"}>
+                      {plan.activo ? <ToggleRight size={18} style={{ color: "#DC2626" }} /> : <ToggleLeft size={18} />}
+                    </button>
+                  </div>
                 </>
               )}
             </div>
@@ -295,18 +350,23 @@ export default function AjustesPage() {
 
           {/* New plan form */}
           {showNew ? (
-            <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-dashed border-red-200 bg-red-50/40 mt-1">
+            <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-dashed border-red-200 bg-red-50/40 mt-1 flex-wrap sm:flex-nowrap">
               <input value={newNombre} onChange={e => setNewNombre(e.target.value)}
-                placeholder="Nombre del plan" className="flex-1 border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm outline-none focus:border-red-400 bg-white" />
+                placeholder="Nombre del plan" className="flex-1 border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm outline-none focus:border-red-400 bg-white min-w-[120px]" />
               <div className="flex items-center gap-1">
                 <span className="text-sm text-gray-400">$</span>
                 <input value={newPrecio} onChange={e => setNewPrecio(e.target.value)} type="number"
-                  placeholder="Precio" className="w-24 border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm outline-none focus:border-red-400 bg-white text-right" />
+                  placeholder="Precio" className="w-20 border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm outline-none focus:border-red-400 bg-white text-right" />
               </div>
-              <button onClick={addPlan} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-xs font-bold hover:brightness-110 transition-all" style={{ backgroundColor: "#DC2626" }}>
+              <div className="flex items-center gap-1">
+                <input value={newDuracion} onChange={e => setNewDuracion(e.target.value)} type="number"
+                  placeholder="Días" className="w-16 border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm outline-none focus:border-red-400 bg-white text-right" />
+                <span className="text-sm text-gray-400">días</span>
+              </div>
+              <button onClick={addPlan} className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-xs font-bold hover:brightness-110 transition-all sm:w-auto w-full mt-2 sm:mt-0" style={{ backgroundColor: "#DC2626" }}>
                 <Save size={12} /> Agregar
               </button>
-              <button onClick={() => { setShowNew(false); setNewNombre(""); setNewPrecio("") }} className="text-xs text-gray-400 hover:text-gray-600 px-2">
+              <button onClick={() => { setShowNew(false); setNewNombre(""); setNewPrecio(""); setNewDuracion("") }} className="text-xs text-gray-400 hover:text-gray-600 px-2 sm:w-auto w-full text-center">
                 Cancelar
               </button>
             </div>

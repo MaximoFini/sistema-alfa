@@ -20,6 +20,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -50,6 +52,7 @@ import {
   PlayCircle,
   VideoOff,
   Check,
+  ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -83,18 +86,44 @@ export default function PlanificadorPage() {
 
   // Hooks
   const { exercises: libraryExercises } = useExercises();
-  const { stages } = useExerciseStages();
+  const { stages, createStage } = useExerciseStages();
   const { savePlan } = useTrainingPlans();
 
-  // Reorder state
+  // New stage state
+  const [newStageDialogOpen, setNewStageDialogOpen] = useState(false);
+  const [newStageName, setNewStageName] = useState("");
+  const [newStageColor, setNewStageColor] = useState("#f97316");
+
+  // Popover state for exercise selector
+  const [openExercisePopover, setOpenExercisePopover] = useState<string | null>(null);
+
+  // Drag state
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [canDrag, setCanDrag] = useState(false);
+
+  // Get active day exercises sorted by order
+  const activeDayExercises = exercises
+    .filter((ex) => ex.day_id === activeDay)
+    .sort((a, b) => (a.order || 0) - (b.order || 0));
+
+  const handleCreateStage = async () => {
+    if (!newStageName.trim()) return;
+    const success = await createStage(newStageName, newStageColor);
+    if (success) {
+      setNewStageDialogOpen(false);
+      setNewStageName("");
+      setNewStageColor("#f97316");
+    }
+  };
 
   const onDragStart = (e: React.DragEvent, index: number) => {
+    if (!canDrag) {
+      e.preventDefault();
+      return;
+    }
     setDraggedIndex(index);
     e.dataTransfer.setData("text/plain", index.toString());
     e.dataTransfer.effectAllowed = "move";
-    
-    // Optional: Add a drag ghost style if needed, but default is fine
   };
 
   const onDragOver = (e: React.DragEvent, index: number) => {
@@ -104,14 +133,11 @@ export default function PlanificadorPage() {
     const newDayExercises = [...activeDayExercises];
     const draggedItem = newDayExercises[draggedIndex];
     
-    // Perform reorder within the active day
     newDayExercises.splice(draggedIndex, 1);
     newDayExercises.splice(index, 0, draggedItem);
     
-    // Update orders
     const updatedWithOrder = newDayExercises.map((ex, i) => ({ ...ex, order: i }));
     
-    // Sync with main exercises state
     const otherExercises = exercises.filter(ex => ex.day_id !== activeDay);
     setExercises([...otherExercises, ...updatedWithOrder]);
     
@@ -120,6 +146,7 @@ export default function PlanificadorPage() {
 
   const onDragEnd = () => {
     setDraggedIndex(null);
+    setCanDrag(false);
   };
 
   // Initialize dates
@@ -169,10 +196,7 @@ export default function PlanificadorPage() {
     return () => clearTimeout(timeout);
   }, [planTitle, startDate, endDate, days, exercises, activeDay]);
 
-  // Get exercises for active day
-  const activeDayExercises = exercises.filter((ex) => ex.day_id === activeDay);
-
-  // Add day
+  // Handlers moved up for organization
   const handleAddDay = () => {
     if (days.length >= 7) {
       toast.error("Máximo 7 días por semana");
@@ -247,9 +271,20 @@ export default function PlanificadorPage() {
     field: keyof PlanExercise,
     value: any,
   ) => {
-    setExercises(
-      exercises.map((ex) =>
+    setExercises((prev) =>
+      prev.map((ex) =>
         ex.id === exerciseId ? { ...ex, [field]: value } : ex,
+      ),
+    );
+  };
+
+  const handleUpdateExerciseFields = (
+    exerciseId: string,
+    updates: Partial<PlanExercise>,
+  ) => {
+    setExercises((prev) =>
+      prev.map((ex) =>
+        ex.id === exerciseId ? { ...ex, ...updates } : ex,
       ),
     );
   };
@@ -483,7 +518,7 @@ export default function PlanificadorPage() {
             <Table>
               <TableHeader className="bg-white">
                 <TableRow className="border-b border-gray-100 hover:bg-transparent">
-                  <TableHead className="text-xs font-bold text-gray-400 uppercase tracking-widest py-6 w-56 text-center">ETAPA</TableHead>
+                  <TableHead className="text-xs font-bold text-gray-400 uppercase tracking-widest py-6 w-40 text-center">ETAPA</TableHead>
                   <TableHead className="text-xs font-bold text-gray-400 uppercase tracking-widest w-12 text-center">#</TableHead>
                   <TableHead className="text-xs font-bold text-gray-400 uppercase tracking-widest">EJERCICIO</TableHead>
                   <TableHead className="text-xs font-bold text-gray-400 uppercase tracking-widest w-20 text-center">VIDEO</TableHead>
@@ -513,7 +548,7 @@ export default function PlanificadorPage() {
                     return (
                     <TableRow
                       key={ex.id}
-                      draggable
+                      draggable={canDrag}
                       onDragStart={(e) => onDragStart(e, index)}
                       onDragOver={(e) => onDragOver(e, index)}
                       onDragEnd={onDragEnd}
@@ -525,21 +560,19 @@ export default function PlanificadorPage() {
                       {draggedIndex === index && (
                         <td className="absolute top-0 left-0 right-0 h-[2px] bg-orange-600 z-50 pointer-events-none" style={{ width: '100%' }} />
                       )}
-                      <TableCell className="py-2 pl-0 w-56">
+                      <TableCell className="py-2 pl-0 w-40">
                         <div className="flex items-center h-full">
                           <div className="w-[5px] h-[52px] bg-gray-200 rounded-r-md mr-4 shrink-0 transition-colors" style={{ backgroundColor: stageColor !== "transparent" ? stageColor : "#e5e7eb" }} />
-                          <Select
-                            value={ex.stage_id || "none"}
-                            onValueChange={(value) => {
-                              const stage = stages.find((s) => s.id === value);
-                              handleUpdateExercise(ex.id, "stage_id", value);
-                              handleUpdateExercise(
-                                ex.id,
-                                "stage_name",
-                                stage?.name || null,
-                              );
-                            }}
-                          >
+                            <Select
+                              value={ex.stage_id || "none"}
+                              onValueChange={(val) => {
+                                const stage = stages.find((s) => s.id === val);
+                                handleUpdateExerciseFields(ex.id, {
+                                  stage_id: val === "none" ? null : val,
+                                  stage_name: stage?.name || null
+                                });
+                              }}
+                            >
                             <SelectTrigger className="w-full bg-white border border-gray-200 shadow-sm rounded-lg text-[11px] font-bold uppercase tracking-wider text-orange-600 shrink-1 h-10 px-3">
                               <SelectValue placeholder="SELECCIONAR ETAPA" />
                             </SelectTrigger>
@@ -562,43 +595,84 @@ export default function PlanificadorPage() {
                       </TableCell>
 
                       <TableCell className="w-12 text-center text-gray-300">
-                        <div className="cursor-grab active:cursor-grabbing p-2">
+                        <div 
+                          className="cursor-grab active:cursor-grabbing p-2 drag-handle"
+                          onMouseDown={() => setCanDrag(true)}
+                          onMouseUp={() => setCanDrag(false)}
+                        >
                           <GripVertical className="h-5 w-5 mx-auto" />
                         </div>
                       </TableCell>
 
-                      <TableCell>
-                        <Select
-                          value={ex.exercise_name || "empty"}
-                          onValueChange={(value) => {
-                            if(value === "empty") return;
-                            const exercise = libraryExercises.find(
-                              (e) => e.name === value,
-                            );
-                            handleUpdateExercise(ex.id, "exercise_name", value);
-                            if (exercise?.video_url) {
-                              handleUpdateExercise(
-                                ex.id,
-                                "video_url",
-                                exercise.video_url,
-                              );
-                            } else {
-                              handleUpdateExercise(ex.id, "video_url", null);
-                            }
-                          }}
+                      <TableCell className="relative w-72">
+                        <Popover 
+                          open={openExercisePopover === ex.id} 
+                          onOpenChange={(open) => setOpenExercisePopover(open ? ex.id : null)}
                         >
-                          <SelectTrigger className="w-full bg-transparent border-none shadow-none p-0 h-auto font-bold text-[14px] text-gray-800 focus:ring-0 [&>svg]:ml-4 [&>svg]:text-gray-400">
-                            <SelectValue placeholder="Seleccionar ejercicio..." />
-                          </SelectTrigger>
-                          <SelectContent className="bg-white border-gray-200 rounded-xl shadow-lg">
-                            <SelectItem value="empty" disabled className="hidden">Seleccionar ejercicio...</SelectItem>
-                            {libraryExercises.map((exercise) => (
-                              <SelectItem key={exercise.id} value={exercise.name}>
-                                {exercise.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          <PopoverTrigger asChild>
+                            <button className="w-full text-left bg-transparent border-none shadow-none p-0 h-auto font-bold text-[14px] text-gray-800 flex justify-between items-center group focus:outline-none">
+                              <span className="truncate pr-2">
+                                {ex.exercise_name || <span className="text-gray-400 font-medium">Seleccionar ejercicio...</span>}
+                              </span>
+                              <ChevronDown className="h-4 w-4 text-gray-400 group-hover:text-gray-600 transition-colors shrink-0" />
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[380px] p-0 bg-white border border-gray-200 rounded-xl shadow-lg" align="start">
+                            <Command className="bg-transparent border-none">
+                              <CommandInput 
+                                placeholder="Buscar ejercicio..." 
+                                className="h-11 border-b border-gray-100 placeholder:text-gray-400"
+                              />
+                              <CommandList className="max-h-[300px] overflow-y-auto p-2 scrollbar-hide">
+                                <CommandEmpty className="py-6 text-center text-sm text-gray-500">No se encontraron ejercicios.</CommandEmpty>
+                                <CommandGroup>
+                                  {libraryExercises.map((exercise) => {
+                                    // Make sure category exists for color coding
+                                    const catColor = (exercise as any).category?.color || "#e5e7eb";
+                                    const catName = (exercise as any).category?.name || "SIN CATEGORÍA";
+                                    
+                                    return (
+                                      <CommandItem
+                                        key={exercise.id}
+                                        value={exercise.name}
+                                        onSelect={() => {
+                                          handleUpdateExerciseFields(ex.id, {
+                                            exercise_name: exercise.name,
+                                            video_url: exercise.video_url || null
+                                          });
+                                          setOpenExercisePopover(null);
+                                        }}
+                                        className="flex flex-col items-start px-3 py-2.5 cursor-pointer rounded-lg hover:bg-gray-50 aria-selected:bg-gray-50 transition-colors border-b border-gray-50 last:border-0 mb-1"
+                                      >
+                                        <div className="flex w-full justify-between items-center mb-1.5">
+                                          <span className="font-semibold text-[14px] text-gray-800">{exercise.name}</span>
+                                          {exercise.video_url && (
+                                            <PlayCircle className="h-4 w-4 text-blue-500 shrink-0" />
+                                          )}
+                                        </div>
+                                        <div 
+                                          className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] font-bold tracking-wide uppercase"
+                                          style={{ 
+                                            backgroundColor: `${catColor}15`, 
+                                            borderColor: `${catColor}30`,
+                                            color: catColor
+                                          }}
+                                        >
+                                          <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: catColor }} />
+                                          {catName}
+                                        </div>
+                                      </CommandItem>
+                                    );
+                                  })}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                            <div className="px-3 py-2 bg-gray-50 border-t border-gray-100 text-[11px] font-medium text-gray-400 rounded-b-xl flex justify-between items-center">
+                              <span>{libraryExercises.length} ejercicios encontrados</span>
+                              <ChevronDown className="h-3.5 w-3.5" />
+                            </div>
+                          </PopoverContent>
+                        </Popover>
                       </TableCell>
 
                       <TableCell className="text-center">
@@ -696,7 +770,7 @@ export default function PlanificadorPage() {
           {/* Bottom buttons row */}
           <div className="flex gap-4 p-4 mt-2">
             <button
-              onClick={() => {}}
+              onClick={() => setNewStageDialogOpen(true)}
               className="px-6 py-[14px] flex items-center justify-center gap-2 text-[#a855f7] font-bold border-2 border-dashed border-[#e9d5ff] rounded-xl hover:bg-purple-50 hover:border-purple-300 transition-colors w-64 shrink-0 tracking-wide text-sm"
             >
               <Plus className="h-[18px] w-[18px]" />
@@ -751,6 +825,60 @@ export default function PlanificadorPage() {
               className="bg-orange-600 hover:bg-orange-700 text-white"
             >
               Guardar Plan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* New Stage Dialog */}
+      <Dialog open={newStageDialogOpen} onOpenChange={setNewStageDialogOpen}>
+        <DialogContent className="bg-white border-gray-200">
+          <DialogHeader>
+            <DialogTitle className="text-gray-900">
+              Nueva Etapa
+            </DialogTitle>
+            <DialogDescription className="text-gray-600">
+              Crea una nueva etapa para organizar los ejercicios en tu plan.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Nombre de la Etapa</Label>
+              <Input
+                value={newStageName}
+                onChange={(e) => setNewStageName(e.target.value)}
+                placeholder="Ej: Calentamiento, Fuerza, etc."
+                className="bg-gray-50 border-gray-200"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Color de Etiqueta</Label>
+              <div className="flex gap-2.5 flex-wrap">
+                {["#f97316", "#ef4444", "#3b82f6", "#10b981", "#8b5cf6", "#f59e0b", "#ec4899"].map((color) => (
+                  <button
+                    key={color}
+                    onClick={() => setNewStageColor(color)}
+                    className={`w-8 h-8 rounded-full transition-all focus:outline-none ${newStageColor === color ? 'ring-2 ring-offset-2 ring-gray-400 scale-110' : 'hover:scale-110'}`}
+                    style={{ backgroundColor: color }}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setNewStageDialogOpen(false)}
+              className="border-gray-300 hover:bg-gray-50 text-gray-700"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleCreateStage}
+              disabled={!newStageName.trim()}
+              className="bg-[#a855f7] hover:bg-purple-600 text-white disabled:opacity-50"
+            >
+              Crear Etapa
             </Button>
           </DialogFooter>
         </DialogContent>

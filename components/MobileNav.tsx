@@ -19,6 +19,9 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getUserProfile, UserProfile } from "@/lib/auth";
+import { useEffect } from "react";
+import { supabase } from "@/lib/supabase";
 import {
   Sheet,
   SheetContent,
@@ -45,9 +48,19 @@ export default function MobileNav() {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [planOpen, setPlanOpen] = useState(false);
 
-  function handleLogout() {
+  useEffect(() => {
+    async function loadProfile() {
+      const userProfile = await getUserProfile();
+      setProfile(userProfile);
+    }
+    loadProfile();
+  }, []);
+
+  async function handleLogout() {
+    await supabase.auth.signOut();
     setOpen(false);
     router.push("/");
   }
@@ -200,20 +213,22 @@ export default function MobileNav() {
                 </div>
 
                 {/* Administración */}
-                <Link
-                  href="/administracion"
-                  onClick={() => setOpen(false)}
-                  className={cn(
-                    "flex items-center gap-3 px-4 py-3 min-h-[44px] rounded-lg transition-all touch-manipulation",
-                    isAdminActive
-                      ? "text-white"
-                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-100",
-                  )}
-                  style={isAdminActive ? { backgroundColor: "#DC2626" } : {}}
-                >
-                  <ShieldCheck size={20} className="shrink-0" />
-                  <span className="text-base font-medium">Administración</span>
-                </Link>
+                {profile?.role === "Administrador" && (
+                  <Link
+                    href="/administracion"
+                    onClick={() => setOpen(false)}
+                    className={cn(
+                      "flex items-center gap-3 px-4 py-3 min-h-[44px] rounded-lg transition-all touch-manipulation",
+                      isAdminActive
+                        ? "text-white"
+                        : "text-gray-600 hover:text-gray-900 hover:bg-gray-100",
+                    )}
+                    style={isAdminActive ? { backgroundColor: "#DC2626" } : {}}
+                  >
+                    <ShieldCheck size={20} className="shrink-0" />
+                    <span className="text-base font-medium">Administración</span>
+                  </Link>
+                )}
 
                 {/* Comunicación */}
                 <Link
@@ -244,10 +259,10 @@ export default function MobileNav() {
                   </div>
                   <div className="flex flex-col min-w-0">
                     <span className="text-gray-900 text-sm font-semibold truncate">
-                      Secretaria
+                      {profile?.full_name || profile?.role || "Cargando..."}
                     </span>
                     <span className="text-gray-500 text-xs truncate">
-                      secretaria@alfaclub.com
+                      {profile?.email || ""}
                     </span>
                   </div>
                 </div>

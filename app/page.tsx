@@ -3,7 +3,9 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
-import { Eye, EyeOff, Mail, Lock, ArrowRight } from "lucide-react"
+import { Eye, EyeOff, Mail, Lock, ArrowRight, Loader2 } from "lucide-react"
+import { supabase } from "@/lib/supabase"
+import { getUserRole } from "@/lib/auth"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -11,9 +13,36 @@ export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
 
-  function handleLogin(e: React.FormEvent) {
+  const [loading, setLoading] = useState(false)
+  const [errorMsg, setErrorMsg] = useState("")
+
+  async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
-    router.push("/inicio")
+    setLoading(true)
+    setErrorMsg("")
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+
+    if (error) {
+      setErrorMsg("Correo o contraseña incorrectos.")
+      setLoading(false)
+      return
+    }
+
+    // Verificamos el rol para ver si puede ingresar al sistema
+    const role = await getUserRole()
+    
+    if (role === "Administrador" || role === "Recepcionista") {
+      router.push("/inicio")
+    } else {
+      // Si es Alumno o no tiene rol asignado, le cerramos sesión y mostramos error
+      await supabase.auth.signOut()
+      setErrorMsg("No tienes permisos para acceder a este panel.")
+      setLoading(false)
+    }
   }
 
   return (
@@ -102,14 +131,27 @@ export default function LoginPage() {
               </div>
             </div>
 
+            {errorMsg && (
+              <p className="text-sm font-medium text-red-600">
+                {errorMsg}
+              </p>
+            )}
+
             {/* Submit */}
             <button
               type="submit"
-              className="flex items-center justify-center gap-2 w-full py-3 rounded-lg font-semibold text-white text-sm transition-all hover:brightness-110 active:scale-[0.98] mt-1"
+              disabled={loading}
+              className="flex items-center justify-center gap-2 w-full py-3 rounded-lg font-semibold text-white text-sm transition-all hover:brightness-110 active:scale-[0.98] mt-1 disabled:opacity-70 disabled:cursor-not-allowed"
               style={{ backgroundColor: "#f97316" }}
             >
-              Iniciar Sesión
-              <ArrowRight size={16} />
+              {loading ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <>
+                  Iniciar Sesión
+                  <ArrowRight size={16} />
+                </>
+              )}
             </button>
           </form>
 
