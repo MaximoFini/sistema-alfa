@@ -21,6 +21,16 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -33,9 +43,13 @@ import {
   Trash2,
   Save,
   UserPlus,
-  Calendar as CalendarIcon,
-  ArrowUp,
-  ArrowDown,
+  ArrowRight,
+  Pencil,
+  GripVertical,
+  RotateCcw,
+  PlayCircle,
+  VideoOff,
+  Check,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -63,11 +77,50 @@ export default function PlanificadorPage() {
   // Modal states
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [isTemplate, setIsTemplate] = useState(false);
+  const [deleteDayDialogOpen, setDeleteDayDialogOpen] = useState(false);
+  const [dayToDeleteId, setDayToDeleteId] = useState<string | null>(null);
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
 
   // Hooks
   const { exercises: libraryExercises } = useExercises();
   const { stages } = useExerciseStages();
   const { savePlan } = useTrainingPlans();
+
+  // Reorder state
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+
+  const onDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedIndex(index);
+    e.dataTransfer.setData("text/plain", index.toString());
+    e.dataTransfer.effectAllowed = "move";
+    
+    // Optional: Add a drag ghost style if needed, but default is fine
+  };
+
+  const onDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === index) return;
+
+    const newDayExercises = [...activeDayExercises];
+    const draggedItem = newDayExercises[draggedIndex];
+    
+    // Perform reorder within the active day
+    newDayExercises.splice(draggedIndex, 1);
+    newDayExercises.splice(index, 0, draggedItem);
+    
+    // Update orders
+    const updatedWithOrder = newDayExercises.map((ex, i) => ({ ...ex, order: i }));
+    
+    // Sync with main exercises state
+    const otherExercises = exercises.filter(ex => ex.day_id !== activeDay);
+    setExercises([...otherExercises, ...updatedWithOrder]);
+    
+    setDraggedIndex(index);
+  };
+
+  const onDragEnd = () => {
+    setDraggedIndex(null);
+  };
 
   // Initialize dates
   useEffect(() => {
@@ -134,17 +187,33 @@ export default function PlanificadorPage() {
     setActiveDay(newDay.id);
   };
 
-  // Remove day
+  // Remove day trigger
   const handleRemoveDay = (dayId: string) => {
     if (days.length === 1) {
       toast.error("Debe haber al menos un día");
       return;
     }
-    setDays(days.filter((d) => d.id !== dayId));
-    setExercises(exercises.filter((ex) => ex.day_id !== dayId));
-    if (activeDay === dayId) {
-      setActiveDay(days[0].id);
+    setDayToDeleteId(dayId);
+    setDeleteDayDialogOpen(true);
+  };
+
+  // Confirm remove day
+  const confirmRemoveDay = () => {
+    if (!dayToDeleteId) return;
+    
+    setDays(days.filter((d) => d.id !== dayToDeleteId));
+    setExercises(exercises.filter((ex) => ex.day_id !== dayToDeleteId));
+    
+    if (activeDay === dayToDeleteId) {
+      const remainingDays = days.filter((d) => d.id !== dayToDeleteId);
+      if (remainingDays.length > 0) {
+        setActiveDay(remainingDays[0].id);
+      }
     }
+    
+    setDeleteDayDialogOpen(false);
+    setDayToDeleteId(null);
+    toast.success("Día eliminado");
   };
 
   // Rename day
@@ -265,231 +334,244 @@ export default function PlanificadorPage() {
     }
   };
 
+  const confirmResetDraft = () => {
+    setPlanTitle("Nuevo Plan de Entrenamiento");
+    setStartDate("");
+    setEndDate("");
+    setDays([{ id: generateId(), number: 1, name: "Día 1" }]);
+    setActiveDay(""); // Will be set by useEffect if days changes or handled manually
+    setExercises([]);
+    localStorage.removeItem("planificador-draft");
+    setResetDialogOpen(false);
+    toast.success("Borrador reiniciado");
+    
+    // Set active day to the new day
+    const newId = generateId();
+    const newDay = { id: newId, number: 1, name: "Día 1" };
+    setDays([newDay]);
+    setActiveDay(newId);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-10 shadow-sm">
-        <div className="max-w-7xl mx-auto p-4 md:p-6 space-y-4">
+      <div className="bg-white border-b border-gray-100 z-10 w-full pt-6">
+        <div className="w-full px-6 space-y-4">
           {/* Breadcrumb/indicator */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-xs text-gray-500">
-              <span>Planificación</span>
-              <span>/</span>
-              <span className="text-orange-600 font-medium">Planificador</span>
-            </div>
-            <div className="flex items-center gap-2 text-xs text-gray-500">
-              <div className="w-2 h-2 rounded-full bg-green-500" />
-              <span>Cambios guardados</span>
-            </div>
+          <div className="flex items-center text-sm text-gray-400 font-medium mb-2">
+            <span>Planificador</span>
+            <span className="mx-2">&gt;</span>
+            <span className="text-gray-900">Nuevo Plan</span>
           </div>
 
           {/* Title and actions */}
-          <div className="flex items-center justify-between gap-4">
-            <Input
-              value={planTitle}
-              onChange={(e) => setPlanTitle(e.target.value)}
-              className="text-2xl font-bold bg-transparent border-none p-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-gray-900 max-w-2xl"
-              placeholder="Nombre del plan..."
-            />
-            <div className="flex gap-3">
+          <div className="flex items-center justify-between gap-4 mb-2">
+            <div className="flex items-center gap-3">
+              <Input
+                value={planTitle}
+                onChange={(e) => setPlanTitle(e.target.value)}
+                className="text-3xl font-extrabold bg-transparent border-none p-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-gray-900 w-auto min-w-[300px]"
+                placeholder="Nombre del plan..."
+              />
+              <button className="text-gray-300 hover:text-gray-500 transition-colors p-1 rounded-md">
+                <Pencil className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="flex gap-4">
               <Button
                 variant="outline"
-                className="border-gray-300 hover:bg-gray-50 min-h-[40px] rounded-lg"
+                className="border-gray-200 hover:bg-gray-50 hover:text-gray-700 text-gray-700 font-semibold shadow-sm h-11 px-5 rounded-xl border-2"
+                onClick={() => setResetDialogOpen(true)}
+              >
+                <RotateCcw className="mr-2 h-4 w-4" />
+                Nuevo Borrador
+              </Button>
+              <Button
+                className="bg-orange-600 hover:bg-orange-700 text-white font-semibold shadow-sm h-11 px-5 rounded-xl transition-all"
                 onClick={() => setSaveDialogOpen(true)}
               >
                 <Save className="mr-2 h-4 w-4" />
                 Guardar en Biblioteca
               </Button>
-              <Button className="bg-orange-600 hover:bg-orange-700 text-white min-h-[40px] rounded-lg">
+              <Button className="bg-orange-600 hover:bg-orange-700 text-white font-semibold shadow-sm h-11 px-6 rounded-xl">
                 <UserPlus className="mr-2 h-4 w-4" />
-                Asignar a Alumno
+                Asignar plan a alumno
               </Button>
             </div>
           </div>
 
           {/* Date pickers */}
-          <div className="flex gap-4 items-end flex-wrap">
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Fecha de inicio</Label>
-              <div className="relative">
-                <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="pl-10 bg-white border-gray-200 rounded-lg min-h-[44px]"
-                />
+          <div className="flex items-center gap-4 mb-4 mt-8">
+            <div className="flex items-center gap-3 bg-gray-50 border border-gray-100 rounded-lg px-2 shadow-sm">
+              <Label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider pl-2">Desde</Label>
+              <Input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="bg-transparent border-none min-h-[40px] text-gray-700 font-semibold w-[150px] shadow-none focus-visible:ring-0 px-2"
+              />
+            </div>
+            <ArrowRight className="h-4 w-4 text-gray-300 mx-1" />
+            <div className="flex items-center gap-3 bg-gray-50 border border-gray-100 rounded-lg px-2 shadow-sm">
+              <Label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider pl-2">Hasta</Label>
+              <Input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="bg-transparent border-none min-h-[40px] text-gray-700 font-semibold w-[150px] shadow-none focus-visible:ring-0 px-2"
+              />
+            </div>
+            {startDate && endDate && (
+              <div className="flex items-center gap-2 text-gray-400 text-xs font-medium ml-2">
+                <span className="text-gray-200">|</span>
+                <span>
+                  {Math.ceil(Math.abs(new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1} días totales
+                </span>
+                <span className="text-gray-200">·</span>
+                <span>
+                  {Math.ceil((Math.ceil(Math.abs(new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1) / 7)} semanas
+                </span>
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Fecha de fin</Label>
-              <div className="relative">
-                <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="pl-10 bg-white border-gray-200 rounded-lg min-h-[44px]"
-                />
-              </div>
-            </div>
-            <div className="text-sm text-gray-600 pb-2">
-              {startDate && endDate && (
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold">
-                    {Math.ceil(
-                      (new Date(endDate).getTime() -
-                        new Date(startDate).getTime()) /
-                        (1000 * 60 * 60 * 24),
-                    )}{" "}
-                    días
-                  </span>
-                  <span className="text-gray-400">·</span>
-                  <span className="font-semibold">
-                    {Math.ceil(
-                      (new Date(endDate).getTime() -
-                        new Date(startDate).getTime()) /
-                        (1000 * 60 * 60 * 24 * 7),
-                    )}{" "}
-                    semanas
-                  </span>
-                </div>
-              )}
-            </div>
+            )}
           </div>
 
           {/* Day tabs */}
-          <div className="flex gap-2 overflow-x-auto pb-2">
+          <div className="flex items-center overflow-x-auto w-full pt-4 font-semibold">
             {days.map((day) => (
-              <div key={day.id} className="flex gap-1">
-                <Button
-                  variant={activeDay === day.id ? "default" : "outline"}
-                  className={`min-w-fit rounded-lg transition-all ${
+              <div key={day.id} className="group relative flex items-center">
+                <button
+                  className={`px-8 py-4 text-[15px] transition-all outline-none flex items-center gap-2 ${
                     activeDay === day.id
-                      ? "bg-orange-600 hover:bg-orange-700 text-white shadow-md"
-                      : "border-gray-200 hover:bg-gray-50 hover:border-gray-300 text-gray-700"
+                      ? "text-orange-600 border-b-[3px] border-orange-600"
+                      : "text-gray-500 hover:text-gray-700 border-b-[3px] border-transparent"
                   }`}
                   onClick={() => setActiveDay(day.id)}
                 >
-                  <input
-                    value={day.name}
-                    onChange={(e) => handleRenameDay(day.id, e.target.value)}
-                    className="bg-transparent border-none outline-none w-20 text-center font-medium"
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                </Button>
-                {days.length > 1 && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-10 w-10 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    onClick={() => handleRemoveDay(day.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                )}
+                  <span className="w-14 text-center cursor-default">
+                    {day.name}
+                  </span>
+                  {days.length > 1 && (
+                    <span 
+                      className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-100 rounded-md transition-opacity absolute right-1"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemoveDay(day.id);
+                      }}
+                    >
+                      <Trash2 className="h-3.5 w-3.5 text-gray-400 hover:text-red-500" />
+                    </span>
+                  )}
+                </button>
               </div>
             ))}
-            <Button
-              variant="outline"
+            <button
               onClick={handleAddDay}
               disabled={days.length >= 7}
-              className="border-gray-200 hover:bg-gray-50 hover:border-gray-300 text-gray-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-6 py-4 text-[13px] font-bold tracking-wide text-orange-600 hover:text-orange-700 transition-colors flex items-center outline-none disabled:opacity-50 disabled:cursor-not-allowed border-b-[3px] border-transparent uppercase"
             >
-              <Plus className="mr-2 h-4 w-4" />
-              Agregar Día
-            </Button>
+              <Plus className="mr-2 h-[18px] w-[18px] border-2 border-orange-600 rounded-full p-0.5" />
+              AGREGAR DÍA
+            </button>
           </div>
         </div>
       </div>
 
       {/* Exercise table */}
-      <div className="max-w-7xl mx-auto p-4 md:p-6">
-        <div className="bg-white rounded-xl border border-gray-200 shadow-md overflow-hidden">
-          <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-gray-50">
-            <h3 className="font-bold text-base text-gray-900">
-              Ejercicios - {days.find((d) => d.id === activeDay)?.name}
-            </h3>
-            <Button
-              onClick={handleAddExercise}
-              className="bg-orange-600 hover:bg-orange-700 text-white rounded-lg shadow-sm"
-              size="sm"
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Agregar Ejercicio
-            </Button>
-          </div>
-
+      <div className="w-full px-6 pt-6 pb-20">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="overflow-x-auto">
             <Table>
-              <TableHeader className="bg-gray-50">
-                <TableRow className="border-gray-200">
-                  <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wide w-8">#</TableHead>
-                  <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Etapa</TableHead>
-                  <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Ejercicio</TableHead>
-                  <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wide w-20">Series</TableHead>
-                  <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wide w-24">Reps</TableHead>
-                  <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wide w-24">Carga</TableHead>
-                  <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wide w-24">Pausa</TableHead>
-                  <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wide w-32">Acciones</TableHead>
+              <TableHeader className="bg-white">
+                <TableRow className="border-b border-gray-100 hover:bg-transparent">
+                  <TableHead className="text-xs font-bold text-gray-400 uppercase tracking-widest py-6 w-56 text-center">ETAPA</TableHead>
+                  <TableHead className="text-xs font-bold text-gray-400 uppercase tracking-widest w-12 text-center">#</TableHead>
+                  <TableHead className="text-xs font-bold text-gray-400 uppercase tracking-widest">EJERCICIO</TableHead>
+                  <TableHead className="text-xs font-bold text-gray-400 uppercase tracking-widest w-20 text-center">VIDEO</TableHead>
+                  <TableHead className="text-xs font-bold text-gray-400 uppercase tracking-widest w-24 text-center">SERIES</TableHead>
+                  <TableHead className="text-xs font-bold text-gray-400 uppercase tracking-widest w-24 text-center">REPS</TableHead>
+                  <TableHead className="text-xs font-bold text-gray-400 uppercase tracking-widest w-32 text-center">CARGA (KG)</TableHead>
+                  <TableHead className="text-xs font-bold text-gray-400 uppercase tracking-widest w-32 text-center">PAUSA (S)</TableHead>
+                  <TableHead className="text-xs font-bold text-gray-400 uppercase tracking-widest w-40 text-center">ESCRIBIR PESO</TableHead>
+                  <TableHead className="text-xs font-bold text-gray-400 uppercase tracking-widest min-w-[200px]">NOTAS</TableHead>
+                  <TableHead className="w-10"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {activeDayExercises.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={8}
+                      colSpan={11}
                       className="text-center py-12 text-gray-500"
                     >
-                      No hay ejercicios. Haz clic en "Agregar Ejercicio" para
+                      No hay ejercicios para estre día. Haz clic en "Agregar Nuevo Ejercicio" para
                       comenzar.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  activeDayExercises.map((ex, index) => (
+                  activeDayExercises.map((ex, index) => {
+                    const stageColor = stages.find(s => s.id === ex.stage_id)?.color || "transparent";
+                    return (
                     <TableRow
                       key={ex.id}
-                      className="border-gray-200 hover:bg-gray-50"
+                      draggable
+                      onDragStart={(e) => onDragStart(e, index)}
+                      onDragOver={(e) => onDragOver(e, index)}
+                      onDragEnd={onDragEnd}
+                      className={`border-b border-gray-100 hover:bg-gray-50/50 group relative transition-all duration-200 ${
+                        draggedIndex === index ? "opacity-40 bg-orange-50/50 shadow-inner" : ""
+                      }`}
                     >
-                      <TableCell className="text-gray-600 font-mono text-sm">
-                        {index + 1}
+                      {/* Insertion Line Indicator */}
+                      {draggedIndex === index && (
+                        <td className="absolute top-0 left-0 right-0 h-[2px] bg-orange-600 z-50 pointer-events-none" style={{ width: '100%' }} />
+                      )}
+                      <TableCell className="py-2 pl-0 w-56">
+                        <div className="flex items-center h-full">
+                          <div className="w-[5px] h-[52px] bg-gray-200 rounded-r-md mr-4 shrink-0 transition-colors" style={{ backgroundColor: stageColor !== "transparent" ? stageColor : "#e5e7eb" }} />
+                          <Select
+                            value={ex.stage_id || "none"}
+                            onValueChange={(value) => {
+                              const stage = stages.find((s) => s.id === value);
+                              handleUpdateExercise(ex.id, "stage_id", value);
+                              handleUpdateExercise(
+                                ex.id,
+                                "stage_name",
+                                stage?.name || null,
+                              );
+                            }}
+                          >
+                            <SelectTrigger className="w-full bg-white border border-gray-200 shadow-sm rounded-lg text-[11px] font-bold uppercase tracking-wider text-orange-600 shrink-1 h-10 px-3">
+                              <SelectValue placeholder="SELECCIONAR ETAPA" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-white border-gray-200 rounded-xl shadow-lg">
+                              <SelectItem value="none">SIN ETAPA</SelectItem>
+                              {stages.map((stage) => (
+                                <SelectItem key={stage.id} value={stage.id}>
+                                  <div className="flex items-center gap-2">
+                                    <div
+                                      className="w-3 h-3 rounded-full"
+                                      style={{ backgroundColor: stage.color }}
+                                    />
+                                    <span className="font-bold uppercase text-[11px]">{stage.name}</span>
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </TableCell>
+
+                      <TableCell className="w-12 text-center text-gray-300">
+                        <div className="cursor-grab active:cursor-grabbing p-2">
+                          <GripVertical className="h-5 w-5 mx-auto" />
+                        </div>
+                      </TableCell>
+
                       <TableCell>
                         <Select
-                          value={ex.stage_id || "none"}
+                          value={ex.exercise_name || "empty"}
                           onValueChange={(value) => {
-                            const stage = stages.find((s) => s.id === value);
-                            handleUpdateExercise(ex.id, "stage_id", value);
-                            handleUpdateExercise(
-                              ex.id,
-                              "stage_name",
-                              stage?.name || null,
-                            );
-                          }}
-                        >
-                          <SelectTrigger className="w-40 bg-white border-gray-200 rounded-lg">
-                            <SelectValue placeholder="Sin etapa" />
-                          </SelectTrigger>
-                          <SelectContent className="bg-white border-gray-200 rounded-xl shadow-lg">
-                            <SelectItem value="none">Sin etapa</SelectItem>
-                            {stages.map((stage) => (
-                              <SelectItem key={stage.id} value={stage.id}>
-                                <div className="flex items-center gap-2">
-                                  <div
-                                    className="w-3 h-3 rounded-full"
-                                    style={{ backgroundColor: stage.color }}
-                                  />
-                                  {stage.name}
-                                </div>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell>
-                        <Select
-                          value={ex.exercise_name || ""}
-                          onValueChange={(value) => {
+                            if(value === "empty") return;
                             const exercise = libraryExercises.find(
                               (e) => e.name === value,
                             );
@@ -500,13 +582,16 @@ export default function PlanificadorPage() {
                                 "video_url",
                                 exercise.video_url,
                               );
+                            } else {
+                              handleUpdateExercise(ex.id, "video_url", null);
                             }
                           }}
                         >
-                          <SelectTrigger className="min-w-[200px] bg-white border-gray-200 rounded-lg">
-                            <SelectValue placeholder="Seleccionar ejercicio" />
+                          <SelectTrigger className="w-full bg-transparent border-none shadow-none p-0 h-auto font-bold text-[14px] text-gray-800 focus:ring-0 [&>svg]:ml-4 [&>svg]:text-gray-400">
+                            <SelectValue placeholder="Seleccionar ejercicio..." />
                           </SelectTrigger>
                           <SelectContent className="bg-white border-gray-200 rounded-xl shadow-lg">
+                            <SelectItem value="empty" disabled className="hidden">Seleccionar ejercicio...</SelectItem>
                             {libraryExercises.map((exercise) => (
                               <SelectItem key={exercise.id} value={exercise.name}>
                                 {exercise.name}
@@ -515,7 +600,18 @@ export default function PlanificadorPage() {
                           </SelectContent>
                         </Select>
                       </TableCell>
-                      <TableCell>
+
+                      <TableCell className="text-center">
+                        {ex.video_url ? (
+                          <a href={ex.video_url} target="_blank" rel="noreferrer" className="inline-flex text-orange-600 hover:text-orange-700">
+                            <PlayCircle className="h-5 w-5 mx-auto" />
+                          </a>
+                        ) : (
+                          <VideoOff className="h-5 w-5 mx-auto text-gray-300" />
+                        )}
+                      </TableCell>
+
+                      <TableCell className="px-2">
                         <Input
                           type="number"
                           value={ex.series}
@@ -526,77 +622,93 @@ export default function PlanificadorPage() {
                               parseInt(e.target.value) || 0,
                             )
                           }
-                          className="w-16 bg-white border-gray-200"
+                          className="w-full text-center bg-gray-50/50 border border-gray-100 font-semibold text-gray-700 h-[38px] shadow-none rounded-lg"
                           min="1"
                         />
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="px-2">
                         <Input
                           value={ex.reps}
                           onChange={(e) =>
                             handleUpdateExercise(ex.id, "reps", e.target.value)
                           }
-                          className="w-20 bg-white border-gray-200"
+                          className="w-full text-center bg-gray-50/50 border border-gray-100 font-semibold text-gray-700 h-[38px] shadow-none rounded-lg"
                           placeholder="10"
                         />
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="px-2">
                         <Input
                           value={ex.carga}
                           onChange={(e) =>
                             handleUpdateExercise(ex.id, "carga", e.target.value)
                           }
-                          className="w-20 bg-white border-gray-200"
+                          className="w-full text-center bg-gray-50/50 border border-gray-100 font-semibold text-gray-700 h-[38px] shadow-none rounded-lg"
                           placeholder="-"
                         />
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="px-2">
                         <Input
                           value={ex.pause}
                           onChange={(e) =>
                             handleUpdateExercise(ex.id, "pause", e.target.value)
                           }
-                          className="w-20 bg-white border-gray-200"
+                          className="w-full text-center bg-gray-50/50 border border-gray-100 font-semibold text-gray-700 h-[38px] shadow-none rounded-lg"
                           placeholder="60s"
                         />
                       </TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-gray-600 hover:bg-gray-100"
-                            onClick={() => handleMoveExercise(ex.id, "up")}
-                            disabled={index === 0}
-                          >
-                            <ArrowUp className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-gray-600 hover:bg-gray-100"
-                            onClick={() => handleMoveExercise(ex.id, "down")}
-                            disabled={
-                              index === activeDayExercises.length - 1
-                            }
-                          >
-                            <ArrowDown className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-gray-600 hover:bg-red-50 hover:text-red-600"
-                            onClick={() => handleDeleteExercise(ex.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
+
+                      <TableCell className="text-center px-2">
+                        <button
+                          onClick={() => handleUpdateExercise(ex.id, "write_weight", !ex.write_weight)}
+                          className={`w-[26px] h-[26px] mx-auto rounded-md flex items-center justify-center transition-colors ${ex.write_weight ? 'bg-[#10b981] text-white' : 'border border-gray-300 bg-white hover:border-gray-400'}`}
+                        >
+                          {ex.write_weight && <Check className="h-4 w-4" strokeWidth={3} />}
+                        </button>
+                      </TableCell>
+
+                      <TableCell className="pr-4">
+                        <Input
+                          value={ex.notes || ""}
+                          onChange={(e) => handleUpdateExercise(ex.id, "notes", e.target.value)}
+                          placeholder="Notas..."
+                          className="w-full bg-transparent border-none shadow-none text-gray-400 placeholder:text-gray-300 focus-visible:ring-1 focus-visible:ring-gray-200 h-[38px] px-2 italic font-medium"
+                        />
+                      </TableCell>
+
+                      <TableCell className="w-10">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-gray-400 opacity-0 group-hover:opacity-100 hover:text-red-600 hover:bg-red-50 transition-all rounded-md"
+                          onClick={() => handleDeleteExercise(ex.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </TableCell>
                     </TableRow>
-                  ))
+                  );
+                })
                 )}
               </TableBody>
             </Table>
+          </div>
+
+          {/* Bottom buttons row */}
+          <div className="flex gap-4 p-4 mt-2">
+            <button
+              onClick={() => {}}
+              className="px-6 py-[14px] flex items-center justify-center gap-2 text-[#a855f7] font-bold border-2 border-dashed border-[#e9d5ff] rounded-xl hover:bg-purple-50 hover:border-purple-300 transition-colors w-64 shrink-0 tracking-wide text-sm"
+            >
+              <Plus className="h-[18px] w-[18px]" />
+              Nueva Etapa
+            </button>
+            <button
+              onClick={handleAddExercise}
+              className="flex-1 px-6 py-[14px] flex items-center justify-center gap-2 text-orange-600 font-bold border-2 border-dashed border-orange-600/20 rounded-xl hover:bg-orange-50 hover:border-orange-600/40 transition-colors tracking-wide text-[15px]"
+            >
+              <Plus className="h-5 w-5 bg-orange-600 text-white rounded-full p-0.5" />
+              Agregar Nuevo Ejercicio
+            </button>
           </div>
         </div>
       </div>
@@ -643,6 +755,47 @@ export default function PlanificadorPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* Confirm Delete Day Dialog */}
+      <AlertDialog open={deleteDayDialogOpen} onOpenChange={setDeleteDayDialogOpen}>
+        <AlertDialogContent className="bg-white border-gray-100">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-gray-900">¿Eliminar este día?</AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-600">
+              Se eliminarán todos los ejercicios configurados para este día. Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-gray-200 text-gray-700 hover:bg-gray-50">Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmRemoveDay}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              Eliminar Día
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Confirm Reset Draft Dialog */}
+      <AlertDialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+        <AlertDialogContent className="bg-white border-gray-100">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-gray-900">¿Reiniciar borrador?</AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-600">
+              Se perderán todos los cambios que no hayas guardado en la biblioteca. ¿Estás seguro de que quieres empezar de cero?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-gray-200 text-gray-700 hover:bg-gray-50">Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmResetDraft}
+              className="bg-orange-600 hover:bg-orange-700 text-white border-none"
+            >
+              Reiniciar Borrador
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

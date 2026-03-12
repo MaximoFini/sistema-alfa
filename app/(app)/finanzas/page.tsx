@@ -100,7 +100,7 @@ export default function FinanzasPage() {
   const cobrosPendientes = 3
 
   return (
-    <div className="p-6 lg:p-8 max-w-6xl mx-auto space-y-6">
+    <div className="p-6 lg:p-8 w-full space-y-6">
 
       {/* Header con indicador mensual */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">

@@ -125,7 +125,7 @@ export default function EstadisticasPage() {
   useEffect(() => { setMounted(true) }, [])
 
   return (
-    <div className="p-6 lg:p-8 max-w-6xl mx-auto space-y-6">
+    <div className="p-6 lg:p-8 w-full space-y-6">
       <h1 className="text-2xl font-bold text-gray-900">Estadísticas</h1>
 
       {/* Fila 1 — KPIs superiores */}

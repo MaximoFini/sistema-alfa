@@ -98,7 +98,7 @@ export default function Sidebar() {
               ? "text-white"
               : "text-gray-600 hover:text-gray-900 hover:bg-gray-100",
           )}
-          style={pathname === "/inicio" ? { backgroundColor: "#DC2626" } : {}}
+          style={pathname === "/inicio" ? { backgroundColor: "#ea580c" } : {}}
           title={collapsed ? "Alumnos" : undefined}
         >
           <Users size={18} className="shrink-0" />
@@ -121,7 +121,7 @@ export default function Sidebar() {
                 ? "text-white"
                 : "text-gray-600 hover:text-gray-900 hover:bg-gray-100",
             )}
-            style={isPlanActive ? { backgroundColor: "#DC2626" } : {}}
+            style={isPlanActive ? { backgroundColor: "#ea580c" } : {}}
             title={collapsed ? "Planificacion" : undefined}
           >
             <BookOpen size={18} className="shrink-0" />
@@ -172,7 +172,7 @@ export default function Sidebar() {
               ? "text-white"
               : "text-gray-600 hover:text-gray-900 hover:bg-gray-100",
           )}
-          style={isAdminActive ? { backgroundColor: "#DC2626" } : {}}
+          style={isAdminActive ? { backgroundColor: "#ea580c" } : {}}
           title={collapsed ? "Administracion" : undefined}
         >
           <ShieldCheck size={18} className="shrink-0" />
@@ -192,7 +192,7 @@ export default function Sidebar() {
               : "text-gray-600 hover:text-gray-900 hover:bg-gray-100",
           )}
           style={
-            pathname === "/comunicacion" ? { backgroundColor: "#DC2626" } : {}
+            pathname === "/comunicacion" ? { backgroundColor: "#ea580c" } : {}
           }
           title={collapsed ? "Comunicacion" : undefined}
         >
@@ -216,7 +216,7 @@ export default function Sidebar() {
               ? "text-white"
               : "text-gray-600 hover:text-gray-900 hover:bg-gray-100",
           )}
-          style={isIngresoActive ? { backgroundColor: "#DC2626" } : {}}
+          style={isIngresoActive ? { backgroundColor: "#ea580c" } : {}}
           title={collapsed ? "Ingreso Web" : undefined}
         >
           <MonitorCheck size={18} className="shrink-0" />

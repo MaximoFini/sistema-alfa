@@ -19,24 +19,13 @@ export default function LoginPage() {
   return (
     <div className="flex h-screen w-screen overflow-hidden">
       {/* Left panel - logo & dark background */}
-      <div
-        className="hidden lg:flex flex-1 items-center justify-center relative"
-        style={{
-          background: "linear-gradient(135deg, #1a0a0a 0%, #3d1010 40%, #8b2020 70%, #c0392b 100%)",
-        }}
-      >
+      <div className="hidden lg:flex flex-1 items-center justify-center relative bg-white">
         {/* Subtle texture overlay */}
-        <div
-          className="absolute inset-0 opacity-10"
-          style={{
-            backgroundImage:
-              "repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(0,0,0,0.1) 10px, rgba(0,0,0,0.1) 20px)",
-          }}
-        />
+
         <div className="relative z-10 flex flex-col items-center gap-4">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo%20sin%20fondo%20-%20Alfa%20Club-wZgRj4RXWHpEBDZCGUmX2BQpTRkF2F.png"
+            src="/Mejor logo.png"
             alt="Alfa Club Logo"
             width={320}
             style={{ height: "auto" }}
@@ -52,7 +41,7 @@ export default function LoginPage() {
           <div className="flex justify-center mb-8 lg:hidden">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo%20sin%20fondo%20-%20Alfa%20Club-wZgRj4RXWHpEBDZCGUmX2BQpTRkF2F.png"
+              src="/Mejor logo.png"
               alt="Alfa Club Logo"
               width={120}
               style={{ height: "auto" }}
@@ -69,7 +58,7 @@ export default function LoginPage() {
               <label className="text-sm font-medium text-gray-700">
                 Correo Electrónico
               </label>
-              <div className="flex items-center border border-gray-300 rounded-lg px-3 gap-2 bg-white focus-within:border-red-600 focus-within:ring-2 focus-within:ring-red-100 transition-all">
+              <div className="flex items-center border border-gray-300 rounded-lg px-3 gap-2 bg-white focus-within:border-[#f97316] focus-within:ring-2 focus-within:ring-orange-100 transition-all">
                 <Mail size={16} className="text-gray-400 shrink-0" />
                 <input
                   type="email"
@@ -89,12 +78,12 @@ export default function LoginPage() {
                 </label>
                 <button
                   type="button"
-                  className="text-xs font-medium text-red-600 hover:text-red-700 transition-colors"
+                  className="text-xs font-medium text-[#f97316] hover:brightness-110 transition-colors"
                 >
                   ¿Olvidaste tu contraseña?
                 </button>
               </div>
-              <div className="flex items-center border border-gray-300 rounded-lg px-3 gap-2 bg-white focus-within:border-red-600 focus-within:ring-2 focus-within:ring-red-100 transition-all">
+              <div className="flex items-center border border-gray-300 rounded-lg px-3 gap-2 bg-white focus-within:border-[#f97316] focus-within:ring-2 focus-within:ring-orange-100 transition-all">
                 <Lock size={16} className="text-gray-400 shrink-0" />
                 <input
                   type={showPassword ? "text" : "password"}
@@ -117,7 +106,7 @@ export default function LoginPage() {
             <button
               type="submit"
               className="flex items-center justify-center gap-2 w-full py-3 rounded-lg font-semibold text-white text-sm transition-all hover:brightness-110 active:scale-[0.98] mt-1"
-              style={{ backgroundColor: "#DC2626" }}
+              style={{ backgroundColor: "#f97316" }}
             >
               Iniciar Sesión
               <ArrowRight size={16} />
@@ -126,7 +115,7 @@ export default function LoginPage() {
 
           <p className="text-center text-sm text-gray-500 mt-6">
             ¿No tienes cuenta?{" "}
-            <button className="font-semibold text-red-600 hover:text-red-700 transition-colors">
+            <button className="font-semibold text-[#f97316] hover:brightness-110 transition-colors">
               Regístrate aquí
             </button>
           </p>

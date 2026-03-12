@@ -78,22 +78,10 @@ export default function PlanesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-6">
+      <div className="w-full p-4 md:p-8 space-y-6">
         {/* Header con navegación */}
         <div className="flex flex-col gap-6">
-          {/* Tabs de navegación */}
-          <div className="flex items-center gap-3 text-sm font-medium border-b border-gray-200 pb-3">
-            <span className="text-orange-600 font-semibold">
-              Planes y Rutinas
-            </span>
-            <span className="text-gray-300">|</span>
-            <Link 
-              href="/planificacion/base-ejercicios" 
-              className="text-gray-500 hover:text-gray-900 transition-colors"
-            >
-              Base de Ejercicios
-            </Link>
-          </div>
+
 
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
@@ -119,7 +107,7 @@ export default function PlanesPage() {
               placeholder="Buscar planes..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 border border-gray-200 rounded-lg px-4 py-3 text-base min-h-[44px] outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-50 transition-all"
+              className="pl-10 pr-4 border border-gray-200 rounded-lg py-3 text-base min-h-[44px] outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-50 transition-all"
             />
           </div>
         </div>
