@@ -1,14 +1,21 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { MessageCircle, Send, Users, ChevronDown, CheckCheck, Clock } from "lucide-react"
+import { useState } from "react";
+import {
+  MessageCircle,
+  Send,
+  Users,
+  ChevronDown,
+  CheckCheck,
+  Clock,
+} from "lucide-react";
 
 interface MensajeEnviado {
-  id: number
-  texto: string
-  destinatarios: string
-  fecha: string
-  cantidad: number
+  id: number;
+  texto: string;
+  destinatarios: string;
+  fecha: string;
+  cantidad: number;
 }
 
 const historial: MensajeEnviado[] = [
@@ -21,36 +28,35 @@ const historial: MensajeEnviado[] = [
   },
   {
     id: 2,
-    texto: "Recordamos que las cuotas deben abonarse antes del día 10. Muchas gracias.",
+    texto:
+      "Recordamos que las cuotas deben abonarse antes del día 10. Muchas gracias.",
     destinatarios: "Todos los alumnos activos",
     fecha: "01 Mar 2026 - 09:15",
     cantidad: 47,
   },
   {
     id: 3,
-    texto: "Este sábado no hay clases por mantenimiento del salón principal. Disculpen las molestias.",
+    texto:
+      "Este sábado no hay clases por mantenimiento del salón principal. Disculpen las molestias.",
     destinatarios: "Todos los alumnos activos",
     fecha: "22 Feb 2026 - 18:30",
     cantidad: 44,
   },
-]
-
-const LIMITE = 250
+];
 
 export default function ComunicacionPage() {
-  const [mensaje, setMensaje] = useState("")
-  const [enviando, setEnviando] = useState(false)
-  const [enviado, setEnviado] = useState(false)
-  const [msgs, setMsgs] = useState(historial)
-  const [expandido, setExpandido] = useState<number | null>(null)
+  const [mensaje, setMensaje] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const [enviado, setEnviado] = useState(false);
+  const [msgs, setMsgs] = useState(historial);
+  const [expandido, setExpandido] = useState<number | null>(null);
 
-  const restantes = LIMITE - mensaje.length
-  const puedeEnviar = mensaje.trim().length > 0 && mensaje.length <= LIMITE
+  const puedeEnviar = mensaje.trim().length > 0;
 
   async function handleEnviar() {
-    if (!puedeEnviar) return
-    setEnviando(true)
-    await new Promise((r) => setTimeout(r, 1200))
+    if (!puedeEnviar) return;
+    setEnviando(true);
+    await new Promise((r) => setTimeout(r, 1200));
     const nuevo: MensajeEnviado = {
       id: Date.now(),
       texto: mensaje.trim(),
@@ -63,17 +69,16 @@ export default function ComunicacionPage() {
         minute: "2-digit",
       }),
       cantidad: 47,
-    }
-    setMsgs((prev) => [nuevo, ...prev])
-    setMensaje("")
-    setEnviando(false)
-    setEnviado(true)
-    setTimeout(() => setEnviado(false), 3000)
+    };
+    setMsgs((prev) => [nuevo, ...prev]);
+    setMensaje("");
+    setEnviando(false);
+    setEnviado(true);
+    setTimeout(() => setEnviado(false), 3000);
   }
 
   return (
     <div className="p-6 lg:p-8 max-w-3xl mx-auto">
-
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">Comunicacion</h1>
@@ -86,14 +91,21 @@ export default function ComunicacionPage() {
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-6">
         {/* Card header */}
         <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100">
-          <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: "#fef2f2" }}>
+          <div
+            className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
+            style={{ backgroundColor: "#fef2f2" }}
+          >
             <MessageCircle size={18} style={{ color: "#DC2626" }} />
           </div>
           <div>
-            <p className="text-sm font-semibold text-gray-900">Mensaje General</p>
+            <p className="text-sm font-semibold text-gray-900">
+              Mensaje General
+            </p>
             <div className="flex items-center gap-1.5 mt-0.5">
               <Users size={12} className="text-gray-400" />
-              <span className="text-xs text-gray-500">Todos los alumnos activos · 47 contactos</span>
+              <span className="text-xs text-gray-500">
+                Todos los alumnos activos · 47 contactos
+              </span>
             </div>
           </div>
         </div>
@@ -103,18 +115,13 @@ export default function ComunicacionPage() {
           <textarea
             value={mensaje}
             onChange={(e) => setMensaje(e.target.value)}
-            placeholder={"Ej: El gimnasio abre el feriado de 9hs a 13hs. Los esperamos!"}
+            placeholder={
+              "Ej: El gimnasio abre el feriado de 9hs a 13hs. Los esperamos!"
+            }
             rows={5}
-            maxLength={LIMITE}
             className="w-full text-sm text-gray-800 placeholder:text-gray-400 outline-none resize-none leading-relaxed"
           />
-          <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
-            <span
-              className="text-xs"
-              style={{ color: restantes < 30 ? "#DC2626" : "#9ca3af" }}
-            >
-              {restantes} caracteres restantes
-            </span>
+          <div className="flex items-center justify-end mt-3 pt-3 border-t border-gray-100">
             <button
               onClick={handleEnviar}
               disabled={!puedeEnviar || enviando}
@@ -152,7 +159,9 @@ export default function ComunicacionPage() {
 
       {/* Historial */}
       <div>
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Historial de envios</p>
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
+          Historial de envios
+        </p>
         <div className="flex flex-col gap-2">
           {msgs.map((m) => (
             <div
@@ -164,11 +173,15 @@ export default function ComunicacionPage() {
                 onClick={() => setExpandido(expandido === m.id ? null : m.id)}
               >
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-gray-800 truncate font-medium">{m.texto}</p>
+                  <p className="text-sm text-gray-800 truncate font-medium">
+                    {m.texto}
+                  </p>
                   <div className="flex items-center gap-3 mt-1">
                     <div className="flex items-center gap-1">
                       <CheckCheck size={12} className="text-green-500" />
-                      <span className="text-xs text-gray-400">{m.cantidad} alumnos</span>
+                      <span className="text-xs text-gray-400">
+                        {m.cantidad} alumnos
+                      </span>
                     </div>
                     <span className="text-xs text-gray-400">{m.fecha}</span>
                   </div>
@@ -176,12 +189,17 @@ export default function ComunicacionPage() {
                 <ChevronDown
                   size={15}
                   className="text-gray-400 shrink-0 mt-0.5 transition-transform"
-                  style={{ transform: expandido === m.id ? "rotate(180deg)" : "rotate(0deg)" }}
+                  style={{
+                    transform:
+                      expandido === m.id ? "rotate(180deg)" : "rotate(0deg)",
+                  }}
                 />
               </button>
               {expandido === m.id && (
                 <div className="px-5 pb-4 border-t border-gray-50">
-                  <p className="text-sm text-gray-600 leading-relaxed mt-3">{m.texto}</p>
+                  <p className="text-sm text-gray-600 leading-relaxed mt-3">
+                    {m.texto}
+                  </p>
                   <div className="flex items-center gap-2 mt-3">
                     <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
                       {m.destinatarios}
@@ -194,5 +212,5 @@ export default function ComunicacionPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

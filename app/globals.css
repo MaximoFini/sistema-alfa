@@ -1,6 +1,6 @@
-@import 'tailwindcss';
-@import 'tw-animate-css';
-@import 'shadcn/tailwind.css';
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -31,12 +31,12 @@
   --chart-5: oklch(0.6 0.15 150);
   --radius: 0.75rem;
   /* Alfa Club brand tokens */
-  --brand-red: #DC2626;
+  --brand-red: #dc2626;
   --brand-black: #111111;
   --brand-white: #ffffff;
   --sidebar-bg: #111111;
   --sidebar-fg: #f1f1f1;
-  --sidebar-active-bg: #DC2626;
+  --sidebar-active-bg: #dc2626;
   --sidebar-active-fg: #ffffff;
   --sidebar-hover-bg: #1f1f1f;
   --sidebar: oklch(0.985 0 0);
@@ -85,8 +85,8 @@
 }
 
 @theme inline {
-  --font-sans: 'Inter', system-ui, sans-serif;
-  --font-mono: 'Geist Mono', 'Geist Mono Fallback';
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-mono: "Geist Mono", "Geist Mono Fallback";
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -131,5 +131,79 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* ========================================
+   Mobile-First & PWA Optimizations
+   ======================================== */
+
+/* Prevenir zoom en iOS al tocar inputs */
+@supports (-webkit-touch-callout: none) {
+  input[type="text"],
+  input[type="email"],
+  input[type="tel"],
+  input[type="number"],
+  input[type="password"],
+  input[type="date"],
+  input[type="search"],
+  select,
+  textarea {
+    font-size: 16px !important; /* iOS no hace zoom si el font-size es >= 16px */
+  }
+}
+
+/* Optimización táctil */
+.touch-manipulation {
+  touch-action: manipulation; /* Elimina delay de 300ms en taps */
+  -webkit-tap-highlight-color: transparent; /* Quita el highlight azul en iOS/Android */
+}
+
+/* Prevenir selección de texto en elementos UI (no copiables) */
+.select-none {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none; /* Previene menú contextual largo-press en iOS */
+}
+
+/* Scroll suave en toda la app */
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Optimizar scroll momentum en iOS */
+.overflow-y-auto,
+.overflow-x-auto {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Safe area para dispositivos con notch */
+@supports (padding: max(0px)) {
+  body {
+    padding-left: max(0px, env(safe-area-inset-left));
+    padding-right: max(0px, env(safe-area-inset-right));
+  }
+}
+
+/* Prevenir pull-to-refresh en Chrome Android (solo en scrollable containers) */
+body {
+  overscroll-behavior-y: contain;
+}
+
+/* Optimizaciones de rendimiento para animaciones táctiles */
+button,
+a,
+[role="button"] {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+
+/* Mejorar legibilidad en pantallas móviles */
+@media (max-width: 768px) {
+  body {
+    text-rendering: optimizeLegibility;
   }
 }
