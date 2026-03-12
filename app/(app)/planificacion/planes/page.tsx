@@ -43,6 +43,10 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import { useExportPlanPDF } from "@/hooks/use-export-plan-pdf";
+import PlanPDFTemplate from "@/components/PlanPDFTemplate";
+import { PlanPreviewModal } from "@/components/PlanPreviewModal";
+import { useRouter } from "next/navigation";
 import { useTrainingPlans } from "@/hooks/use-training-plans";
 
 export default function PlanesPage() {
@@ -53,7 +57,11 @@ export default function PlanesPage() {
     title: string;
   } | null>(null);
 
+  const [previewPlanId, setPreviewPlanId] = useState<string | null>(null);
+  const router = useRouter();
+
   const { plans, loading, deletePlan, duplicatePlan } = useTrainingPlans();
+  const { templateRef, pdfData, isExporting, exportPDF } = useExportPlanPDF();
 
   const filteredPlans = plans.filter((plan) =>
     plan.title.toLowerCase().includes(searchQuery.toLowerCase()),
@@ -74,6 +82,11 @@ export default function PlanesPage() {
 
   const handleDuplicate = async (planId: string) => {
     await duplicatePlan(planId);
+  };
+
+  const handleEdit = (planId: string) => {
+    // Navigate to planificador with planId
+    router.push(`/planificacion/planificador?id=${planId}`);
   };
 
   return (
@@ -147,103 +160,105 @@ export default function PlanesPage() {
             {filteredPlans.map((plan) => (
               <Card
                 key={plan.id}
-                className="bg-white border-gray-200 hover:shadow-xl transition-shadow duration-300 hover:border-orange-200 group cursor-pointer rounded-xl"
+                onClick={() => setPreviewPlanId(plan.id)}
+                className="bg-white border-gray-200 hover:shadow-xl hover:border-[#DC2626]/20 transition-all duration-300 group cursor-pointer rounded-2xl flex flex-col pt-2 shadow-sm relative overflow-hidden"
               >
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-bold text-base text-gray-900 truncate">
-                        {plan.title}
-                      </h3>
-                      <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
-                        <CalendarDays className="h-3.5 w-3.5" />
-                        <span className="font-medium">
-                          {plan.total_weeks} semanas · {plan.total_days} días
-                        </span>
-                      </div>
-                    </div>
+                <CardHeader className="pb-0 px-5 pt-4 flex-none space-y-0">
+                  <div className="flex items-start justify-between">
+                    <h3 className="font-bold text-lg text-[#0f172a] tracking-tight leading-tight line-clamp-2 pr-6">
+                      {plan.title}
+                    </h3>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 hover:bg-gray-100 rounded-lg"
+                          onClick={(e) => e.stopPropagation()}
+                          className="absolute right-3 top-3 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-700"
                         >
-                          <MoreVertical className="h-4 w-4 text-gray-600" />
+                          <MoreVertical className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent
                         align="end"
-                        className="bg-white border-gray-200 shadow-xl rounded-xl"
+                        className="bg-white border-gray-200 shadow-xl rounded-xl z-50 w-48 p-1"
                       >
-                        <DropdownMenuItem className="text-gray-700 hover:bg-gray-50 cursor-pointer rounded-lg">
-                          <Pencil className="mr-2 h-4 w-4" /> Editar
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="text-gray-700 hover:bg-gray-50 cursor-pointer rounded-lg">
-                          <UserPlus className="mr-2 h-4 w-4" /> Asignar
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="text-gray-700 hover:bg-gray-50 cursor-pointer rounded-lg"
-                          onClick={() => handleDuplicate(plan.id)}
+                        <DropdownMenuItem 
+                          className="text-gray-700 hover:bg-gray-50 cursor-pointer rounded-lg py-2"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEdit(plan.id);
+                          }}
                         >
-                          <Copy className="mr-2 h-4 w-4" /> Duplicar
+                          <Pencil className="mr-2 h-4 w-4 text-gray-500" /> Editar
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="text-gray-700 hover:bg-gray-50 cursor-pointer rounded-lg">
-                          <FileDown className="mr-2 h-4 w-4" /> Exportar PDF
+                        <DropdownMenuItem 
+                          className="text-gray-700 hover:bg-gray-50 cursor-pointer rounded-lg py-2"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <UserPlus className="mr-2 h-4 w-4 text-gray-500" /> Asignar
                         </DropdownMenuItem>
-                        <DropdownMenuSeparator className="bg-gray-200 my-1" />
                         <DropdownMenuItem
-                          className="text-red-600 hover:bg-red-50 cursor-pointer rounded-lg"
-                          onClick={() => handleDeleteClick(plan.id, plan.title)}
+                          className="text-gray-700 hover:bg-gray-50 cursor-pointer rounded-lg py-2"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDuplicate(plan.id);
+                          }}
+                        >
+                          <Copy className="mr-2 h-4 w-4 text-gray-500" /> Duplicar
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                           className="text-gray-700 hover:bg-gray-50 cursor-pointer rounded-lg py-2"
+                           disabled={isExporting}
+                           onClick={(e) => {
+                             e.stopPropagation();
+                             exportPDF(plan.id);
+                           }}
+                         >
+                           <FileDown className="mr-2 h-4 w-4 text-gray-500" />
+                           {isExporting ? "Generando PDF..." : "Exportar PDF"}
+                         </DropdownMenuItem>
+                        <DropdownMenuSeparator className="bg-gray-100 my-1 mx-2" />
+                        <DropdownMenuItem
+                          className="text-red-600 hover:bg-red-50 cursor-pointer rounded-lg py-2 focus:bg-red-50 focus:text-red-700"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteClick(plan.id, plan.title);
+                          }}
                         >
                           <Trash2 className="mr-2 h-4 w-4" /> Eliminar
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
+                  
+                  {/* The Badges */}
+                  <div className="flex items-center gap-2 mt-4 flex-wrap">
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-orange-50/70 border border-orange-100/50 text-orange-600">
+                      <CalendarDays className="h-3.5 w-3.5" />
+                      <span className="text-xs font-semibold">{plan.total_weeks} Semanas</span>
+                    </div>
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-slate-50 border border-slate-200/60 text-slate-600">
+                      <Calendar className="h-3.5 w-3.5" />
+                      <span className="text-xs font-medium">{plan.days_per_week} Días/Sem</span>
+                    </div>
+                  </div>
                 </CardHeader>
 
-                <CardContent className="py-3 space-y-3">
-                  {plan.description && (
-                    <p className="text-sm text-gray-600 line-clamp-2 min-h-[40px]">
-                      {plan.description}
-                    </p>
-                  )}
-                  <div className="flex items-center gap-2 text-xs text-gray-500">
-                    <Calendar className="h-3.5 w-3.5" />
-                    <span>
-                      {new Date(plan.start_date).toLocaleDateString("es-ES", {
-                        day: "numeric",
-                        month: "short",
-                      })}{" "}
-                      -{" "}
-                      {new Date(plan.end_date).toLocaleDateString("es-ES", {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                      })}
-                    </span>
-                  </div>
+                <CardContent className="flex-1 py-4">
+                   {/* Spacing for alignment, screenshot doesn't show description inside card immediately below badges, but keeping it empty and letting flex-1 handle stretching */}
                 </CardContent>
 
-                <CardFooter className="pt-3 border-t border-gray-100">
-                  <div className="flex items-center justify-between w-full">
-                    <Badge
-                      variant="outline"
-                      className="border-gray-200 text-gray-600 bg-gray-50 rounded-full px-3 py-1"
-                    >
-                      <Users className="mr-1.5 h-3 w-3" />
-                      {plan.assignedCount} asignado
-                      {plan.assignedCount !== 1 ? "s" : ""}
-                    </Badge>
-                    {plan.is_template && (
-                      <Badge
-                        variant="outline"
-                        className="border-orange-200 text-orange-700 bg-orange-50 rounded-full px-3 py-1"
-                      >
-                        Plantilla
-                      </Badge>
-                    )}
+                <CardFooter className="pt-4 pb-4 px-5 border-t border-gray-50 mt-auto flex items-center justify-between">
+                  <span className="text-sm font-medium text-slate-500">Asignado a:</span>
+                  <div className="flex items-center gap-1.5 text-orange-700">
+                    <div className="bg-orange-600 rounded-full h-7 w-7 flex items-center justify-center p-1.5 shadow-sm overflow-hidden text-white relative">
+                       <Users className="h-4 w-4 shrink-0 absolute -ml-1.5 -mb-0.5" />
+                       <Users className="h-5 w-5 shrink-0 ml-1.5" />
+                    </div>
+                    <span className="text-[15px] font-semibold tracking-tight">
+                      {plan.assignedCount || 1} alumno{plan.assignedCount !== 1 ? "s" : ""}
+                    </span>
                   </div>
                 </CardFooter>
               </Card>
@@ -280,6 +295,18 @@ export default function PlanesPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Template oculto fuera del viewport para captura con html2canvas */}
+      <PlanPDFTemplate ref={templateRef} data={pdfData} />
+
+      {/* Plan Preview Modal */}
+      <PlanPreviewModal
+        planId={previewPlanId}
+        isOpen={!!previewPlanId}
+        onClose={() => setPreviewPlanId(null)}
+        onEdit={handleEdit}
+        onDownload={exportPDF}
+      />
     </div>
   );
 }

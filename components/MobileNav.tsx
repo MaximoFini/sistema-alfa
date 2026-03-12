@@ -198,9 +198,10 @@ export default function MobileNav() {
                               className={cn(
                                 "flex items-center gap-3 px-3 py-2.5 min-h-[44px] rounded-lg transition-all text-sm font-medium touch-manipulation",
                                 active
-                                  ? "text-gray-900 bg-gray-100"
+                                  ? "text-[#DC2626]"
                                   : "text-gray-500 hover:text-gray-900 hover:bg-gray-100",
                               )}
+                              style={active ? { backgroundColor: "#FEF2F2" } : {}}
                             >
                               <Icon size={16} className="shrink-0" />
                               {label}

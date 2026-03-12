@@ -111,7 +111,7 @@ export default function Sidebar() {
               ? "text-white"
               : "text-gray-600 hover:text-gray-900 hover:bg-gray-100",
           )}
-          style={pathname === "/inicio" ? { backgroundColor: "#ea580c" } : {}}
+          style={pathname === "/inicio" ? { backgroundColor: "#DC2626" } : {}}
           title={collapsed ? "Alumnos" : undefined}
         >
           <Users size={18} className="shrink-0" />
@@ -134,7 +134,7 @@ export default function Sidebar() {
                 ? "text-white"
                 : "text-gray-600 hover:text-gray-900 hover:bg-gray-100",
             )}
-            style={isPlanActive ? { backgroundColor: "#ea580c" } : {}}
+            style={isPlanActive ? { backgroundColor: "#DC2626" } : {}}
             title={collapsed ? "Planificacion" : undefined}
           >
             <BookOpen size={18} className="shrink-0" />
@@ -162,9 +162,10 @@ export default function Sidebar() {
                     className={cn(
                       "flex items-center gap-2.5 px-2 py-2 rounded-lg transition-all text-xs font-medium",
                       active
-                        ? "text-gray-900 bg-gray-100"
+                        ? "text-[#DC2626]"
                         : "text-gray-500 hover:text-gray-900 hover:bg-gray-100",
                     )}
+                    style={active ? { backgroundColor: "#FEF2F2" } : {}}
                   >
                     <Icon size={14} className="shrink-0" />
                     {label}
@@ -186,7 +187,7 @@ export default function Sidebar() {
                 ? "text-white"
                 : "text-gray-600 hover:text-gray-900 hover:bg-gray-100",
             )}
-            style={isAdminActive ? { backgroundColor: "#ea580c" } : {}}
+            style={isAdminActive ? { backgroundColor: "#DC2626" } : {}}
             title={collapsed ? "Administracion" : undefined}
           >
             <ShieldCheck size={18} className="shrink-0" />
@@ -207,7 +208,7 @@ export default function Sidebar() {
               : "text-gray-600 hover:text-gray-900 hover:bg-gray-100",
           )}
           style={
-            pathname === "/comunicacion" ? { backgroundColor: "#ea580c" } : {}
+            pathname === "/comunicacion" ? { backgroundColor: "#DC2626" } : {}
           }
           title={collapsed ? "Comunicacion" : undefined}
         >
@@ -222,8 +223,6 @@ export default function Sidebar() {
       <div className="px-2 pb-1 shrink-0">
         <Link
           href="/ingreso-web"
-          target="_blank"
-          rel="noopener noreferrer"
           className={cn(
             "flex items-center rounded-lg transition-all duration-150",
             collapsed ? "justify-center px-2 py-3" : "gap-3 px-3 py-2.5",
@@ -231,7 +230,7 @@ export default function Sidebar() {
               ? "text-white"
               : "text-gray-600 hover:text-gray-900 hover:bg-gray-100",
           )}
-          style={isIngresoActive ? { backgroundColor: "#ea580c" } : {}}
+          style={isIngresoActive ? { backgroundColor: "#DC2626" } : {}}
           title={collapsed ? "Ingreso Web" : undefined}
         >
           <MonitorCheck size={18} className="shrink-0" />

@@ -48,7 +48,7 @@ export default function LoginPage() {
   return (
     <div className="flex h-screen w-screen overflow-hidden">
       {/* Left panel - logo & dark background */}
-      <div className="hidden lg:flex flex-1 items-center justify-center relative bg-white">
+      <div className="hidden lg:flex flex-1 items-center justify-center relative bg-[#fb923c]">
         {/* Subtle texture overlay */}
 
         <div className="relative z-10 flex flex-col items-center gap-4">
@@ -87,7 +87,7 @@ export default function LoginPage() {
               <label className="text-sm font-medium text-gray-700">
                 Correo Electrónico
               </label>
-              <div className="flex items-center border border-gray-300 rounded-lg px-3 gap-2 bg-white focus-within:border-[#f97316] focus-within:ring-2 focus-within:ring-orange-100 transition-all">
+              <div className="flex items-center border border-gray-300 rounded-lg px-3 gap-2 bg-white focus-within:border-[#fb923c] focus-within:ring-2 focus-within:ring-orange-100 transition-all">
                 <Mail size={16} className="text-gray-400 shrink-0" />
                 <input
                   type="email"
@@ -107,12 +107,12 @@ export default function LoginPage() {
                 </label>
                 <button
                   type="button"
-                  className="text-xs font-medium text-[#f97316] hover:brightness-110 transition-colors"
+                  className="text-xs font-medium text-[#fb923c] hover:brightness-110 transition-colors"
                 >
                   ¿Olvidaste tu contraseña?
                 </button>
               </div>
-              <div className="flex items-center border border-gray-300 rounded-lg px-3 gap-2 bg-white focus-within:border-[#f97316] focus-within:ring-2 focus-within:ring-orange-100 transition-all">
+              <div className="flex items-center border border-gray-300 rounded-lg px-3 gap-2 bg-white focus-within:border-[#fb923c] focus-within:ring-2 focus-within:ring-orange-100 transition-all">
                 <Lock size={16} className="text-gray-400 shrink-0" />
                 <input
                   type={showPassword ? "text" : "password"}
@@ -142,7 +142,7 @@ export default function LoginPage() {
               type="submit"
               disabled={loading}
               className="flex items-center justify-center gap-2 w-full py-3 rounded-lg font-semibold text-white text-sm transition-all hover:brightness-110 active:scale-[0.98] mt-1 disabled:opacity-70 disabled:cursor-not-allowed"
-              style={{ backgroundColor: "#f97316" }}
+              style={{ backgroundColor: "#fb923c" }}
             >
               {loading ? (
                 <Loader2 size={16} className="animate-spin" />
@@ -157,7 +157,7 @@ export default function LoginPage() {
 
           <p className="text-center text-sm text-gray-500 mt-6">
             ¿No tienes cuenta?{" "}
-            <button className="font-semibold text-[#f97316] hover:brightness-110 transition-colors">
+            <button className="font-semibold text-[#fb923c] hover:brightness-110 transition-colors">
               Regístrate aquí
             </button>
           </p>

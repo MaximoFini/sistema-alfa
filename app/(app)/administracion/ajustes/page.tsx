@@ -13,6 +13,8 @@ import {
   ToggleRight,
   Save,
   Percent,
+  Trash2,
+  CreditCard,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { supabase } from "@/lib/supabase"
@@ -24,6 +26,12 @@ interface Plan {
   nombre: string
   precio: number
   duracion_dias: number
+  activo: boolean
+}
+
+interface PaymentMethod {
+  id: string
+  nombre: string
   activo: boolean
 }
 
@@ -127,6 +135,13 @@ export default function AjustesPage() {
   const [saved, setSaved] = useState(false)
   const [loading, setLoading] = useState(true)
 
+  // Medios de pago
+  const [metodos, setMetodos] = useState<PaymentMethod[]>([])
+  const [editingMetodoId, setEditingMetodoId] = useState<string | null>(null)
+  const [editMetodoNombre, setEditMetodoNombre] = useState("")
+  const [newMetodoNombre, setNewMetodoNombre] = useState("")
+  const [showNewMetodo, setShowNewMetodo] = useState(false)
+
   useEffect(() => {
     async function loadData() {
       const { data: settings } = await supabase.from("system_settings").select("*").limit(1).single()
@@ -148,6 +163,15 @@ export default function AjustesPage() {
           precio: p.price,
           duracion_dias: p.duration_days,
           activo: p.is_active
+        })))
+      }
+
+      const { data: payMethods } = await supabase.from("payment_methods").select("*").order("name", { ascending: true })
+      if (payMethods) {
+        setMetodos(payMethods.map((m: any) => ({
+          id: m.id,
+          nombre: m.name,
+          activo: m.is_active
         })))
       }
       setLoading(false)
@@ -198,6 +222,53 @@ export default function AjustesPage() {
     }
   }
 
+  async function deletePlan(id: string) {
+    if (!confirm("¿Estás seguro de que deseas eliminar este plan?")) return
+    const { error } = await supabase.from("subscription_plans").delete().eq("id", id)
+    if (!error) {
+      setPlanes(p => p.filter(x => x.id !== id))
+    }
+  }
+
+  // ─── Payment Methods Logic ──────────────────────────────────────────────────
+  async function toggleMetodo(metodo: PaymentMethod) {
+    const { error } = await supabase.from("payment_methods").update({ is_active: !metodo.activo }).eq("id", metodo.id)
+    if (!error) {
+      setMetodos(m => m.map(x => x.id === metodo.id ? { ...x, activo: !metodo.activo } : x))
+    }
+  }
+
+  function startEditMetodo(metodo: PaymentMethod) {
+    setEditingMetodoId(metodo.id)
+    setEditMetodoNombre(metodo.nombre)
+  }
+
+  async function saveEditMetodo() {
+    if (!editingMetodoId || !editMetodoNombre.trim()) return
+    const { error } = await supabase.from("payment_methods").update({ name: editMetodoNombre.trim() }).eq("id", editingMetodoId)
+    if (!error) {
+      setMetodos(m => m.map(x => x.id === editingMetodoId ? { ...x, nombre: editMetodoNombre.trim() } : x))
+      setEditingMetodoId(null)
+    }
+  }
+
+  async function addMetodo() {
+    if (!newMetodoNombre.trim()) return
+    const { data, error } = await supabase.from("payment_methods").insert({ name: newMetodoNombre.trim(), is_active: true }).select().single()
+    if (data && !error) {
+      setMetodos(m => [...m, { id: data.id, nombre: data.name, activo: data.is_active }])
+      setNewMetodoNombre(""); setShowNewMetodo(false)
+    }
+  }
+
+  async function deleteMetodo(id: string) {
+    if (!confirm("¿Estás seguro de que deseas eliminar este medio de pago?")) return
+    const { error } = await supabase.from("payment_methods").delete().eq("id", id)
+    if (!error) {
+      setMetodos(m => m.filter(x => x.id !== id))
+    }
+  }
+
   async function handleSaveAll() {
     if (settingsId) {
       const update = {
@@ -216,167 +287,221 @@ export default function AjustesPage() {
 
   if (loading) {
     return (
-      <div className="p-12 flex justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#DC2626]"></div>
+      <div className="h-[calc(100vh-100px)] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-[#DC2626]"></div>
+          <p className="text-sm font-medium text-gray-500 animate-pulse">Cargando configuración...</p>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="p-6 lg:p-8 max-w-3xl mx-auto flex flex-col gap-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="p-4 lg:p-6 w-full mx-auto flex flex-col gap-6 bg-[#FAFAFA] min-h-screen">
+      {/* Header - Fixed to top feel */}
+      <div className="flex items-center justify-between bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
         <div>
-          <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">Ajustes de Negocio</h1>
-          <p className="text-sm text-gray-400 mt-1">Configura los parametros generales del gimnasio.</p>
+          <h1 className="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-3">
+            Ajustes de Negocio
+            <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
+          </h1>
+          <p className="text-sm text-gray-500 mt-1 font-medium">Control central de parámetros operativos y comerciales.</p>
         </div>
         <button
           onClick={handleSaveAll}
           className={cn(
-            "flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all",
+            "flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all shadow-sm active:scale-95",
             saved
-              ? "bg-green-100 text-green-700"
-              : "text-white hover:brightness-110"
+              ? "bg-green-500 text-white"
+              : "bg-[#DC2626] text-white hover:bg-red-700"
           )}
-          style={saved ? {} : { backgroundColor: "#DC2626" }}
         >
-          <Save size={15} />
-          {saved ? "Guardado" : "Guardar cambios"}
+          <Save size={16} />
+          {saved ? "¡Cambios Guardados!" : "Guardar cambios"}
         </button>
       </div>
 
+      {/* Main Bento Grid Layout */}
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+        
+        {/* Left Column: Alertas (The foundation) */}
+        <div className="xl:col-span-5 flex flex-col gap-6">
+          <Section icon={Bell} title="Alertas y Notificaciones" subtitle="Automatización de seguimiento y avisos">
+            <div className="space-y-1 mt-2">
+              <SettingRow
+                label="Días aviso vencimiento"
+                description="Días antes para notificar cuota."
+                value={diasVencimiento}
+                onChange={setDiasVencimiento}
+                suffix="días"
+              />
+              <SettingRow
+                label="Alerta nivel 1 (Riesgo)"
+                description="Días sin asistencia para seguimiento."
+                value={diasSinAsistencia30}
+                onChange={setDiasSinAsistencia30}
+                suffix="días"
+              />
+              <SettingRow
+                label="Alerta nivel 2 (Abandono)"
+                description="Segunda alerta de inactividad."
+                value={diasSinAsistencia60}
+                onChange={setDiasSinAsistencia60}
+                suffix="días"
+              />
+              <SettingRow
+                label="Alerta nivel 3 (Crítica)"
+                description="Alerta roja por falta de asistencia."
+                value={diasSinAsistencia90}
+                onChange={setDiasSinAsistencia90}
+                suffix="días"
+              />
+              <SettingRow
+                label="Baja por inactividad"
+                description="Días para pasar a estado Inactivo."
+                value={diasInactivo}
+                onChange={setDiasInactivo}
+                suffix="días"
+              />
+              <SettingRow
+                label="Alumno Perdido"
+                description="Días sin renovación para marcar como perdido."
+                value={diasPerdido}
+                onChange={setDiasPerdido}
+                suffix="días"
+              />
+            </div>
+          </Section>
 
-
-      {/* ── Alertas ── */}
-      <Section icon={Bell} title="Alertas y Notificaciones" subtitle="Parametros para avisos automaticos y seguimiento de alumnos">
-        <div className="flex flex-col gap-0 pt-2">
-          <SettingRow
-            label="Dias antes del vencimiento para notificar"
-            description="Se envia aviso al alumno cuando le faltan estos dias para vencer su cuota."
-            value={diasVencimiento}
-            onChange={setDiasVencimiento}
-            suffix="dias"
-          />
-          <SettingRow
-            label="Dias sin asistencia — Alerta nivel 1"
-            description="A partir de estos dias sin venir, el alumno pasa a estado de seguimiento."
-            value={diasSinAsistencia30}
-            onChange={setDiasSinAsistencia30}
-            suffix="dias"
-          />
-          <SettingRow
-            label="Dias sin asistencia — Alerta nivel 2"
-            description="Segunda alerta de riesgo de abandono."
-            value={diasSinAsistencia60}
-            onChange={setDiasSinAsistencia60}
-            suffix="dias"
-          />
-          <SettingRow
-            label="Dias sin asistencia — Alerta nivel 3"
-            description="Alerta critica: el alumno esta en riesgo alto de perderse."
-            value={diasSinAsistencia90}
-            onChange={setDiasSinAsistencia90}
-            suffix="dias"
-          />
-          <SettingRow
-            label="Dias tras vencimiento para marcar como inactivo"
-            description="Cuantos dias despues del vencimiento se considera al alumno inactivo."
-            value={diasInactivo}
-            onChange={setDiasInactivo}
-            suffix="dias"
-          />
-          <SettingRow
-            label="Dias sin renovacion para marcar como perdido"
-            description="A partir de este periodo sin renovar, el alumno se clasifica como perdido."
-            value={diasPerdido}
-            onChange={setDiasPerdido}
-            suffix="dias"
-          />
-        </div>
-      </Section>
-
-      {/* ── Planes ── */}
-      <Section icon={Tag} title="Categorias y Planes" subtitle="Crea, edita o desactiva los tipos de suscripcion disponibles">
-        <div className="flex flex-col gap-2 pt-3">
-          {planes.map(plan => (
-            <div
-              key={plan.id}
-              className={cn(
-                "flex items-center gap-3 px-4 py-3 rounded-xl border transition-all",
-                plan.activo ? "border-gray-100 bg-gray-50" : "border-gray-100 bg-white opacity-50"
-              )}
-            >
-              {editingId === plan.id ? (
-                <div className="flex items-center gap-3 w-full flex-wrap sm:flex-nowrap">
-                  <input value={editNombre} onChange={e => setEditNombre(e.target.value)}
-                    placeholder="Nombre" className="flex-1 border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm outline-none focus:border-red-400 bg-white min-w-[120px]" />
-                  <div className="flex items-center gap-1">
-                    <span className="text-sm text-gray-400">$</span>
-                    <input value={editPrecio} onChange={e => setEditPrecio(e.target.value)} type="number"
-                      placeholder="Precio" className="w-20 border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm outline-none focus:border-red-400 bg-white text-right" />
+          {/* New Payment Methods Section integrated here for density */}
+          <Section icon={CreditCard} title="Medios de Pago" subtitle="Configuración de pasarelas y cobros">
+            <div className="flex flex-col gap-2 mt-3 max-h-[400px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-200">
+              {metodos.map(metodo => (
+                <div key={metodo.id} className={cn("flex items-center gap-3 px-4 py-3 rounded-xl border group transition-all", metodo.activo ? "bg-white border-gray-100 shadow-sm" : "bg-gray-50/50 border-gray-100 opacity-60")}>
+                  {editingMetodoId === metodo.id ? (
+                    <div className="flex items-center gap-3 w-full">
+                      <input value={editMetodoNombre} onChange={e => setEditMetodoNombre(e.target.value)} autoFocus className="flex-1 bg-white border border-red-200 rounded-lg px-2.5 py-1.5 text-sm outline-none shadow-inner" />
+                      <button onClick={saveEditMetodo} className="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-all"><Save size={14} /></button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex-1 min-w-0">
+                        <span className="text-sm font-bold text-gray-800">{metodo.nombre}</span>
+                      </div>
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => startEditMetodo(metodo)} className="p-1.5 text-gray-400 hover:text-gray-900 transition-colors"><Pencil size={14} /></button>
+                        <button onClick={() => deleteMetodo(metodo.id)} className="p-1.5 text-gray-400 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
+                      </div>
+                      <button onClick={() => toggleMetodo(metodo)} className="shrink-0">
+                        {metodo.activo ? <ToggleRight size={24} className="text-[#DC2626]" /> : <ToggleLeft size={24} className="text-gray-300" />}
+                      </button>
+                    </>
+                  )}
+                </div>
+              ))}
+              {showNewMetodo ? (
+                <div className="p-3 bg-red-50/30 border border-dashed border-red-200 rounded-xl space-y-3">
+                  <input value={newMetodoNombre} onChange={e => setNewMetodoNombre(e.target.value)} placeholder="Nombre del medio..." className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-red-400" autoFocus />
+                  <div className="flex justify-end gap-2">
+                    <button onClick={() => setShowNewMetodo(false)} className="text-xs font-bold text-gray-400 hover:text-gray-600 px-2">Cancelar</button>
+                    <button onClick={addMetodo} className="bg-[#DC2626] text-white text-xs font-bold px-4 py-1.5 rounded-lg hover:brightness-110 transition-all">Agregar</button>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <input value={editDuracion} onChange={e => setEditDuracion(e.target.value)} type="number"
-                      placeholder="Días" className="w-16 border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm outline-none focus:border-red-400 bg-white text-right" />
-                    <span className="text-sm text-gray-400">días</span>
-                  </div>
-                  <button onClick={saveEdit} className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-xs font-bold transition-all hover:brightness-110 sm:w-auto w-full mt-2 sm:mt-0" style={{ backgroundColor: "#DC2626" }}>
-                    <Save size={12} /> Guardar
-                  </button>
                 </div>
               ) : (
-                <>
-                  <div className="flex-1 flex flex-col min-w-0">
-                    <span className="text-sm font-semibold text-gray-900 truncate">{plan.nombre}</span>
-                    <span className="text-xs text-gray-400">
-                      ${plan.precio.toLocaleString("es-AR")} • {plan.duracion_dias} días
-                    </span>
-                  </div>
-                  <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full shrink-0", plan.activo ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-400")}>
-                    {plan.activo ? "Activo" : "Inactivo"}
-                  </span>
-                  <div className="flex items-center shrink-0">
-                    <button onClick={() => startEdit(plan)} className="text-gray-400 hover:text-gray-700 transition-colors p-1.5 rounded-lg hover:bg-white" title="Editar">
-                      <Pencil size={14} />
-                    </button>
-                    <button onClick={() => togglePlan(plan)} className="text-gray-400 hover:text-gray-700 transition-colors p-1.5 rounded-lg hover:bg-white" title={plan.activo ? "Desactivar" : "Activar"}>
-                      {plan.activo ? <ToggleRight size={18} style={{ color: "#DC2626" }} /> : <ToggleLeft size={18} />}
-                    </button>
-                  </div>
-                </>
+                <button onClick={() => setShowNewMetodo(true)} className="py-3 items-center justify-center flex gap-2 border border-dashed border-gray-200 rounded-xl text-gray-400 hover:text-red-500 hover:border-red-200 hover:bg-red-50/10 transition-all text-xs font-bold mt-1">
+                  <Plus size={14} /> Nuevo medio de pago
+                </button>
               )}
             </div>
-          ))}
-
-          {/* New plan form */}
-          {showNew ? (
-            <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-dashed border-red-200 bg-red-50/40 mt-1 flex-wrap sm:flex-nowrap">
-              <input value={newNombre} onChange={e => setNewNombre(e.target.value)}
-                placeholder="Nombre del plan" className="flex-1 border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm outline-none focus:border-red-400 bg-white min-w-[120px]" />
-              <div className="flex items-center gap-1">
-                <span className="text-sm text-gray-400">$</span>
-                <input value={newPrecio} onChange={e => setNewPrecio(e.target.value)} type="number"
-                  placeholder="Precio" className="w-20 border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm outline-none focus:border-red-400 bg-white text-right" />
-              </div>
-              <div className="flex items-center gap-1">
-                <input value={newDuracion} onChange={e => setNewDuracion(e.target.value)} type="number"
-                  placeholder="Días" className="w-16 border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm outline-none focus:border-red-400 bg-white text-right" />
-                <span className="text-sm text-gray-400">días</span>
-              </div>
-              <button onClick={addPlan} className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-xs font-bold hover:brightness-110 transition-all sm:w-auto w-full mt-2 sm:mt-0" style={{ backgroundColor: "#DC2626" }}>
-                <Save size={12} /> Agregar
-              </button>
-              <button onClick={() => { setShowNew(false); setNewNombre(""); setNewPrecio(""); setNewDuracion("") }} className="text-xs text-gray-400 hover:text-gray-600 px-2 sm:w-auto w-full text-center">
-                Cancelar
-              </button>
-            </div>
-          ) : (
-            <button onClick={() => setShowNew(true)} className="flex items-center gap-2 text-sm font-medium mt-1 px-4 py-2.5 rounded-xl border border-dashed border-gray-200 text-gray-400 hover:border-red-300 hover:text-red-500 transition-all">
-              <Plus size={15} /> Nuevo plan
-            </button>
-          )}
+          </Section>
         </div>
-      </Section>
+
+        {/* Right Column: Planes (The intensive part) */}
+        <div className="xl:col-span-7 flex flex-col gap-6 h-full">
+          <Section icon={Tag} title="Categorías y Planes" subtitle="Catálogo de servicios y suscripciones" defaultOpen={true}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+              {planes.map(plan => (
+                <div key={plan.id} className={cn("flex flex-col gap-3 p-4 rounded-2xl border transition-all relative group", plan.activo ? "bg-white border-gray-100 shadow-sm hover:shadow-md hover:border-red-100" : "bg-gray-50/50 border-gray-100 opacity-60")}>
+                  {editingId === plan.id ? (
+                    <div className="flex flex-col gap-3">
+                      <input value={editNombre} onChange={e => setEditNombre(e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm font-bold" />
+                      <div className="flex gap-2">
+                        <div className="relative flex-1">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">$</span>
+                          <input type="number" value={editPrecio} onChange={e => setEditPrecio(e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-lg pl-6 pr-3 py-2 text-sm" />
+                        </div>
+                        <div className="relative flex-1">
+                          <input type="number" value={editDuracion} onChange={e => setEditDuracion(e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]">días</span>
+                        </div>
+                      </div>
+                      <div className="flex justify-end gap-2 pt-1">
+                        <button onClick={() => setEditingId(null)} className="text-xs font-bold text-gray-400 px-3">Cancelar</button>
+                        <button onClick={saveEdit} className="bg-[#DC2626] text-white text-xs font-bold px-4 py-2 rounded-lg"><Save size={12} className="inline mr-1" /> Guardar</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-sm font-black text-gray-900 truncate">{plan.nombre}</span>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-lg font-bold text-[#DC2626] tracking-tight">
+                              ${plan.precio.toLocaleString("es-AR")}
+                            </span>
+                            <span className="text-[10px] uppercase tracking-widest font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                              {plan.duracion_dias} días
+                            </span>
+                          </div>
+                        </div>
+                        <button onClick={() => togglePlan(plan)} className="transition-transform active:scale-90">
+                          {plan.activo ? <ToggleRight size={24} className="text-[#DC2626]" /> : <ToggleLeft size={24} className="text-gray-300" />}
+                        </button>
+                      </div>
+                      
+                      <div className="flex items-center justify-end gap-1 pt-2 border-t border-gray-50 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => startEdit(plan)} className="p-2 text-gray-400 hover:text-gray-900 transition-all hover:bg-gray-100 rounded-lg" title="Editar"><Pencil size={14} /></button>
+                        <button onClick={() => deletePlan(plan.id)} className="p-2 text-gray-400 hover:text-red-500 transition-all hover:bg-red-50 rounded-lg" title="Eliminar"><Trash2 size={14} /></button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))}
+              
+              {showNew ? (
+                <div className="p-5 border-2 border-dashed border-red-200 bg-red-50/20 rounded-2xl flex flex-col gap-4">
+                  <div className="space-y-3">
+                    <input value={newNombre} onChange={e => setNewNombre(e.target.value)} placeholder="Nombre del plan (Ej: Trimestral)" className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-bold shadow-sm outline-none focus:border-red-400" />
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">$</span>
+                        <input type="number" value={newPrecio} onChange={e => setNewPrecio(e.target.value)} placeholder="Precio" className="w-full bg-white border border-gray-200 rounded-xl pl-7 pr-4 py-2 text-sm outline-none" />
+                      </div>
+                      <div className="relative">
+                        <input type="number" value={newDuracion} onChange={e => setNewDuracion(e.target.value)} placeholder="Semanas/Días" className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2 text-sm outline-none" />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-[10px] font-bold">DÍAS</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex justify-end items-center gap-4">
+                    <button onClick={() => setShowNew(false)} className="text-xs font-black text-gray-400 hover:text-gray-600">CANCELAR</button>
+                    <button onClick={addPlan} className="bg-[#DC2626] text-white px-6 py-2.5 rounded-xl text-xs font-black shadow-lg shadow-red-100 hover:scale-[1.02] transition-all flex items-center gap-2">
+                      <Plus size={16} /> CREAR PLAN
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button onClick={() => setShowNew(true)} className="flex flex-col items-center justify-center p-8 rounded-2xl border-2 border-dashed border-gray-200 text-gray-400 hover:border-red-300 hover:text-red-500 hover:bg-red-50/10 transition-all gap-2 group min-h-[140px]">
+                  <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center group-hover:bg-red-100 transition-all">
+                    <Plus size={20} className="group-hover:text-red-500" />
+                  </div>
+                  <span className="text-xs font-black uppercase tracking-widest">Añadir Nuevo Plan</span>
+                </button>
+              )}
+            </div>
+          </Section>
+        </div>
+      </div>
     </div>
   )
 }

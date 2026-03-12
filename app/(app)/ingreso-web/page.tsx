@@ -150,11 +150,11 @@ export default function IngresoWebPage() {
     return (
       <div
         className="fixed inset-0 z-50"
-        style={{ backgroundColor: "#F97316" }}
+        style={{ backgroundColor: "#fb923c" }}
       >
         <main
           className="min-h-screen flex flex-col"
-          style={{ backgroundColor: "#F97316" }}
+          style={{ backgroundColor: "#fb923c" }}
         >
           {/* Header negro con logo y campo de búsqueda */}
           <header className="bg-[#111111] border-b border-white/10 px-6 py-3 flex items-center justify-between shrink-0 gap-4">
@@ -174,7 +174,7 @@ export default function IngresoWebPage() {
               <div className="leading-none">
                 <p
                   className="font-extrabold text-base tracking-widest uppercase"
-                  style={{ color: "#F97316" }}
+                  style={{ color: "#fb923c" }}
                 >
                   ALFA CLUB
                 </p>
