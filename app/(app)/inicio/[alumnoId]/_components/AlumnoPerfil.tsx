@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, UserCircle2, ClipboardList, CreditCard } from "lucide-react";
 import PanelInfoPersonal from "./PanelInfoPersonal";
 import TabAsistencias from "./TabAsistencias";
 import TabPagos from "./TabPagos";
@@ -44,6 +44,11 @@ interface Pago {
   fecha_vencimiento: string;
 }
 
+const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
+  { key: "asistencias", label: "Asistencias", icon: <ClipboardList size={15} /> },
+  { key: "pagos", label: "Pagos", icon: <CreditCard size={15} /> },
+];
+
 export default function AlumnoPerfil({
   alumno,
   asistencias,
@@ -56,59 +61,60 @@ export default function AlumnoPerfil({
   const [tabActivo, setTabActivo] = useState<Tab>("asistencias");
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 max-w-[1400px] mx-auto">
-      {/* Header con botón volver */}
-      <div className="flex items-center gap-3 mb-6">
+    <div className="min-h-screen bg-background">
+      {/* Top bar */}
+      <div className="border-b border-border bg-card px-4 md:px-8 py-3 flex items-center gap-3">
         <Link
           href="/inicio"
-          className="flex items-center gap-2 text-gray-500 hover:text-gray-800 transition-colors text-sm font-medium"
+          className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors text-sm font-medium"
         >
-          <ArrowLeft size={16} />
+          <ArrowLeft size={15} />
           Volver
         </Link>
-        <span className="text-gray-300">/</span>
-        <h1 className="text-lg font-bold text-gray-900">{alumno.nombre}</h1>
+        <span className="text-border">/</span>
+        <div className="flex items-center gap-2 text-foreground">
+          <UserCircle2 size={15} className="text-muted-foreground" />
+          <span className="text-sm font-semibold text-balance">{alumno.nombre}</span>
+        </div>
       </div>
 
-      {/* Layout de dos columnas */}
-      <div className="flex flex-col lg:flex-row gap-6">
-        {/* Columna izquierda: info personal */}
-        <div className="w-full lg:w-72 shrink-0">
-          <PanelInfoPersonal alumno={alumno} />
-        </div>
+      {/* Main layout */}
+      <div className="flex flex-col lg:flex-row min-h-[calc(100vh-49px)]">
+        {/* Panel lateral */}
+        <aside className="w-full lg:w-72 xl:w-80 shrink-0 border-b lg:border-b-0 lg:border-r border-border bg-card">
+          <div className="lg:sticky lg:top-0 lg:max-h-screen lg:overflow-y-auto">
+            <PanelInfoPersonal alumno={alumno} />
+          </div>
+        </aside>
 
-        {/* Columna derecha: tabs */}
-        <div className="flex-1 min-w-0">
-          {/* Tab switcher */}
-          <div className="flex border-b border-gray-200 mb-6">
-            <button
-              onClick={() => setTabActivo("asistencias")}
-              className={`px-4 py-3 text-sm font-semibold border-b-2 transition-colors ${
-                tabActivo === "asistencias"
-                  ? "border-red-500 text-red-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              Asistencias
-            </button>
-            <button
-              onClick={() => setTabActivo("pagos")}
-              className={`px-4 py-3 text-sm font-semibold border-b-2 transition-colors ${
-                tabActivo === "pagos"
-                  ? "border-red-500 text-red-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              Pagos
-            </button>
+        {/* Contenido principal */}
+        <main className="flex-1 min-w-0 flex flex-col">
+          {/* Tab bar */}
+          <div className="bg-card border-b border-border px-4 md:px-8 flex items-center gap-1 shrink-0">
+            {TABS.map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setTabActivo(tab.key)}
+                className={`flex items-center gap-2 px-4 py-4 text-sm font-semibold border-b-2 transition-colors -mb-px ${
+                  tabActivo === tab.key
+                    ? "border-[#dc2626] text-[#dc2626]"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {tab.icon}
+                {tab.label}
+              </button>
+            ))}
           </div>
 
-          {/* Contenido del tab */}
-          {tabActivo === "asistencias" && (
-            <TabAsistencias asistencias={asistencias} />
-          )}
-          {tabActivo === "pagos" && <TabPagos pagos={pagos} />}
-        </div>
+          {/* Tab content */}
+          <div className="flex-1 p-4 md:p-8 overflow-y-auto">
+            {tabActivo === "asistencias" && (
+              <TabAsistencias asistencias={asistencias} />
+            )}
+            {tabActivo === "pagos" && <TabPagos pagos={pagos} />}
+          </div>
+        </main>
       </div>
     </div>
   );
