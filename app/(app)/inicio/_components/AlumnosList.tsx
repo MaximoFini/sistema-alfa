@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import {
@@ -14,6 +15,8 @@ import {
   User as UserIcon,
   CreditCard,
 } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { BottomSheet, BottomSheetContent } from "@/components/ui/bottom-sheet";
 import Paginacion from "./Paginacion";
 import Buscador from "./Buscador";
 
@@ -26,8 +29,11 @@ export interface AlumnoRow {
   nombre: string | null;
   edad_actual: number | null;
   fecha_registro: string | null; // "YYYY-MM-DD"
-  fecha_ultima_asistencia: string | null; // "YYYY-MM-DD" – no se muestra aún
   dni: string | null;
+  ultimaAsistencia: {
+    fecha: string;
+    hora: string | null;
+  } | null;
 }
 
 // Tipo enriquecido para la tarjeta (con initials y color derivados)
@@ -100,6 +106,7 @@ interface PagoForm {
   actividad: string;
   precio: string;
   fechaCobro: string;
+  fechaInicio: string;
   medioPago: string;
 }
 
@@ -110,13 +117,14 @@ function NuevoAlumnoModal({
   onClose: () => void;
   onGuardado: () => void;
 }) {
+  const isMobile = useIsMobile();
   const [step, setStep] = useState<1 | 2>(1);
   const [createdStudentId, setCreatedStudentId] = useState<string | null>(null);
 
   const [form, setForm] = useState<FormData>({
     nombre: "",
     fechaNacimiento: "",
-    fechaRegistro: new Date().toISOString().split("T")[0],
+    fechaRegistro: "",
     domicilio: "",
     telefono: "",
     dni: "",
@@ -126,7 +134,8 @@ function NuevoAlumnoModal({
   const [pagoForm, setPagoForm] = useState<PagoForm>({
     actividad: "",
     precio: "",
-    fechaCobro: new Date().toISOString().split("T")[0],
+    fechaCobro: "",
+    fechaInicio: "",
     medioPago: "",
   });
 
@@ -136,6 +145,13 @@ function NuevoAlumnoModal({
     Array<{ name: string; duration_days: number; price: number }>
   >([]);
   const [mediosPago, setMediosPago] = useState<Array<{ name: string }>>([]);
+
+  // Establecer fechas solo en el cliente para evitar problemas de hidratación
+  useEffect(() => {
+    const today = new Date().toISOString().split("T")[0];
+    setForm((prev) => ({ ...prev, fechaRegistro: today }));
+    setPagoForm((prev) => ({ ...prev, fechaCobro: today, fechaInicio: today }));
+  }, []);
 
   useEffect(() => {
     async function fetchData() {
@@ -196,6 +212,8 @@ function NuevoAlumnoModal({
     if (!pagoForm.actividad) e.actividad = "La actividad es requerida";
     if (!pagoForm.precio) e.precio = "El precio es requerido";
     if (!pagoForm.fechaCobro) e.fechaCobro = "La fecha de cobro es requerida";
+    if (!pagoForm.fechaInicio)
+      e.fechaInicio = "La fecha de inicio es requerida";
     if (!pagoForm.medioPago) e.medioPago = "El medio de pago es requerido";
     return e;
   }
@@ -273,7 +291,7 @@ function NuevoAlumnoModal({
       (p) => p.name === pagoForm.actividad,
     );
     if (planElegido && planElegido.duration_days) {
-      const [y, m, d] = pagoForm.fechaCobro.split("-").map(Number);
+      const [y, m, d] = pagoForm.fechaInicio.split("-").map(Number);
       const fecha = new Date(y, m - 1, d);
       fecha.setDate(fecha.getDate() + planElegido.duration_days);
       const yyyy = fecha.getFullYear();
@@ -288,7 +306,7 @@ function NuevoAlumnoModal({
       precio: Number(pagoForm.precio),
       fecha_cobro: pagoForm.fechaCobro,
       medio_pago: pagoForm.medioPago,
-      fecha_inicio: pagoForm.fechaCobro,
+      fecha_inicio: pagoForm.fechaInicio,
       fecha_vencimiento: fechaProximoVencimiento,
     });
 
@@ -304,7 +322,7 @@ function NuevoAlumnoModal({
         abono_ultima_inscripcion: pagoForm.actividad,
         fecha_proximo_vencimiento: fechaProximoVencimiento,
         actividad_proximo_vencimiento: pagoForm.actividad,
-        fecha_ultimo_inicio: pagoForm.fechaCobro,
+        fecha_ultimo_inicio: pagoForm.fechaInicio,
       })
       .eq("id", createdStudentId);
 
@@ -319,13 +337,35 @@ function NuevoAlumnoModal({
     onClose();
   }
 
+  // Wrapper responsivo: BottomSheet en móvil, Modal en desktop
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ backgroundColor: "rgba(0,0,0,0.55)" }}
-    >
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="flex items-center justify-between px-4 md:px-6 py-4 border-b border-gray-100 shrink-0">
+    <>
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-black/60 z-[100] transition-opacity duration-200"
+        onClick={onClose}
+      />
+
+      {/* Contenedor adaptativo */}
+      <div
+        className={`fixed z-[101] bg-white shadow-2xl flex flex-col
+          ${
+            isMobile
+              ? "left-0 right-0 bottom-0 rounded-t-3xl max-h-[90vh]"
+              : "left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-2xl w-full max-w-md max-h-[90vh]"
+          }
+        `}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Drag handle (solo móvil) */}
+        {isMobile && (
+          <div className="flex justify-center pt-3 pb-2">
+            <div className="w-10 h-1 bg-gray-300 rounded-full" />
+          </div>
+        )}
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
           <div>
             <h2 className="text-base font-bold text-gray-900">
               {step === 1 ? "Nuevo Alumno" : "Registrar Cobro"}
@@ -338,7 +378,7 @@ function NuevoAlumnoModal({
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
+            className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-colors shrink-0"
             aria-label="Cerrar"
           >
             <X size={16} className="text-gray-500" />
@@ -363,7 +403,7 @@ function NuevoAlumnoModal({
                 placeholder="Ej: Juan García"
                 value={form.nombre}
                 onChange={(e) => setField("nombre", e.target.value)}
-                className="border border-gray-200 rounded-lg px-4 py-3 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-50"
+                className="border border-gray-200 rounded-lg px-4 py-3 text-base md:text-sm outline-none min-h-[44px] focus:border-red-400 focus:ring-2 focus:ring-red-50"
               />
               {errors.nombre && (
                 <span className="text-xs text-red-500">{errors.nombre}</span>
@@ -379,7 +419,7 @@ function NuevoAlumnoModal({
                 placeholder="Ej: 38765432"
                 value={form.dni}
                 onChange={(e) => setField("dni", e.target.value)}
-                className="border border-gray-200 rounded-lg px-4 py-3 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-50"
+                className="border border-gray-200 rounded-lg px-4 py-3 text-base md:text-sm outline-none min-h-[44px] focus:border-red-400 focus:ring-2 focus:ring-red-50"
               />
               {errors.dni && (
                 <span className="text-xs text-red-500">{errors.dni}</span>
@@ -395,7 +435,7 @@ function NuevoAlumnoModal({
                   type="date"
                   value={form.fechaNacimiento}
                   onChange={(e) => setField("fechaNacimiento", e.target.value)}
-                  className="border border-gray-200 rounded-lg px-4 py-3 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-50"
+                  className="border border-gray-200 rounded-lg px-4 py-3 text-base md:text-sm outline-none min-h-[44px] focus:border-red-400 focus:ring-2 focus:ring-red-50"
                 />
                 {errors.fechaNacimiento && (
                   <span className="text-xs text-red-500">
@@ -411,7 +451,7 @@ function NuevoAlumnoModal({
                   type="date"
                   value={form.fechaRegistro}
                   onChange={(e) => setField("fechaRegistro", e.target.value)}
-                  className="border border-gray-200 rounded-lg px-4 py-3 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-50"
+                  className="border border-gray-200 rounded-lg px-4 py-3 text-base md:text-sm outline-none min-h-[44px] focus:border-red-400 focus:ring-2 focus:ring-red-50"
                 />
                 {errors.fechaRegistro && (
                   <span className="text-xs text-red-500">
@@ -431,7 +471,7 @@ function NuevoAlumnoModal({
                   placeholder="Ej: 11-4521-0011"
                   value={form.telefono}
                   onChange={(e) => setField("telefono", e.target.value)}
-                  className="border border-gray-200 rounded-lg px-4 py-3 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-50"
+                  className="border border-gray-200 rounded-lg px-4 py-3 text-base md:text-sm outline-none min-h-[44px] focus:border-red-400 focus:ring-2 focus:ring-red-50"
                 />
                 {errors.telefono && (
                   <span className="text-xs text-red-500">
@@ -447,7 +487,7 @@ function NuevoAlumnoModal({
                   <select
                     value={form.genero}
                     onChange={(e) => setField("genero", e.target.value)}
-                    className="w-full border border-gray-200 rounded-lg px-4 py-3 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-50 bg-white appearance-none"
+                    className="w-full border border-gray-200 rounded-lg px-4 py-3 text-base md:text-sm outline-none min-h-[44px] focus:border-red-400 focus:ring-2 focus:ring-red-50 bg-white appearance-none"
                   >
                     <option value="">Seleccionar...</option>
                     <option value="Masculino">Masculino</option>
@@ -473,7 +513,7 @@ function NuevoAlumnoModal({
                 placeholder="Ej: Av. Corrientes 1234"
                 value={form.domicilio}
                 onChange={(e) => setField("domicilio", e.target.value)}
-                className="border border-gray-200 rounded-lg px-4 py-3 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-50"
+                className="border border-gray-200 rounded-lg px-4 py-3 text-base md:text-sm outline-none min-h-[44px] focus:border-red-400 focus:ring-2 focus:ring-red-50"
               />
               {errors.domicilio && (
                 <span className="text-xs text-red-500">{errors.domicilio}</span>
@@ -485,7 +525,7 @@ function NuevoAlumnoModal({
                 type="button"
                 disabled={guardando}
                 onClick={() => handleGuardarPaso1(true)}
-                className="w-full py-3 bg-[#DC2626] text-white text-sm font-bold rounded-xl shadow-md hover:brightness-110 disabled:opacity-70 transition-all border border-transparent"
+                className="w-full py-3 bg-[#DC2626] text-white text-base md:text-sm font-bold min-h-[44px] rounded-xl shadow-md hover:brightness-110 disabled:opacity-70 transition-all border border-transparent"
               >
                 {guardando ? "Guardando..." : "Guardar y Registrar Cobro"}
               </button>
@@ -493,7 +533,7 @@ function NuevoAlumnoModal({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="flex-1 py-2.5 text-gray-600 bg-gray-50 border border-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-100"
+                  className="flex-1 py-2.5 text-gray-600 bg-gray-50 border border-gray-200 text-base md:text-sm font-semibold min-h-[44px] rounded-lg hover:bg-gray-100"
                 >
                   Cancelar
                 </button>
@@ -501,7 +541,7 @@ function NuevoAlumnoModal({
                   type="button"
                   disabled={guardando}
                   onClick={() => handleGuardarPaso1(false)}
-                  className="flex-1 py-2.5 text-red-600 bg-red-50 border border-red-100 text-sm font-semibold rounded-lg hover:bg-red-100 disabled:opacity-70"
+                  className="flex-1 py-2.5 text-red-600 bg-red-50 border border-red-100 text-base md:text-sm font-semibold min-h-[44px] rounded-lg hover:bg-red-100 disabled:opacity-70"
                 >
                   Guardar
                 </button>
@@ -531,7 +571,7 @@ function NuevoAlumnoModal({
                 <select
                   value={pagoForm.actividad}
                   onChange={handleActividadChange}
-                  className="w-full border border-gray-200 rounded-lg px-4 py-3 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-50 bg-white appearance-none font-bold"
+                  className="w-full border border-gray-200 rounded-lg px-4 py-3 text-base md:text-sm outline-none min-h-[44px] focus:border-red-400 focus:ring-2 focus:ring-red-50 bg-white appearance-none font-bold"
                 >
                   <option value="">Seleccionar plan...</option>
                   {planesSuscripcion.map((plan) => (
@@ -572,36 +612,34 @@ function NuevoAlumnoModal({
               )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="flex flex-col gap-2">
-                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
-                  Medio de Pago *
-                </label>
-                <div className="relative">
-                  <select
-                    value={pagoForm.medioPago}
-                    onChange={(e) => setPagoField("medioPago", e.target.value)}
-                    className="w-full border border-gray-200 rounded-lg px-4 py-3 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-50 bg-white appearance-none"
-                  >
-                    <option value="">Seleccionar...</option>
-                    {mediosPago.map((mp) => (
-                      <option key={mp.name} value={mp.name}>
-                        {mp.name}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown
-                    size={16}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-                  />
-                </div>
-                {errors.medioPago && (
-                  <span className="text-xs text-red-500">
-                    {errors.medioPago}
-                  </span>
-                )}
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                Medio de Pago *
+              </label>
+              <div className="relative">
+                <select
+                  value={pagoForm.medioPago}
+                  onChange={(e) => setPagoField("medioPago", e.target.value)}
+                  className="w-full border border-gray-200 rounded-lg px-4 py-3 text-base md:text-sm outline-none min-h-[44px] focus:border-red-400 focus:ring-2 focus:ring-red-50 bg-white appearance-none"
+                >
+                  <option value="">Seleccionar...</option>
+                  {mediosPago.map((mp) => (
+                    <option key={mp.name} value={mp.name}>
+                      {mp.name}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown
+                  size={16}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                />
               </div>
+              {errors.medioPago && (
+                <span className="text-xs text-red-500">{errors.medioPago}</span>
+              )}
+            </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="flex flex-col gap-2">
                 <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
                   Fecha de Cobro *
@@ -610,7 +648,7 @@ function NuevoAlumnoModal({
                   type="date"
                   value={pagoForm.fechaCobro}
                   onChange={(e) => setPagoField("fechaCobro", e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg px-4 py-3 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-50"
+                  className="w-full border border-gray-200 rounded-lg px-4 py-3 text-base md:text-sm outline-none min-h-[44px] focus:border-red-400 focus:ring-2 focus:ring-red-50"
                 />
                 {errors.fechaCobro && (
                   <span className="text-xs text-red-500">
@@ -618,13 +656,33 @@ function NuevoAlumnoModal({
                   </span>
                 )}
               </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                  Fecha de Inicio del Plan *
+                </label>
+                <input
+                  type="date"
+                  value={pagoForm.fechaInicio}
+                  onChange={(e) => setPagoField("fechaInicio", e.target.value)}
+                  className="w-full border border-gray-200 rounded-lg px-4 py-3 text-base md:text-sm outline-none min-h-[44px] focus:border-red-400 focus:ring-2 focus:ring-red-50"
+                />
+                {errors.fechaInicio && (
+                  <span className="text-xs text-red-500">
+                    {errors.fechaInicio}
+                  </span>
+                )}
+                <p className="text-xs text-gray-500">
+                  A partir de esta fecha se calculará el vencimiento del plan.
+                </p>
+              </div>
             </div>
 
             <div className="flex flex-col gap-3 pt-4 mt-auto">
               <button
                 type="submit"
                 disabled={guardando}
-                className="w-full py-3 bg-green-600 text-white text-sm font-bold rounded-xl shadow-md hover:bg-green-700 disabled:opacity-70 transition-all border border-transparent"
+                className="w-full py-3 bg-green-600 text-white text-sm font-bold rounded-xl shadow-md hover:bg-green-700 disabled:opacity-70 transition-all border border-transparent min-h-[44px]"
               >
                 {guardando ? "Registrando..." : "Guardar"}
               </button>
@@ -632,7 +690,7 @@ function NuevoAlumnoModal({
           </form>
         )}
       </div>
-    </div>
+    </>
   );
 }
 
@@ -641,6 +699,15 @@ function NuevoAlumnoModal({
 // ─────────────────────────────────────────────
 
 function AlumnoCard({ alumno }: { alumno: AlumnoConUI }) {
+  const tieneAsistencia = alumno.ultimaAsistencia?.fecha;
+  const horaAsistencia = alumno.ultimaAsistencia?.hora?.slice(0, 5); // HH:MM
+
+  // Obtener fecha de hoy en formato YYYY-MM-DD local
+  const hoy = new Date();
+  const fechaHoyStr = hoy.toLocaleDateString("en-CA"); // 'en-CA' da formato YYYY-MM-DD
+
+  const esAsistenciaHoy = tieneAsistencia === fechaHoyStr;
+
   return (
     <Link
       href={`/inicio/${alumno.id}`}
@@ -666,6 +733,11 @@ function AlumnoCard({ alumno }: { alumno: AlumnoConUI }) {
               <Calendar size={12} className="text-gray-400" />
               Inscripto: {formatFecha(alumno.fecha_registro)}
             </span>
+            {esAsistenciaHoy && (
+              <span className="inline-flex items-center gap-1 text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
+                ✓ Hoy {horaAsistencia}
+              </span>
+            )}
             {alumno.dni && (
               <span className="inline-flex items-center gap-1 text-xs text-gray-400">
                 <CreditCard size={12} className="text-gray-300" />
@@ -707,13 +779,98 @@ export default function AlumnosList({
   queryActual,
 }: AlumnosListProps) {
   const [showModal, setShowModal] = useState(false);
+  const router = useRouter();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // ─── Realtime: escucha cambios en múltiples tablas ─────────────────────────
+  // Cuando se crea/actualiza un alumno, se registra una asistencia, o se crea un pago,
+  // actualizamos la lista automáticamente sin recargar la página completa.
+  useEffect(() => {
+    let refreshTimeout: NodeJS.Timeout;
+
+    const handleRefresh = () => {
+      if (isRefreshing) return;
+
+      // Debounce: evita múltiples refreshes simultáneos
+      clearTimeout(refreshTimeout);
+      refreshTimeout = setTimeout(() => {
+        setIsRefreshing(true);
+        console.log("[Realtime] Ejecutando refresh...");
+        router.refresh();
+
+        // Reset después de 500ms
+        setTimeout(() => setIsRefreshing(false), 500);
+      }, 100);
+    };
+
+    const channel = supabase
+      .channel("inicio-realtime")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "alumnos",
+        },
+        (payload) => {
+          console.log(
+            "[Realtime] Cambio detectado en alumnos:",
+            payload.eventType,
+          );
+          handleRefresh();
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "asistencias",
+        },
+        (payload) => {
+          console.log("[Realtime] Nueva asistencia registrada");
+          handleRefresh();
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "pagos",
+        },
+        (payload) => {
+          console.log("[Realtime] Nuevo pago registrado");
+          handleRefresh();
+        },
+      )
+      .subscribe((status) => {
+        console.log("[Realtime] Estado de suscripción:", status);
+        if (status === "SUBSCRIBED") {
+          console.log(
+            "[Realtime] ✅ Listo para recibir actualizaciones en tiempo real",
+          );
+        }
+        if (status === "CHANNEL_ERROR") {
+          console.error(
+            "[Realtime] ❌ Error en el canal. Verifica que Realtime esté habilitado en Supabase",
+          );
+        }
+      });
+
+    return () => {
+      console.log("[Realtime] Limpiando suscripción");
+      clearTimeout(refreshTimeout);
+      supabase.removeChannel(channel);
+    };
+  }, [router, isRefreshing]);
 
   // El filtrado es 100% server-side (ilike en Supabase).
   // Aquí solo enriquecemos los datos con UI derivada.
   const alumnosEnriquecidos = alumnos.map(enriquecerAlumno);
 
   function handleGuardado() {
-    window.location.reload();
+    router.refresh(); // Refresca Server Component
   }
 
   return (

@@ -8,46 +8,13 @@ import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
-// Mock data — replace with real API call
-const MOCK_DATABASE: Record<
-  string,
-  {
-    nombre: string;
-    estado: "al-dia" | "vencido" | "advertencia";
-    vencimiento: string;
-    plan?: string;
-    clasesDisponibles?: number;
-  }
-> = {
-  "12345678": {
-    nombre: "CONFORTI, LAUTARO ARIEL",
-    estado: "al-dia",
-    vencimiento: "08/04/2026",
-    plan: "ALL INCLUSIVE D.P",
-    clasesDisponibles: 57,
-  },
-  "87654321": {
-    nombre: "FINI, MAXIMO",
-    estado: "vencido",
-    vencimiento: "28/02/2026",
-  },
-  "11223344": {
-    nombre: "BECERRA, JULIAN IGNACIO",
-    estado: "advertencia",
-    vencimiento: "18/03/2026",
-    plan: "MUSCULACION 3X SEMANA",
-    clasesDisponibles: 6,
-  },
-};
-
 type Estado = "al-dia" | "vencido" | "advertencia";
 type Result =
   | {
       nombre: string;
       estado: Estado;
       vencimiento: string;
-      plan?: string;
-      clasesDisponibles?: number;
+      actividad?: string;
     }
   | "not-found"
   | null;
@@ -105,10 +72,31 @@ const estadoConfig: Record<
 };
 
 async function verificarDNI(dni: string): Promise<Result> {
-  await new Promise((r) => setTimeout(r, 600));
-  const found = MOCK_DATABASE[dni];
-  if (!found) return "not-found";
-  return found;
+  try {
+    const response = await fetch("/api/verificar-dni", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ dni }),
+    });
+
+    if (!response.ok) {
+      console.error("Error en la verificación:", response.statusText);
+      return "not-found";
+    }
+
+    const data = await response.json();
+
+    if (!data.found) {
+      return "not-found";
+    }
+
+    return data.alumno;
+  } catch (error) {
+    console.error("Error al verificar DNI:", error);
+    return "not-found";
+  }
 }
 
 const RESET_DELAY_MS = 15000;
@@ -210,8 +198,28 @@ export default function IngresoWebPage() {
         : null;
 
     return (
-      <div className="fixed inset-0 z-50" style={{ backgroundColor: result !== null && !loading ? (theme ? theme.bg : "#111111") : "#fb923c" }}>
-        <main className="min-h-screen flex flex-col" style={{ backgroundColor: result !== null && !loading ? (theme ? theme.bg : "#111111") : "#fb923c" }}>
+      <div
+        className="fixed inset-0 z-50"
+        style={{
+          backgroundColor:
+            result !== null && !loading
+              ? theme
+                ? theme.bg
+                : "#111111"
+              : "#fb923c",
+        }}
+      >
+        <main
+          className="min-h-screen flex flex-col"
+          style={{
+            backgroundColor:
+              result !== null && !loading
+                ? theme
+                  ? theme.bg
+                  : "#111111"
+                : "#fb923c",
+          }}
+        >
           {/* Header negro con logo y campo de búsqueda */}
           <header className="bg-[#111111] border-b border-white/10 px-6 py-3 flex items-center justify-between shrink-0 gap-4">
             {/* Logo izquierda */}
@@ -426,20 +434,18 @@ export default function IngresoWebPage() {
                           className="mt-2 rounded-2xl px-8 py-5 flex flex-col items-center gap-1"
                           style={{ backgroundColor: "rgba(0,0,0,0.2)" }}
                         >
-                          {result.plan && (
+                          {result.actividad && (
                             <p
                               className="text-lg font-bold uppercase tracking-wider"
                               style={{ color: theme!.accent }}
                             >
-                              {result.plan}
+                              {result.actividad}
                             </p>
                           )}
                           <p
                             className="text-base font-medium"
                             style={{ color: theme!.textSecondary }}
                           >
-                            {result.clasesDisponibles !== undefined &&
-                              `${result.clasesDisponibles} clases disponibles  ·  `}
                             Vence {result.vencimiento}
                           </p>
                         </div>

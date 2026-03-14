@@ -9,6 +9,9 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "Alfa Club",
   description: "Sistema de gestión para Alfa Club",
+  icons: {
+    icon: "/Mejor logo.png",
+  },
 };
 
 export const viewport: Viewport = {

@@ -1,0 +1,180 @@
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
+
+CREATE TABLE public.alumnos (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  nombre text,
+  dni text,
+  domicilio text,
+  telefono text,
+  fecha_registro date,
+  fecha_ultima_asistencia date,
+  fecha_ultimo_vencimiento date,
+  abono_ultima_inscripcion text,
+  fecha_proximo_vencimiento date,
+  actividad_proximo_vencimiento text,
+  activo boolean DEFAULT true,
+  genero text,
+  edad_actual integer,
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  fecha_nacimiento date,
+  saldo numeric DEFAULT 0,
+  fecha_ultimo_inicio date,
+  CONSTRAINT alumnos_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.asistencias (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  alumno_id uuid,
+  fecha date NOT NULL,
+  hora time without time zone NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT asistencias_pkey PRIMARY KEY (id),
+  CONSTRAINT asistencias_alumno_id_fkey FOREIGN KEY (alumno_id) REFERENCES public.alumnos(id)
+);
+CREATE TABLE public.exercise_categories (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  name text NOT NULL UNIQUE,
+  color text DEFAULT '#3B82F6'::text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT exercise_categories_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.exercise_stages (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  color text NOT NULL DEFAULT '#3B82F6'::text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT exercise_stages_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.exercises (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  category_id uuid NOT NULL,
+  video_url text,
+  created_by uuid NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  notes text,
+  CONSTRAINT exercises_pkey PRIMARY KEY (id),
+  CONSTRAINT exercises_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.exercise_categories(id),
+  CONSTRAINT exercises_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.pagos (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  alumno_id uuid,
+  actividad text NOT NULL,
+  precio numeric NOT NULL,
+  fecha_cobro date NOT NULL,
+  medio_pago text NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  fecha_inicio date,
+  fecha_vencimiento date,
+  CONSTRAINT pagos_pkey PRIMARY KEY (id),
+  CONSTRAINT pagos_alumno_id_fkey FOREIGN KEY (alumno_id) REFERENCES public.alumnos(id)
+);
+CREATE TABLE public.payment_methods (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  is_active boolean DEFAULT true,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT payment_methods_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.profiles (
+  id uuid NOT NULL,
+  role USER-DEFINED DEFAULT 'Alumno'::user_role,
+  full_name text,
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT profiles_pkey PRIMARY KEY (id),
+  CONSTRAINT profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.subscription_plans (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  price numeric NOT NULL,
+  duration_days integer NOT NULL,
+  is_active boolean NOT NULL DEFAULT true,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT subscription_plans_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.system_settings (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  notify_days_before_expiration integer NOT NULL DEFAULT 5,
+  alert_1_days_no_attendance integer NOT NULL DEFAULT 15,
+  alert_2_days_no_attendance integer NOT NULL DEFAULT 30,
+  alert_3_days_no_attendance integer NOT NULL DEFAULT 60,
+  days_after_expiration_inactive integer NOT NULL DEFAULT 7,
+  days_without_renewal_lost integer NOT NULL DEFAULT 90,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT system_settings_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.training_plan_assignments (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  plan_id uuid NOT NULL,
+  student_id uuid NOT NULL,
+  coach_id uuid NOT NULL,
+  start_date date NOT NULL,
+  end_date date NOT NULL,
+  status text NOT NULL DEFAULT 'active'::text,
+  current_day_number integer NOT NULL DEFAULT 1,
+  completed_days integer NOT NULL DEFAULT 0,
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
+  updated_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT training_plan_assignments_pkey PRIMARY KEY (id),
+  CONSTRAINT training_plan_assignments_plan_id_fkey FOREIGN KEY (plan_id) REFERENCES public.training_plans(id),
+  CONSTRAINT training_plan_assignments_student_id_fkey FOREIGN KEY (student_id) REFERENCES public.alumnos(id),
+  CONSTRAINT training_plan_assignments_coach_id_fkey FOREIGN KEY (coach_id) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.training_plan_days (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  plan_id uuid NOT NULL,
+  day_number integer NOT NULL,
+  day_name text NOT NULL,
+  display_order integer NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT training_plan_days_pkey PRIMARY KEY (id),
+  CONSTRAINT training_plan_days_plan_id_fkey FOREIGN KEY (plan_id) REFERENCES public.training_plans(id)
+);
+CREATE TABLE public.training_plan_exercises (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  day_id uuid NOT NULL,
+  stage_id uuid,
+  stage_name text NOT NULL,
+  exercise_name text NOT NULL,
+  video_url text,
+  series integer NOT NULL,
+  reps text NOT NULL,
+  pause text NOT NULL,
+  notes text,
+  coach_instructions text,
+  display_order integer NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  write_weight boolean NOT NULL DEFAULT false,
+  carga text NOT NULL DEFAULT '-'::text,
+  CONSTRAINT training_plan_exercises_pkey PRIMARY KEY (id),
+  CONSTRAINT training_plan_exercises_day_id_fkey FOREIGN KEY (day_id) REFERENCES public.training_plan_days(id),
+  CONSTRAINT training_plan_exercises_stage_id_fkey FOREIGN KEY (stage_id) REFERENCES public.exercise_stages(id)
+);
+CREATE TABLE public.training_plans (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  coach_id uuid NOT NULL,
+  title text NOT NULL,
+  description text,
+  start_date date NOT NULL,
+  end_date date NOT NULL,
+  total_days integer NOT NULL,
+  days_per_week integer NOT NULL,
+  total_weeks integer NOT NULL,
+  plan_type text,
+  difficulty_level text,
+  is_template boolean DEFAULT false,
+  is_archived boolean DEFAULT false,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT training_plans_pkey PRIMARY KEY (id),
+  CONSTRAINT training_plans_coach_id_fkey FOREIGN KEY (coach_id) REFERENCES public.profiles(id)
+);

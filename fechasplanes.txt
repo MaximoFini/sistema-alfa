@@ -1,0 +1,35 @@
+Actualizar Registro de Cobros: Separar Fecha de Cobro y Fecha de Inicio
+El objetivo es modificar el modal de registro de cobros (tanto al crear un alumno nuevo en /inicio como al registrar un cobro para un alumno existente), para que se soliciten dos fechas distintas:
+
+Fecha de Cobro: Cuándo se pagó el plan.
+Fecha de Inicio: A partir de cuándo comienza a contar el plan.
+La fecha_vencimiento del plan (en pagos) y la fecha_proximo_vencimiento del alumno (en alumnos) se calcularán sumando la duración del plan a la Fecha de Inicio (no a la fecha de cobro).
+
+Escenarios Cubiertos (Dónde funcionará)
+Renovación anticipada: Un alumno cuyo plan vence el 20/04 paga el 15/04. La fecha de cobro es 15/04, la fecha de inicio debe setearse manualmente al 21/04, y el vencimiento será el 21/05. Funcionará perfectamente.
+Comienzo diferido: Un alumno nuevo se inscribe y paga el 01/05, pero quiere empezar el 10/05. Fecha de cobro = 01/05, Fecha de Inicio = 10/05, Vencimiento = 10/06. Funcionará perfectamente.
+Pago atrasado: Un alumno debía pagar el 01/04, pero viene a pagar el 10/04. Su fecha de inicio real de entrenamiento fue el 01/04 (vino a entrenar debiendo). Fecha de cobro = 10/04, Fecha de Inicio = 01/04, Vencimiento = 01/05. Funcionará.
+Pago al día: Paga y arranca hoy. Fecha de cobro = hoy, Fecha de Inicio = hoy. Funcionará.
+Cuando el cliente paga antes de que su plan actual venza, se debera mostrar en la IU la fecha de vencimiento del plan actual, para que el que esta ejecutando el registro sepa a partir de que fecha podria poner la fecha de inicio del nuevo plan
+
+Proposed Changes
+[Component Name] Modal en AlumnosList (Registro de nuevo alumno)
+Añadiremos el campo de Fecha de Inicio en el paso 2 del modal y ajustaremos la lógica de cálculo.
+
+[MODIFY] 
+AlumnosList.tsx
+En interface PagoForm, añadir fechaInicio: string;
+En la inicialización del estado y en el useEffect de montaje, establecer fechaInicio en "hoy" por defecto.
+Añadir el campo "Fecha de Inicio del Plan" en la UI del Paso 2.
+En 
+validatePaso2()
+, pedir confirmación de fechaInicio.
+En 
+handleGuardarPaso2()
+, basear el cálculo de fechaProximoVencimiento usando pagoForm.fechaInicio en lugar de pagoForm.fechaCobro:
+javascript
+const [y, m, d] = pagoForm.fechaInicio.split("-").map(Number);
+// ... sumar days ...
+// Guardar en tabla pagos: fecha_cobro, fecha_inicio, fecha_vencimiento
+[Component Name] Modal en página base (Registro de cobros general)
+Actualmente, el modal para registrar un cobro general a un alumno (no solo al crearlo) parece estar en otro componente.

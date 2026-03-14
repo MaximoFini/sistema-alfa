@@ -125,7 +125,7 @@ export default function ComunicacionPage() {
             <button
               onClick={handleEnviar}
               disabled={!puedeEnviar || enviando}
-              className="flex items-center gap-2 text-sm font-semibold text-white px-5 py-2 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 text-base md:text-sm font-semibold text-white px-5 py-3 md:py-2 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px]"
               style={{ backgroundColor: "#DC2626" }}
             >
               {enviando ? (
