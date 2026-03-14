@@ -6,6 +6,8 @@ import Image from "next/image";
 import { CheckCircle2, XCircle, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+export const dynamic = "force-dynamic";
+
 // Mock data — replace with real API call
 const MOCK_DATABASE: Record<
   string,
