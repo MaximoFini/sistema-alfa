@@ -1,12 +1,12 @@
 "use client";
 
 import { useSearchParams, usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, Suspense } from "react";
 import { Search, X } from "lucide-react";
 
 const DEBOUNCE_MS = 400;
 
-export default function Buscador() {
+function BuscadorInner() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -69,5 +69,26 @@ export default function Buscador() {
         </button>
       )}
     </div>
+  );
+}
+
+// Envolver en Suspense para evitar problemas de hidratación con useSearchParams
+export default function Buscador() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex-1 flex items-center gap-3 bg-white border border-gray-200 rounded-lg px-4 py-3 min-h-[44px]">
+          <Search size={18} className="text-gray-400 shrink-0" />
+          <input
+            type="text"
+            placeholder="Buscar por nombre o DNI..."
+            disabled
+            className="flex-1 text-base outline-none bg-transparent text-gray-400"
+          />
+        </div>
+      }
+    >
+      <BuscadorInner />
+    </Suspense>
   );
 }

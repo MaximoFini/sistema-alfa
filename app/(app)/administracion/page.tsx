@@ -14,9 +14,6 @@ import { cn } from "@/lib/utils";
 import EstadisticasPage from "@/app/(app)/estadisticas/page";
 import FinanzasPage from "@/app/(app)/finanzas/page";
 import AjustesPage from "@/app/(app)/administracion/ajustes/page";
-import { getUserRole, UserRole } from "@/lib/auth";
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 
 const PASSWORD = "admin123";
 
@@ -132,33 +129,11 @@ function PasswordGate({ onSuccess }: { onSuccess: () => void }) {
 }
 
 export default function AdministracionPage() {
-  const [role, setRole] = useState<UserRole | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [authenticated, setAuthenticated] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>("estadisticas");
-  const router = useRouter();
 
-  useEffect(() => {
-    async function checkAccess() {
-      const userRole = await getUserRole();
-      setRole(userRole);
-      setLoading(false);
-      
-      if (userRole !== "Administrador") {
-        router.push("/inicio");
-      }
-    }
-    checkAccess();
-  }, [router]);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#DC2626]"></div>
-      </div>
-    );
-  }
-
-  if (role !== "Administrador") return null;
+  if (!authenticated)
+    return <PasswordGate onSuccess={() => setAuthenticated(true)} />;
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">

@@ -72,8 +72,8 @@ export default function MobileNav() {
     <>
       {/* Top Bar móvil con logo y hamburguesa */}
       <div
-        className="md:hidden sticky top-0 z-40 flex items-center justify-between px-4 py-3 border-b border-gray-200"
-        style={{ backgroundColor: "#FFFFFF" }}
+        className="md:hidden sticky top-0 z-40 flex items-center justify-between px-4 py-3 border-b border-neutral-800"
+        style={{ backgroundColor: "#000000" }}
       >
         {/* Logo */}
         <Link href="/inicio" className="flex items-center gap-2">
@@ -96,7 +96,7 @@ export default function MobileNav() {
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger asChild>
             <button
-              className="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-700 hover:text-red-500 transition-colors touch-manipulation"
+              className="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors touch-manipulation"
               aria-label="Abrir menú"
             >
               <Menu size={24} />
@@ -105,12 +105,12 @@ export default function MobileNav() {
 
           <SheetContent
             side="left"
-            className="w-[280px] p-0 border-r border-gray-200"
-            style={{ backgroundColor: "#FFFFFF" }}
+            className="w-[280px] p-0 border-r border-neutral-800"
+            style={{ backgroundColor: "#000000" }}
           >
             <div className="flex flex-col h-full">
               {/* Header del Sheet */}
-              <SheetHeader className="px-4 py-4 border-b border-gray-200">
+              <SheetHeader className="px-4 py-4 border-b border-neutral-800">
                 <SheetTitle className="flex items-center gap-2">
                   <Image
                     src="/Logo sin fondo - Alfa Club.png"
@@ -138,7 +138,7 @@ export default function MobileNav() {
                     "flex items-center gap-3 px-4 py-3 min-h-[44px] rounded-lg transition-all touch-manipulation",
                     pathname === "/inicio"
                       ? "text-white"
-                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-100",
+                      : "text-gray-400 hover:text-white hover:bg-neutral-800",
                   )}
                   style={
                     pathname === "/inicio" ? { backgroundColor: "#DC2626" } : {}
@@ -156,7 +156,7 @@ export default function MobileNav() {
                     "flex items-center gap-3 px-4 py-3 min-h-[44px] rounded-lg transition-all touch-manipulation",
                     pathname === "/ingreso-web"
                       ? "text-white"
-                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-100",
+                      : "text-gray-400 hover:text-white hover:bg-neutral-800",
                   )}
                   style={
                     pathname === "/ingreso-web"
@@ -199,9 +199,11 @@ export default function MobileNav() {
                                 "flex items-center gap-3 px-3 py-2.5 min-h-[44px] rounded-lg transition-all text-sm font-medium touch-manipulation",
                                 active
                                   ? "text-[#DC2626]"
-                                  : "text-gray-500 hover:text-gray-900 hover:bg-gray-100",
+                                  : "text-gray-400 hover:text-white hover:bg-neutral-800",
                               )}
-                              style={active ? { backgroundColor: "#FEF2F2" } : {}}
+                              style={
+                                active ? { backgroundColor: "#FEF2F2" } : {}
+                              }
                             >
                               <Icon size={16} className="shrink-0" />
                               {label}
@@ -212,6 +214,26 @@ export default function MobileNav() {
                     </div>
                   )}
                 </div>
+
+                {/* Comunicación */}
+                <Link
+                  href="/comunicacion"
+                  onClick={() => setOpen(false)}
+                  className={cn(
+                    "flex items-center gap-3 px-4 py-3 min-h-[44px] rounded-lg transition-all touch-manipulation",
+                    pathname === "/comunicacion"
+                      ? "text-white"
+                      : "text-gray-400 hover:text-white hover:bg-neutral-800",
+                  )}
+                  style={
+                    pathname === "/comunicacion"
+                      ? { backgroundColor: "#DC2626" }
+                      : {}
+                  }
+                >
+                  <MessageSquare size={20} className="shrink-0" />
+                  <span className="text-base font-medium">Comunicación</span>
+                </Link>
 
                 {/* Administración */}
                 {profile?.role === "Administrador" && (
@@ -227,42 +249,24 @@ export default function MobileNav() {
                     style={isAdminActive ? { backgroundColor: "#DC2626" } : {}}
                   >
                     <ShieldCheck size={20} className="shrink-0" />
-                    <span className="text-base font-medium">Administración</span>
+                    <span className="text-base font-medium">
+                      Administración
+                    </span>
                   </Link>
                 )}
-
-                {/* Comunicación */}
-                <Link
-                  href="/comunicacion"
-                  onClick={() => setOpen(false)}
-                  className={cn(
-                    "flex items-center gap-3 px-4 py-3 min-h-[44px] rounded-lg transition-all touch-manipulation",
-                    pathname === "/comunicacion"
-                      ? "text-white"
-                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-100",
-                  )}
-                  style={
-                    pathname === "/comunicacion"
-                      ? { backgroundColor: "#DC2626" }
-                      : {}
-                  }
-                >
-                  <MessageSquare size={20} className="shrink-0" />
-                  <span className="text-base font-medium">Comunicación</span>
-                </Link>
               </nav>
 
               {/* Usuario y logout */}
-              <div className="px-3 pb-4 flex flex-col gap-2 border-t border-gray-200 pt-3">
+              <div className="px-3 pb-4 flex flex-col gap-2 border-t border-neutral-800 pt-3">
                 <div className="flex items-center gap-3 px-4 py-2">
-                  <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
-                    <User size={16} className="text-gray-600" />
+                  <div className="w-9 h-9 rounded-full bg-neutral-800 flex items-center justify-center shrink-0">
+                    <User size={16} className="text-gray-400" />
                   </div>
                   <div className="flex flex-col min-w-0">
-                    <span className="text-gray-900 text-sm font-semibold truncate">
+                    <span className="text-white text-sm font-semibold truncate">
                       {profile?.full_name || profile?.role || "Cargando..."}
                     </span>
-                    <span className="text-gray-500 text-xs truncate">
+                    <span className="text-gray-400 text-xs truncate">
                       {profile?.email || ""}
                     </span>
                   </div>
@@ -270,7 +274,7 @@ export default function MobileNav() {
 
                 <button
                   onClick={handleLogout}
-                  className="flex items-center gap-3 px-4 py-3 min-h-[44px] rounded-lg hover:bg-red-50 transition-all touch-manipulation"
+                  className="flex items-center gap-3 px-4 py-3 min-h-[44px] rounded-lg hover:bg-neutral-800 transition-all touch-manipulation"
                   style={{ color: "#DC2626" }}
                 >
                   <LogOut size={18} className="shrink-0" />

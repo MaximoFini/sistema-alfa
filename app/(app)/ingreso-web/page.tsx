@@ -13,38 +13,40 @@ const MOCK_DATABASE: Record<
     nombre: string;
     estado: "al-dia" | "vencido" | "advertencia";
     vencimiento: string;
+    plan?: string;
+    clasesDisponibles?: number;
   }
 > = {
   "12345678": {
-    nombre: "Lucas Sola",
+    nombre: "CONFORTI, LAUTARO ARIEL",
     estado: "al-dia",
-    vencimiento: "31/03/2026",
+    vencimiento: "08/04/2026",
+    plan: "ALL INCLUSIVE D.P",
+    clasesDisponibles: 57,
   },
   "87654321": {
-    nombre: "Mariana Gauto",
+    nombre: "FINI, MAXIMO",
     estado: "vencido",
     vencimiento: "28/02/2026",
   },
   "11223344": {
-    nombre: "Julian Becerra",
+    nombre: "BECERRA, JULIAN IGNACIO",
     estado: "advertencia",
-    vencimiento: "15/03/2026",
-  },
-  "44332211": {
-    nombre: "Paulina Smolinsky",
-    estado: "al-dia",
-    vencimiento: "30/04/2026",
-  },
-  "55667788": {
-    nombre: "Claudia Sola",
-    estado: "advertencia",
-    vencimiento: "12/03/2026",
+    vencimiento: "18/03/2026",
+    plan: "MUSCULACION 3X SEMANA",
+    clasesDisponibles: 6,
   },
 };
 
 type Estado = "al-dia" | "vencido" | "advertencia";
 type Result =
-  | { nombre: string; estado: Estado; vencimiento: string }
+  | {
+      nombre: string;
+      estado: Estado;
+      vencimiento: string;
+      plan?: string;
+      clasesDisponibles?: number;
+    }
   | "not-found"
   | null;
 
@@ -53,6 +55,7 @@ const estadoConfig: Record<
   {
     label: string;
     description: string;
+    secondaryMessage?: string;
     icon: typeof CheckCircle2;
     bg: string;
     border: string;
@@ -63,8 +66,8 @@ const estadoConfig: Record<
   }
 > = {
   "al-dia": {
-    label: "Al dia",
-    description: "Su cuota se encuentra abonada. Puede ingresar.",
+    label: "¡Se ha registrado tu asistencia con éxito!",
+    description: "",
     icon: CheckCircle2,
     bg: "bg-green-50",
     border: "border-green-200",
@@ -74,9 +77,9 @@ const estadoConfig: Record<
     ring: "#22c55e",
   },
   vencido: {
-    label: "Cuota vencida",
+    label: "No tienes actividades en condiciones para ingresar",
     description:
-      "La cuota del mes actual no ha sido abonada. Por favor, regularice su situacion en secretaria.",
+      "No tienes actividades vigentes, estás fuera de tu horario o día permitido, o no tienes reserva a clase",
     icon: XCircle,
     bg: "bg-red-50",
     border: "border-red-200",
@@ -86,9 +89,9 @@ const estadoConfig: Record<
     ring: "#DC2626",
   },
   advertencia: {
-    label: "Proximo a vencer",
+    label: "Tu plan está próximo a vencer",
     description:
-      "Su cuota vence en los proximos dias. Acerquese a secretaria para renovar.",
+      "Tu plan vence en los próximos días. Te recomendamos renovarlo para seguir disfrutando de nuestros servicios sin interrupciones.",
     icon: Clock,
     bg: "bg-yellow-50",
     border: "border-yellow-200",
@@ -261,7 +264,7 @@ export default function IngresoWebPage() {
             )}
 
             {result !== null && !loading && (
-              <div className="w-full max-w-md">
+              <div className="w-full max-w-3xl px-4">
                 {result === "not-found" ? (
                   <div className="bg-white border-2 border-gray-200 rounded-2xl p-8 flex flex-col items-center gap-4 text-center shadow-lg">
                     <XCircle size={64} className="text-gray-300" />
@@ -282,49 +285,130 @@ export default function IngresoWebPage() {
                     </button>
                   </div>
                 ) : (
-                  <div
-                    className={cn(
-                      "rounded-2xl border-4 p-8 flex flex-col items-center gap-5 text-center shadow-lg",
-                      estadoConfig[result.estado].bg,
-                    )}
-                    style={{
-                      borderColor: estadoConfig[result.estado].ring,
-                    }}
-                  >
-                    {(() => {
-                      const Icon = estadoConfig[result.estado].icon;
-                      return (
-                        <Icon
-                          size={72}
-                          className={estadoConfig[result.estado].iconColor}
-                        />
-                      );
-                    })()}
-                    <div>
-                      <p
-                        className={cn(
-                          "font-bold text-2xl mb-2",
-                          estadoConfig[result.estado].labelColor,
-                        )}
-                      >
-                        {estadoConfig[result.estado].label}
-                      </p>
-                      <p className="text-gray-700 mb-1 text-lg font-semibold">
-                        {result.nombre}
-                      </p>
-                      <p className="text-sm text-gray-600 leading-relaxed">
-                        {estadoConfig[result.estado].description}
-                      </p>
-                      <p className="text-xs text-gray-500 mt-3">
-                        Vencimiento: {result.vencimiento}
-                      </p>
-                    </div>
-                    <button
-                      onClick={handleClear}
-                      className="text-sm text-gray-500 hover:text-gray-700 underline mt-2"
+                  <div className="space-y-4">
+                    {/* Header con foto y nombre */}
+                    <div
+                      className="bg-[#1e3a5f] rounded-xl p-6 flex items-center gap-4 shadow-lg border-4"
+                      style={{ borderColor: "#1e3a5f" }}
                     >
-                      Verificar otro DNI
-                    </button>
+                      <div className="w-32 h-32 rounded-lg bg-white flex items-center justify-center shrink-0 overflow-hidden">
+                        <div className="w-24 h-24 rounded-full bg-[#1e3a5f] flex items-center justify-center">
+                          <svg
+                            className="w-16 h-16 text-white"
+                            fill="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                          </svg>
+                        </div>
+                      </div>
+                      <div className="flex-1">
+                        <h2 className="text-3xl font-bold text-white uppercase tracking-wide">
+                          {result.nombre}
+                        </h2>
+                      </div>
+                    </div>
+
+                    {/* Estado - Verde */}
+                    {result.estado === "al-dia" && (
+                      <>
+                        <div
+                          className="rounded-xl p-6 shadow-lg border-4"
+                          style={{
+                            backgroundColor: "#22c55e",
+                            borderColor: "#16a34a",
+                          }}
+                        >
+                          <p className="text-white text-2xl font-bold text-center">
+                            {estadoConfig[result.estado].label}
+                          </p>
+                        </div>
+                        {result.plan && (
+                          <div
+                            className="rounded-xl p-6 shadow-lg border-4"
+                            style={{
+                              backgroundColor: "#22c55e",
+                              borderColor: "#16a34a",
+                            }}
+                          >
+                            <h3 className="text-white text-xl font-bold mb-2">
+                              {result.plan}
+                            </h3>
+                            <p className="text-white text-base">
+                              {result.clasesDisponibles} clases disponibles |
+                              Vence {result.vencimiento}
+                            </p>
+                          </div>
+                        )}
+                      </>
+                    )}
+
+                    {/* Estado - Rojo */}
+                    {result.estado === "vencido" && (
+                      <>
+                        <div
+                          className="rounded-xl p-6 shadow-lg border-4"
+                          style={{
+                            backgroundColor: "#DC2626",
+                            borderColor: "#b91c1c",
+                          }}
+                        >
+                          <p className="text-white text-2xl font-bold text-center">
+                            {estadoConfig[result.estado].label}
+                          </p>
+                        </div>
+                        <div
+                          className="rounded-xl p-6 shadow-lg border-4"
+                          style={{
+                            backgroundColor: "#DC2626",
+                            borderColor: "#b91c1c",
+                          }}
+                        >
+                          <p className="text-white text-xl font-medium text-center">
+                            {estadoConfig[result.estado].description}
+                          </p>
+                        </div>
+                      </>
+                    )}
+
+                    {/* Estado - Amarillo */}
+                    {result.estado === "advertencia" && (
+                      <>
+                        <div
+                          className="rounded-xl p-6 shadow-lg border-4"
+                          style={{
+                            backgroundColor: "#eab308",
+                            borderColor: "#ca8a04",
+                          }}
+                        >
+                          <p className="text-gray-900 text-2xl font-bold text-center">
+                            {estadoConfig[result.estado].label}
+                          </p>
+                        </div>
+                        <div
+                          className="rounded-xl p-6 shadow-lg border-4"
+                          style={{
+                            backgroundColor: "#eab308",
+                            borderColor: "#ca8a04",
+                          }}
+                        >
+                          <p className="text-gray-900 text-lg font-medium text-center mb-4">
+                            {estadoConfig[result.estado].description}
+                          </p>
+                          {result.plan && (
+                            <div className="mt-4 pt-4 border-t-2 border-yellow-600">
+                              <h3 className="text-gray-900 text-xl font-bold mb-1">
+                                {result.plan}
+                              </h3>
+                              <p className="text-gray-800 text-base">
+                                {result.clasesDisponibles} clases disponibles |
+                                Vence {result.vencimiento}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
               </div>

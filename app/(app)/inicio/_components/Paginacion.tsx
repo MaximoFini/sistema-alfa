@@ -2,6 +2,7 @@
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Suspense } from "react";
 
 interface PaginacionProps {
   paginaActual: number;
@@ -10,7 +11,7 @@ interface PaginacionProps {
   porPagina: number;
 }
 
-export default function Paginacion({
+function PaginacionInner({
   paginaActual,
   totalPaginas,
   totalRegistros,
@@ -36,16 +37,20 @@ export default function Paginacion({
   let inicio = Math.max(1, paginaActual - Math.floor(VENTANA / 2));
   const fin = Math.min(totalPaginas, inicio + VENTANA - 1);
   inicio = Math.max(1, fin - VENTANA + 1);
-  const paginas = Array.from({ length: fin - inicio + 1 }, (_, i) => inicio + i);
+  const paginas = Array.from(
+    { length: fin - inicio + 1 },
+    (_, i) => inicio + i,
+  );
 
   return (
     <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-gray-100 mt-2 select-none">
       {/* Info */}
       <p className="text-xs text-gray-400 font-medium">
         Mostrando{" "}
-        <span className="text-gray-600 font-semibold">{desde}–{hasta}</span>{" "}
-        de{" "}
-        <span className="text-gray-600 font-semibold">{totalRegistros}</span>{" "}
+        <span className="text-gray-600 font-semibold">
+          {desde}–{hasta}
+        </span>{" "}
+        de <span className="text-gray-600 font-semibold">{totalRegistros}</span>{" "}
         alumnos
       </p>
 
@@ -125,5 +130,14 @@ export default function Paginacion({
         </button>
       </div>
     </div>
+  );
+}
+
+// Envolver en Suspense para evitar problemas de hidratación con useSearchParams
+export default function Paginacion(props: PaginacionProps) {
+  return (
+    <Suspense fallback={null}>
+      <PaginacionInner {...props} />
+    </Suspense>
   );
 }
