@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import {
@@ -108,6 +108,10 @@ export default function PanelInfoPersonal({ alumno }: { alumno: Alumno }) {
   const [guardando, setGuardando] = useState(false);
   const [eliminando, setEliminando] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isPressingDelete, setIsPressingDelete] = useState(false);
+  const [deleteProgress, setDeleteProgress] = useState(0);
+  const deleteTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
 
   const [formData, setFormData] = useState({
     nombre: alumno.nombre ?? "",
@@ -212,6 +216,58 @@ export default function PanelInfoPersonal({ alumno }: { alumno: Alumno }) {
     router.push("/inicio");
     router.refresh();
   }
+
+  const LONG_PRESS_DURATION = 3000; // 3 segundos
+
+  function handleDeleteMouseDown() {
+    setIsPressingDelete(true);
+    let startTime = Date.now();
+
+    const updateProgress = () => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min((elapsed / LONG_PRESS_DURATION) * 100, 100);
+      setDeleteProgress(progress);
+
+      if (progress < 100 && isPressingDelete) {
+        animationFrameRef.current = requestAnimationFrame(updateProgress);
+      }
+    };
+
+    deleteTimerRef.current = setTimeout(() => {
+      if (isPressingDelete) {
+        setIsPressingDelete(false);
+        setDeleteProgress(0);
+        handleEliminar();
+        setShowDeleteModal(false);
+      }
+    }, LONG_PRESS_DURATION);
+
+    animationFrameRef.current = requestAnimationFrame(updateProgress);
+  }
+
+  function handleDeleteMouseUp() {
+    if (deleteTimerRef.current) {
+      clearTimeout(deleteTimerRef.current);
+      deleteTimerRef.current = null;
+    }
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+    setIsPressingDelete(false);
+    setDeleteProgress(0);
+  }
+
+  useEffect(() => {
+    return () => {
+      if (deleteTimerRef.current) {
+        clearTimeout(deleteTimerRef.current);
+      }
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, []);
 
   return (
     <div className="flex flex-col">
@@ -491,19 +547,58 @@ export default function PanelInfoPersonal({ alumno }: { alumno: Alumno }) {
                   Esta acción no se puede deshacer.
                 </p>
               </div>
+              <div className="w-full p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-xs text-blue-700 font-medium">
+                  💡 Mantén presionado el botón "Eliminar" durante 3 segundos
+                  para confirmar
+                </p>
+              </div>
               <div className="flex gap-3 w-full pt-2">
                 <button
                   onClick={() => setShowDeleteModal(false)}
                   className="flex-1 py-2.5 text-gray-600 bg-gray-50 border border-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-100"
+                  disabled={isPressingDelete}
                 >
                   Cancelar
                 </button>
                 <button
-                  onClick={handleEliminar}
+                  onMouseDown={handleDeleteMouseDown}
+                  onMouseUp={handleDeleteMouseUp}
+                  onMouseLeave={handleDeleteMouseUp}
+                  onTouchStart={handleDeleteMouseDown}
+                  onTouchEnd={handleDeleteMouseUp}
                   disabled={eliminando}
-                  className="flex-1 py-2.5 bg-red-600 text-white text-sm font-bold rounded-lg hover:bg-red-700 disabled:opacity-70"
+                  className="flex-1 py-2.5 bg-red-600 text-white text-sm font-bold rounded-lg hover:bg-red-700 disabled:opacity-70 relative overflow-hidden transition-all"
+                  title={
+                    isPressingDelete
+                      ? "Mantén presionado para eliminar..."
+                      : "Mantén presionado 3 segundos para eliminar"
+                  }
                 >
-                  {eliminando ? "Eliminando..." : "Eliminar"}
+                  {/* Barra de progreso de fondo */}
+                  <div
+                    className="absolute inset-0 bg-red-700 transition-all"
+                    style={{
+                      width: isPressingDelete ? `${deleteProgress}%` : "0%",
+                      zIndex: 0,
+                    }}
+                  />
+                  {/* Contenido del botón */}
+                  <span className="relative z-10 flex items-center justify-center gap-2">
+                    {eliminando ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        Eliminando...
+                      </>
+                    ) : isPressingDelete ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        {Math.round(deleteProgress)}%
+                      </>
+                    ) : (
+                      <>Eliminar</>
+                    )}
+                  </span>
                 </button>
               </div>
             </div>

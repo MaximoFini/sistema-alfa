@@ -64,13 +64,14 @@ export default function AlumnoPerfil({
         <span className="text-border">/</span>
         <div className="flex items-center gap-2 text-foreground">
           <UserCircle2 size={15} className="text-muted-foreground" />
-          <span className="text-sm font-semibold text-balance">{alumno.nombre}</span>
+          <span className="text-sm font-semibold text-balance">
+            {alumno.nombre}
+          </span>
         </div>
       </div>
 
       {/* Main layout: 3 columnas en desktop, stack en móvil */}
       <div className="flex flex-col xl:flex-row min-h-[calc(100vh-49px)]">
-
         {/* Columna 1: datos personales */}
         <aside className="w-full xl:w-72 2xl:w-80 shrink-0 border-b xl:border-b-0 xl:border-r border-border bg-card">
           <div className="xl:sticky xl:top-[49px] xl:max-h-[calc(100vh-49px)] xl:overflow-y-auto">
@@ -80,7 +81,6 @@ export default function AlumnoPerfil({
 
         {/* Columnas 2 y 3: asistencias y pagos lado a lado */}
         <div className="flex-1 min-w-0 flex flex-col lg:flex-row">
-
           {/* Columna 2: Asistencias */}
           <section className="flex-1 min-w-0 border-b lg:border-b-0 lg:border-r border-border">
             <div className="px-5 md:px-7 py-6">
@@ -97,10 +97,9 @@ export default function AlumnoPerfil({
               <h2 className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-5">
                 Pagos
               </h2>
-              <TabPagos pagos={pagos} />
+              <TabPagos alumnoId={alumno.id} pagosIniciales={pagos} />
             </div>
           </section>
-
         </div>
       </div>
     </div>

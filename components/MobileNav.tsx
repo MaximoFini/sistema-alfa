@@ -76,20 +76,15 @@ export default function MobileNav() {
         style={{ backgroundColor: "#000000" }}
       >
         {/* Logo */}
-        <Link href="/inicio" className="flex items-center gap-2">
+        <Link href="/inicio" className="flex items-center">
           <Image
-            src="/Logo sin fondo - Alfa Club.png"
-            alt="Alfa Club"
-            width={40}
-            height={40}
+            src="/Mejor logo.png"
+            alt="Mejor logo"
+            width={44}
+            height={44}
             priority
+            className="shrink-0"
           />
-          <span
-            className="text-sm leading-tight tracking-widest uppercase font-extrabold"
-            style={{ color: "#DC2626" }}
-          >
-            ALFA CLUB
-          </span>
         </Link>
 
         {/* Botón hamburguesa */}
@@ -111,20 +106,15 @@ export default function MobileNav() {
             <div className="flex flex-col h-full">
               {/* Header del Sheet */}
               <SheetHeader className="px-4 py-4 border-b border-neutral-800">
-                <SheetTitle className="flex items-center gap-2">
+                <SheetTitle className="flex items-center justify-center">
                   <Image
-                    src="/Logo sin fondo - Alfa Club.png"
-                    alt="Alfa Club"
-                    width={36}
-                    height={36}
+                    src="/Mejor logo.png"
+                    alt="Mejor logo"
+                    width={40}
+                    height={40}
                     priority
+                    className="shrink-0"
                   />
-                  <span
-                    className="text-base leading-tight tracking-widest uppercase font-extrabold"
-                    style={{ color: "#DC2626" }}
-                  >
-                    MENÚ
-                  </span>
                 </SheetTitle>
               </SheetHeader>
 
