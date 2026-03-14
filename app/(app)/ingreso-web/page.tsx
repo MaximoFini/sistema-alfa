@@ -148,17 +148,50 @@ export default function IngresoWebPage() {
     setTimeout(() => inputRef.current?.focus(), 0);
   }
 
+  // Paleta de colores por estado para la vista cliente
+  const clientEstadoTheme = {
+    "al-dia": {
+      bg: "#16a34a",
+      bgDark: "#14532d",
+      accent: "#4ade80",
+      textPrimary: "#ffffff",
+      textSecondary: "rgba(255,255,255,0.75)",
+      icon: CheckCircle2,
+      label: "INGRESO AUTORIZADO",
+      sublabel: "¡Bienvenido/a al club!",
+    },
+    vencido: {
+      bg: "#DC2626",
+      bgDark: "#7f1d1d",
+      accent: "#fca5a5",
+      textPrimary: "#ffffff",
+      textSecondary: "rgba(255,255,255,0.75)",
+      icon: XCircle,
+      label: "ACCESO DENEGADO",
+      sublabel: "No tienes actividades vigentes. Consultá en secretaría.",
+    },
+    advertencia: {
+      bg: "#d97706",
+      bgDark: "#78350f",
+      accent: "#fcd34d",
+      textPrimary: "#ffffff",
+      textSecondary: "rgba(255,255,255,0.80)",
+      icon: Clock,
+      label: "CUOTA POR VENCER",
+      sublabel: "Tu plan vence pronto. Renovalo para seguir entrenando.",
+    },
+  } as const;
+
   // Vista simplificada para clientes
   if (isClientView) {
+    const theme =
+      result !== null && result !== "not-found"
+        ? clientEstadoTheme[result.estado]
+        : null;
+
     return (
-      <div
-        className="fixed inset-0 z-50"
-        style={{ backgroundColor: "#fb923c" }}
-      >
-        <main
-          className="min-h-screen flex flex-col"
-          style={{ backgroundColor: "#fb923c" }}
-        >
+      <div className="fixed inset-0 z-50 bg-[#111111]">
+        <main className="min-h-screen flex flex-col bg-[#111111]">
           {/* Header negro con logo y campo de búsqueda */}
           <header className="bg-[#111111] border-b border-white/10 px-6 py-3 flex items-center justify-between shrink-0 gap-4">
             {/* Logo izquierda */}
@@ -228,12 +261,12 @@ export default function IngresoWebPage() {
             </form>
           </header>
 
-          {/* Cuerpo con logo y resultados */}
-          <div className="flex-1 flex items-center justify-center px-4 py-12">
+          {/* Cuerpo */}
+          <div className="flex-1 flex flex-col">
+            {/* Estado vacío */}
             {result === null && !loading && (
-              <div className="flex flex-col items-center gap-6 text-center select-none max-w-md">
-                {/* Logo sin fondo grande en el centro */}
-                <div className="w-32 h-32 relative mb-6">
+              <div className="flex-1 flex flex-col items-center justify-center gap-6 text-center select-none px-4">
+                <div className="w-32 h-32 relative">
                   <Image
                     src="/Logo sin fondo - Alfa Club.png"
                     alt="Alfa Club"
@@ -244,174 +277,171 @@ export default function IngresoWebPage() {
                   />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                  <h2 className="text-2xl font-bold text-white mb-2">
                     Verificá tu estado
                   </h2>
-                  <p className="text-gray-500">
+                  <p className="text-white/50">
                     Ingresá tu DNI en el campo de arriba para verificar tu cuota
                   </p>
                 </div>
               </div>
             )}
 
+            {/* Loading */}
             {loading && (
-              <div className="flex flex-col items-center gap-4">
-                <span className="w-16 h-16 border-4 border-gray-200 border-t-[#DC2626] rounded-full animate-spin" />
-                <p className="text-gray-500 text-lg">
+              <div className="flex-1 flex flex-col items-center justify-center gap-4">
+                <span className="w-16 h-16 border-4 border-white/10 border-t-white rounded-full animate-spin" />
+                <p className="text-white/50 text-lg font-sans">
                   Verificando DNI {dni}...
                 </p>
               </div>
             )}
 
+            {/* Resultado */}
             {result !== null && !loading && (
-              <div className="w-full max-w-3xl px-4">
+              <>
                 {result === "not-found" ? (
-                  <div className="bg-white border-2 border-gray-200 rounded-2xl p-8 flex flex-col items-center gap-4 text-center shadow-lg">
-                    <XCircle size={64} className="text-gray-300" />
+                  /* DNI no encontrado */
+                  <div className="flex-1 flex flex-col items-center justify-center gap-6 px-6 text-center">
+                    <div
+                      className="w-28 h-28 rounded-full flex items-center justify-center"
+                      style={{ backgroundColor: "rgba(255,255,255,0.08)" }}
+                    >
+                      <XCircle size={64} className="text-white/30" />
+                    </div>
                     <div>
-                      <p className="font-bold text-gray-800 text-xl mb-2">
+                      <p className="font-extrabold text-white text-3xl mb-2 tracking-tight">
                         DNI no encontrado
                       </p>
-                      <p className="text-sm text-gray-500">
+                      <p className="text-white/50 text-base max-w-xs mx-auto leading-relaxed">
                         No hay un alumno registrado con ese DNI. Consultá en
-                        secretaria.
+                        secretaría.
                       </p>
                     </div>
                     <button
                       onClick={handleClear}
-                      className="text-sm text-gray-500 hover:text-gray-700 underline"
+                      className="text-white/40 hover:text-white/70 text-sm underline underline-offset-4 transition-colors"
                     >
                       Intentar de nuevo
                     </button>
                   </div>
                 ) : (
-                  <div className="space-y-4">
-                    {/* Header con foto y nombre */}
+                  /* Estado del alumno: pantalla full-color impactante */
+                  <div
+                    className="flex-1 flex flex-col"
+                    style={{ backgroundColor: theme!.bg }}
+                  >
+                    {/* Nombre del cliente — banda superior */}
                     <div
-                      className="bg-[#1e3a5f] rounded-xl p-6 flex items-center gap-4 shadow-lg border-4"
-                      style={{ borderColor: "#1e3a5f" }}
+                      className="px-10 py-8 flex items-center gap-5 border-b"
+                      style={{
+                        backgroundColor: theme!.bgDark,
+                        borderColor: "rgba(0,0,0,0.25)",
+                      }}
                     >
-                      <div className="w-32 h-32 rounded-lg bg-white flex items-center justify-center shrink-0 overflow-hidden">
-                        <div className="w-24 h-24 rounded-full bg-[#1e3a5f] flex items-center justify-center">
-                          <svg
-                            className="w-16 h-16 text-white"
-                            fill="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-                          </svg>
-                        </div>
+                      {/* Avatar */}
+                      <div
+                        className="w-20 h-20 rounded-full flex items-center justify-center shrink-0"
+                        style={{ backgroundColor: "rgba(0,0,0,0.3)" }}
+                      >
+                        <svg
+                          className="w-11 h-11"
+                          fill="rgba(255,255,255,0.6)"
+                          viewBox="0 0 24 24"
+                          aria-hidden="true"
+                        >
+                          <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                        </svg>
                       </div>
-                      <div className="flex-1">
-                        <h2 className="text-3xl font-bold text-white uppercase tracking-wide">
+                      <div>
+                        <p
+                          className="text-xs font-bold tracking-widest uppercase mb-1"
+                          style={{ color: theme!.accent }}
+                        >
+                          Socio identificado
+                        </p>
+                        <h2
+                          className="text-3xl font-extrabold uppercase tracking-wide leading-tight"
+                          style={{ color: theme!.textPrimary }}
+                        >
                           {result.nombre}
                         </h2>
                       </div>
                     </div>
 
-                    {/* Estado - Verde */}
-                    {result.estado === "al-dia" && (
-                      <>
-                        <div
-                          className="rounded-xl p-6 shadow-lg border-4"
-                          style={{
-                            backgroundColor: "#22c55e",
-                            borderColor: "#16a34a",
-                          }}
-                        >
-                          <p className="text-white text-2xl font-bold text-center">
-                            {estadoConfig[result.estado].label}
-                          </p>
-                        </div>
-                        {result.plan && (
-                          <div
-                            className="rounded-xl p-6 shadow-lg border-4"
-                            style={{
-                              backgroundColor: "#22c55e",
-                              borderColor: "#16a34a",
-                            }}
-                          >
-                            <h3 className="text-white text-xl font-bold mb-2">
-                              {result.plan}
-                            </h3>
-                            <p className="text-white text-base">
-                              {result.clasesDisponibles} clases disponibles |
-                              Vence {result.vencimiento}
-                            </p>
-                          </div>
-                        )}
-                      </>
-                    )}
+                    {/* Bloque central de estado */}
+                    <div className="flex-1 flex flex-col items-center justify-center gap-6 px-8 py-10 text-center">
+                      {/* Icono grande */}
+                      {(() => {
+                        const Icon = theme!.icon;
+                        return (
+                          <Icon
+                            size={96}
+                            style={{ color: theme!.accent }}
+                            strokeWidth={1.5}
+                            aria-hidden="true"
+                          />
+                        );
+                      })()}
 
-                    {/* Estado - Rojo */}
-                    {result.estado === "vencido" && (
-                      <>
-                        <div
-                          className="rounded-xl p-6 shadow-lg border-4"
-                          style={{
-                            backgroundColor: "#DC2626",
-                            borderColor: "#b91c1c",
-                          }}
+                      {/* Etiqueta principal */}
+                      <div className="flex flex-col items-center gap-3">
+                        <h1
+                          className="text-5xl font-black tracking-tight uppercase leading-none text-balance"
+                          style={{ color: theme!.textPrimary }}
                         >
-                          <p className="text-white text-2xl font-bold text-center">
-                            {estadoConfig[result.estado].label}
-                          </p>
-                        </div>
-                        <div
-                          className="rounded-xl p-6 shadow-lg border-4"
-                          style={{
-                            backgroundColor: "#DC2626",
-                            borderColor: "#b91c1c",
-                          }}
+                          {theme!.label}
+                        </h1>
+                        <p
+                          className="text-xl font-medium leading-relaxed max-w-lg text-pretty"
+                          style={{ color: theme!.textSecondary }}
                         >
-                          <p className="text-white text-xl font-medium text-center">
-                            {estadoConfig[result.estado].description}
-                          </p>
-                        </div>
-                      </>
-                    )}
+                          {theme!.sublabel}
+                        </p>
+                      </div>
 
-                    {/* Estado - Amarillo */}
-                    {result.estado === "advertencia" && (
-                      <>
+                      {/* Datos del plan */}
+                      {(result.plan || result.vencimiento) && (
                         <div
-                          className="rounded-xl p-6 shadow-lg border-4"
-                          style={{
-                            backgroundColor: "#eab308",
-                            borderColor: "#ca8a04",
-                          }}
+                          className="mt-2 rounded-2xl px-8 py-5 flex flex-col items-center gap-1"
+                          style={{ backgroundColor: "rgba(0,0,0,0.2)" }}
                         >
-                          <p className="text-gray-900 text-2xl font-bold text-center">
-                            {estadoConfig[result.estado].label}
-                          </p>
-                        </div>
-                        <div
-                          className="rounded-xl p-6 shadow-lg border-4"
-                          style={{
-                            backgroundColor: "#eab308",
-                            borderColor: "#ca8a04",
-                          }}
-                        >
-                          <p className="text-gray-900 text-lg font-medium text-center mb-4">
-                            {estadoConfig[result.estado].description}
-                          </p>
                           {result.plan && (
-                            <div className="mt-4 pt-4 border-t-2 border-yellow-600">
-                              <h3 className="text-gray-900 text-xl font-bold mb-1">
-                                {result.plan}
-                              </h3>
-                              <p className="text-gray-800 text-base">
-                                {result.clasesDisponibles} clases disponibles |
-                                Vence {result.vencimiento}
-                              </p>
-                            </div>
+                            <p
+                              className="text-lg font-bold uppercase tracking-wider"
+                              style={{ color: theme!.accent }}
+                            >
+                              {result.plan}
+                            </p>
                           )}
+                          <p
+                            className="text-base font-medium"
+                            style={{ color: theme!.textSecondary }}
+                          >
+                            {result.clasesDisponibles !== undefined &&
+                              `${result.clasesDisponibles} clases disponibles  ·  `}
+                            Vence {result.vencimiento}
+                          </p>
                         </div>
-                      </>
-                    )}
+                      )}
+                    </div>
+
+                    {/* Footer con botón nueva consulta */}
+                    <div
+                      className="px-10 py-5 flex justify-center border-t"
+                      style={{ borderColor: "rgba(0,0,0,0.2)" }}
+                    >
+                      <button
+                        onClick={handleClear}
+                        className="text-sm font-medium underline underline-offset-4 transition-opacity hover:opacity-70"
+                        style={{ color: theme!.textSecondary }}
+                      >
+                        Nueva consulta
+                      </button>
+                    </div>
                   </div>
                 )}
-              </div>
+              </>
             )}
           </div>
         </main>
@@ -422,7 +452,7 @@ export default function IngresoWebPage() {
   // Vista de administrador (original)
   return (
     <main className="min-h-screen bg-gray-50 flex flex-col">
-      {/* ── Header ── */}
+      {/* ── Header ��─ */}
       <header className="bg-[#111111] border-b border-white/10 px-6 py-3 flex items-center justify-between shrink-0 gap-4">
         {/* Brand */}
         <div className="flex items-center gap-3 shrink-0">
