@@ -1,12 +1,11 @@
 "use client";
 
+import { Suspense } from "react";
 import { useState, useRef, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { CheckCircle2, XCircle, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-export const dynamic = "force-dynamic";
 
 // Mock data — replace with real API call
 const MOCK_DATABASE: Record<
@@ -113,7 +112,7 @@ async function verificarDNI(dni: string): Promise<Result> {
 
 const RESET_DELAY_MS = 15000;
 
-export default function IngresoWebPage() {
+function IngresoWebContent() {
   const searchParams = useSearchParams();
   const isClientView = searchParams.get("view") === "client";
   const [dni, setDni] = useState("");
@@ -469,216 +468,165 @@ export default function IngresoWebPage() {
     );
   }
 
-  // Vista de administrador (original)
   return (
-    <main className="min-h-screen bg-gray-50 flex flex-col">
-      {/* ── Header ��─ */}
-      <header className="bg-[#111111] border-b border-white/10 px-6 py-3 flex items-center justify-between shrink-0 gap-4">
-        {/* Brand */}
-        <div className="flex items-center gap-3 shrink-0">
-          <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center shrink-0 p-1.5">
-            <Image
-              src="/Logo sin fondo - Alfa Club.png"
-              alt="Alfa Club"
-              width={48}
-              height={48}
-              className="object-contain"
-              priority
-            />
-          </div>
-          <div className="h-8 w-px bg-white/20 shrink-0" />
-          <div className="leading-none">
-            <p
-              className="font-extrabold text-base tracking-widest uppercase"
-              style={{ color: "#DC2626" }}
-            >
-              ALFA CLUB
-            </p>
-            <p className="text-white/40 text-xs tracking-wide">
-              Control de Ingreso
-            </p>
-          </div>
+    <div className="min-h-screen bg-background p-4 sm:p-6 lg:p-8">
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="mb-8">
+          <button
+            onClick={() => (window.location.href = "/inicio")}
+            className="text-sm font-medium text-muted-foreground hover:text-foreground mb-4 flex items-center gap-1"
+          >
+            ← Volver
+          </button>
+          <h1 className="text-3xl font-bold text-foreground">
+            Control de Ingreso Web
+          </h1>
+          <p className="text-muted-foreground mt-2">
+            Verifica el estado de los socios de Alfa Club
+          </p>
         </div>
 
-        {/* DNI input inline en header */}
-        <form
-          onSubmit={handleSubmit}
-          className="flex items-center gap-2 flex-1 justify-end max-w-sm"
-          aria-label="Verificar DNI"
-        >
-          <div className="relative flex-1">
-            <input
-              ref={inputRef}
-              id="dni-header-input"
-              type="text"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              placeholder="Ingresa tu DNI..."
-              value={dni}
-              maxLength={9}
-              autoComplete="off"
-              aria-label="Numero de DNI"
-              onChange={(e) => {
-                const v = e.target.value.replace(/\D/g, "").slice(0, 9);
-                setDni(v);
-                setResult(null);
-              }}
-              className={cn(
-                "w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-sm text-white placeholder-white/30",
-                "outline-none focus:border-[#DC2626] focus:ring-2 focus:ring-red-900/40 transition-all tracking-wider",
-              )}
-            />
-          </div>
+        {/* Search Box */}
+        <form onSubmit={handleSubmit} className="mb-8 flex gap-2">
+          <input
+            ref={inputRef}
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            placeholder="Ingresá DNI para buscar..."
+            value={dni}
+            maxLength={9}
+            autoComplete="off"
+            onChange={(e) => {
+              const v = e.target.value.replace(/\D/g, "").slice(0, 9);
+              setDni(v);
+              setResult(null);
+            }}
+            className="flex-1 px-4 py-2 border border-input rounded-lg bg-background text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 transition-all"
+          />
           <button
             type="submit"
             disabled={loading || dni.length < 7}
             className={cn(
-              "px-4 py-2 rounded-lg text-sm font-bold text-white transition-all whitespace-nowrap",
+              "px-6 py-2 rounded-lg font-medium transition-all",
               loading || dni.length < 7
-                ? "bg-white/10 text-white/30 cursor-not-allowed"
-                : "hover:brightness-110 active:scale-[0.98]",
+                ? "bg-muted text-muted-foreground cursor-not-allowed"
+                : "bg-[#DC2626] text-white hover:bg-[#b91c1c] active:scale-[0.98]"
             )}
-            style={
-              loading || dni.length < 7 ? {} : { backgroundColor: "#DC2626" }
-            }
           >
-            {loading ? (
-              <span className="inline-flex items-center gap-2">
-                <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Verificando
-              </span>
-            ) : (
-              "Verificar"
-            )}
+            {loading ? "Buscando..." : "Buscar"}
           </button>
-          {(dni || result) && (
-            <button
-              type="button"
-              onClick={handleClear}
-              className="text-white/40 hover:text-white/70 text-xs transition-colors whitespace-nowrap"
-            >
-              Limpiar
-            </button>
-          )}
         </form>
-      </header>
 
-      {/* ── Body — resultado centrado ── */}
-      <div className="flex-1 flex items-center justify-center px-4 py-12">
-        {result === null && !loading && (
-          <div className="flex flex-col items-center gap-4 text-center select-none">
-            <div
-              className="w-20 h-20 rounded-full flex items-center justify-center relative overflow-hidden"
-              style={{ backgroundColor: "#f3f4f6" }}
-            >
-              <Image
-                src="/Logo sin fondo - Alfa Club.png"
-                alt="Alfa Club"
-                width={80}
-                height={80}
-                priority
-                className="object-contain p-2"
-              />
+        {/* Results */}
+        <div>
+          {result === null && !loading && (
+            <div className="text-center py-12 text-muted-foreground">
+              <p>Ingresá un DNI para buscar</p>
             </div>
-            <p className="text-gray-400 text-sm">
-              Ingresa tu DNI en el campo de arriba y presiona{" "}
-              <kbd className="bg-gray-100 text-gray-600 text-xs px-1.5 py-0.5 rounded font-mono">
-                Enter
-              </kbd>{" "}
-              para verificar tu estado
-            </p>
-          </div>
-        )}
+          )}
 
-        {loading && (
-          <div className="flex flex-col items-center gap-4">
-            <span className="w-12 h-12 border-4 border-gray-200 border-t-[#DC2626] rounded-full animate-spin" />
-            <p className="text-gray-400 text-sm">Verificando DNI {dni}...</p>
-          </div>
-        )}
+          {loading && (
+            <div className="text-center py-12">
+              <span className="inline-block w-8 h-8 border-2 border-muted border-t-foreground rounded-full animate-spin" />
+            </div>
+          )}
 
-        {result !== null && !loading && (
-          <div
-            role="alert"
-            aria-live="polite"
-            className={cn(
-              "rounded-2xl border-2 p-10 flex flex-col items-center gap-5 text-center w-full max-w-md shadow-sm transition-all",
-              result === "not-found"
-                ? "bg-white border-gray-200"
-                : estadoConfig[result.estado].bg + " border-2",
-            )}
-            style={
-              result !== "not-found"
-                ? { borderColor: estadoConfig[result.estado].ring }
-                : {}
-            }
-          >
-            {result === "not-found" ? (
-              <>
-                <XCircle size={56} className="text-gray-300" />
-                <div className="flex flex-col gap-1">
-                  <p className="font-bold text-gray-800 text-xl">
+          {result !== null && !loading && (
+            <>
+              {result === "not-found" ? (
+                <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-6 text-center">
+                  <p className="font-semibold text-destructive">
                     DNI no encontrado
                   </p>
-                  <p className="text-sm text-gray-500 leading-relaxed max-w-xs">
-                    No hay un alumno registrado con ese DNI. Consulta en
-                    secretaria.
+                  <p className="text-sm text-muted-foreground mt-2">
+                    No hay un socio registrado con ese DNI
                   </p>
+                  <button
+                    onClick={handleClear}
+                    className="text-sm mt-4 text-destructive hover:underline"
+                  >
+                    Intentar de nuevo
+                  </button>
                 </div>
-                <button
-                  onClick={handleClear}
-                  className="text-xs text-gray-400 hover:text-gray-600 underline underline-offset-2 transition-colors"
-                >
-                  Intentar de nuevo
-                </button>
-              </>
-            ) : (
-              (() => {
-                const cfg = estadoConfig[result.estado];
-                const Icon = cfg.icon;
-                return (
-                  <>
-                    <Icon
-                      size={64}
-                      className={cfg.iconColor}
-                      strokeWidth={1.5}
+              ) : (
+                <div className="bg-card border border-border rounded-lg p-6 space-y-4">
+                  <div>
+                    <h2 className="text-2xl font-bold text-foreground">
+                      {result.nombre}
+                    </h2>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      DNI: {dni}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="w-3 h-3 rounded-full"
+                      style={{
+                        backgroundColor:
+                          result.estado === "al-dia"
+                            ? "#16a34a"
+                            : result.estado === "vencido"
+                              ? "#DC2626"
+                              : "#d97706",
+                      }}
                     />
-                    <div className="flex flex-col items-center gap-2">
-                      <p className="font-extrabold text-gray-900 text-2xl tracking-tight">
-                        {result.nombre}
+                    <span className="font-medium text-foreground">
+                      {result.estado === "al-dia"
+                        ? "Al Día"
+                        : result.estado === "vencido"
+                          ? "Vencido"
+                          : "Advertencia"}
+                    </span>
+                  </div>
+
+                  {result.plan && (
+                    <div className="pt-4 border-t border-border">
+                      <p className="text-sm font-medium text-muted-foreground mb-2">
+                        Plan
                       </p>
-                      <span
-                        className={cn(
-                          "text-xs font-bold px-3 py-1 rounded-full uppercase tracking-widest",
-                          cfg.badgeBg,
-                          cfg.labelColor,
-                        )}
-                      >
-                        {cfg.label}
-                      </span>
+                      <p className="font-semibold text-foreground">
+                        {result.plan}
+                      </p>
+                      {result.clasesDisponibles !== undefined && (
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {result.clasesDisponibles} clases disponibles
+                        </p>
+                      )}
                     </div>
-                    <p className="text-sm text-gray-600 leading-relaxed max-w-xs">
-                      {cfg.description}
+                  )}
+
+                  <div className="pt-4 border-t border-border">
+                    <p className="text-sm font-medium text-muted-foreground mb-2">
+                      Vencimiento
                     </p>
-                    <p className="text-xs text-gray-400">
-                      Vencimiento:{" "}
-                      <span className="font-semibold text-gray-600">
-                        {result.vencimiento}
-                      </span>
+                    <p className="font-semibold text-foreground">
+                      {result.vencimiento}
                     </p>
-                    <button
-                      onClick={handleClear}
-                      className="mt-2 text-xs text-gray-400 hover:text-gray-600 underline underline-offset-2 transition-colors"
-                    >
-                      Nueva consulta
-                    </button>
-                  </>
-                );
-              })()
-            )}
-          </div>
-        )}
+                  </div>
+
+                  <button
+                    onClick={handleClear}
+                    className="w-full mt-6 py-2 px-4 bg-muted text-muted-foreground hover:bg-muted/80 rounded-lg transition-colors text-sm font-medium"
+                  >
+                    Nueva búsqueda
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
-    </main>
+    </div>
+  );
+}
+
+export default function IngresoWebPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center"><span className="w-8 h-8 border-2 border-muted border-t-foreground rounded-full animate-spin" /></div>}>
+      <IngresoWebContent />
+    </Suspense>
   );
 }
