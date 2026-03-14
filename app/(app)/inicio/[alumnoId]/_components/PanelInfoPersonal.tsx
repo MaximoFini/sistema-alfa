@@ -102,7 +102,7 @@ export default function PanelInfoPersonal({ alumno }: { alumno: Alumno }) {
       {/* Header del panel: avatar + nombre + estado */}
       <div
         className="px-6 pt-8 pb-6 flex flex-col items-center text-center gap-4"
-        style={{ backgroundColor: "#111111" }}
+        style={{ backgroundColor: "#ffffff" }}
       >
         {/* Avatar */}
         <div
@@ -114,11 +114,11 @@ export default function PanelInfoPersonal({ alumno }: { alumno: Alumno }) {
 
         {/* Nombre */}
         <div>
-          <h2 className="text-base font-extrabold text-white leading-tight text-balance">
+          <h2 className="text-base font-extrabold text-foreground leading-tight text-balance">
             {alumno.nombre ?? "Sin nombre"}
           </h2>
           {alumno.edad_actual != null && (
-            <p className="text-xs text-white/50 mt-0.5">{alumno.edad_actual} años</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{alumno.edad_actual} años</p>
           )}
         </div>
 
