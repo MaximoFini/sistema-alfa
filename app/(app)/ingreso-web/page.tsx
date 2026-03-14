@@ -109,6 +109,8 @@ async function verificarDNI(dni: string): Promise<Result> {
   return found;
 }
 
+const RESET_DELAY_MS = 15000;
+
 export default function IngresoWebPage() {
   const searchParams = useSearchParams();
   const isClientView = searchParams.get("view") === "client";
@@ -116,6 +118,7 @@ export default function IngresoWebPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<Result>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Auto-focus input on mount
   useEffect(() => {
@@ -124,12 +127,18 @@ export default function IngresoWebPage() {
 
   // Auto-abrir vista de cliente en nueva pestaña al cargar la página
   useEffect(() => {
-    // Solo abrimos si estamos en el cliente y no en una pestaña ya abierta para clientes
     if (typeof window !== "undefined" && !isClientView && !window.opener) {
       const clientURL = window.location.origin + "/ingreso-web?view=client";
       window.open(clientURL, "_blank", "width=1024,height=768");
     }
   }, [isClientView]);
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
+    };
+  }, []);
 
   async function handleSubmit(e?: React.FormEvent) {
     e?.preventDefault();
@@ -137,12 +146,21 @@ export default function IngresoWebPage() {
     if (trimmed.length < 7) return;
     setLoading(true);
     setResult(null);
+    // Clear input immediately after submission
+    setDni("");
     const res = await verificarDNI(trimmed);
     setResult(res);
     setLoading(false);
+    // Start 15-second auto-reset timer
+    if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
+    resetTimerRef.current = setTimeout(() => {
+      setResult(null);
+      setTimeout(() => inputRef.current?.focus(), 0);
+    }, RESET_DELAY_MS);
   }
 
   function handleClear() {
+    if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
     setDni("");
     setResult(null);
     setTimeout(() => inputRef.current?.focus(), 0);
@@ -190,8 +208,8 @@ export default function IngresoWebPage() {
         : null;
 
     return (
-      <div className="fixed inset-0 z-50 bg-[#111111]">
-        <main className="min-h-screen flex flex-col bg-[#111111]">
+      <div className="fixed inset-0 z-50" style={{ backgroundColor: result !== null && !loading ? (theme ? theme.bg : "#111111") : "#fb923c" }}>
+        <main className="min-h-screen flex flex-col" style={{ backgroundColor: result !== null && !loading ? (theme ? theme.bg : "#111111") : "#fb923c" }}>
           {/* Header negro con logo y campo de búsqueda */}
           <header className="bg-[#111111] border-b border-white/10 px-6 py-3 flex items-center justify-between shrink-0 gap-4">
             {/* Logo izquierda */}
@@ -265,22 +283,22 @@ export default function IngresoWebPage() {
           <div className="flex-1 flex flex-col">
             {/* Estado vacío */}
             {result === null && !loading && (
-              <div className="flex-1 flex flex-col items-center justify-center gap-6 text-center select-none px-4">
-                <div className="w-32 h-32 relative">
+              <div className="flex-1 flex flex-col items-center justify-center gap-8 text-center select-none px-4 py-12">
+                <div className="w-48 h-48 relative flex items-center justify-center">
                   <Image
-                    src="/Logo sin fondo - Alfa Club.png"
+                    src="/Mejor logo.png"
                     alt="Alfa Club"
-                    width={128}
-                    height={128}
+                    width={192}
+                    height={192}
                     className="object-contain"
                     priority
                   />
                 </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-white mb-2">
+                <div className="flex flex-col gap-2">
+                  <h2 className="text-3xl font-extrabold text-[#111111] tracking-tight">
                     Verificá tu estado
                   </h2>
-                  <p className="text-white/50">
+                  <p className="text-[#111111]/60 text-base max-w-xs mx-auto leading-relaxed">
                     Ingresá tu DNI en el campo de arriba para verificar tu cuota
                   </p>
                 </div>
@@ -290,9 +308,9 @@ export default function IngresoWebPage() {
             {/* Loading */}
             {loading && (
               <div className="flex-1 flex flex-col items-center justify-center gap-4">
-                <span className="w-16 h-16 border-4 border-white/10 border-t-white rounded-full animate-spin" />
-                <p className="text-white/50 text-lg font-sans">
-                  Verificando DNI {dni}...
+                <span className="w-16 h-16 border-4 border-[#111111]/20 border-t-[#111111] rounded-full animate-spin" />
+                <p className="text-[#111111]/70 text-lg font-sans font-semibold">
+                  Verificando...
                 </p>
               </div>
             )}
