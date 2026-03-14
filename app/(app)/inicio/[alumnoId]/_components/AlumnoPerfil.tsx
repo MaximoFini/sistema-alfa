@@ -1,13 +1,10 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, UserCircle2, ClipboardList, CreditCard } from "lucide-react";
+import { ArrowLeft, UserCircle2 } from "lucide-react";
 import PanelInfoPersonal from "./PanelInfoPersonal";
 import TabAsistencias from "./TabAsistencias";
 import TabPagos from "./TabPagos";
-
-type Tab = "asistencias" | "pagos";
 
 interface Alumno {
   id: string;
@@ -44,11 +41,6 @@ interface Pago {
   fecha_vencimiento: string;
 }
 
-const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
-  { key: "asistencias", label: "Asistencias", icon: <ClipboardList size={15} /> },
-  { key: "pagos", label: "Pagos", icon: <CreditCard size={15} /> },
-];
-
 export default function AlumnoPerfil({
   alumno,
   asistencias,
@@ -58,12 +50,10 @@ export default function AlumnoPerfil({
   asistencias: Asistencia[];
   pagos: Pago[];
 }) {
-  const [tabActivo, setTabActivo] = useState<Tab>("asistencias");
-
   return (
     <div className="min-h-screen bg-background">
       {/* Top bar */}
-      <div className="border-b border-border bg-card px-4 md:px-8 py-3 flex items-center gap-3">
+      <div className="border-b border-border bg-card px-4 md:px-8 py-3 flex items-center gap-3 sticky top-0 z-10">
         <Link
           href="/inicio"
           className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors text-sm font-medium"
@@ -78,43 +68,40 @@ export default function AlumnoPerfil({
         </div>
       </div>
 
-      {/* Main layout */}
-      <div className="flex flex-col lg:flex-row min-h-[calc(100vh-49px)]">
-        {/* Panel lateral */}
-        <aside className="w-full lg:w-72 xl:w-80 shrink-0 border-b lg:border-b-0 lg:border-r border-border bg-card">
-          <div className="lg:sticky lg:top-0 lg:max-h-screen lg:overflow-y-auto">
+      {/* Main layout: 3 columnas en desktop, stack en móvil */}
+      <div className="flex flex-col xl:flex-row min-h-[calc(100vh-49px)]">
+
+        {/* Columna 1: datos personales */}
+        <aside className="w-full xl:w-72 2xl:w-80 shrink-0 border-b xl:border-b-0 xl:border-r border-border bg-card">
+          <div className="xl:sticky xl:top-[49px] xl:max-h-[calc(100vh-49px)] xl:overflow-y-auto">
             <PanelInfoPersonal alumno={alumno} />
           </div>
         </aside>
 
-        {/* Contenido principal */}
-        <main className="flex-1 min-w-0 flex flex-col">
-          {/* Tab bar */}
-          <div className="bg-card border-b border-border px-4 md:px-8 flex items-center gap-1 shrink-0">
-            {TABS.map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setTabActivo(tab.key)}
-                className={`flex items-center gap-2 px-4 py-4 text-sm font-semibold border-b-2 transition-colors -mb-px ${
-                  tabActivo === tab.key
-                    ? "border-[#dc2626] text-[#dc2626]"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {tab.icon}
-                {tab.label}
-              </button>
-            ))}
-          </div>
+        {/* Columnas 2 y 3: asistencias y pagos lado a lado */}
+        <div className="flex-1 min-w-0 flex flex-col lg:flex-row">
 
-          {/* Tab content */}
-          <div className="flex-1 p-4 md:p-8 overflow-y-auto">
-            {tabActivo === "asistencias" && (
+          {/* Columna 2: Asistencias */}
+          <section className="flex-1 min-w-0 border-b lg:border-b-0 lg:border-r border-border">
+            <div className="px-5 md:px-7 py-6">
+              <h2 className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-5">
+                Asistencias
+              </h2>
               <TabAsistencias asistencias={asistencias} />
-            )}
-            {tabActivo === "pagos" && <TabPagos pagos={pagos} />}
-          </div>
-        </main>
+            </div>
+          </section>
+
+          {/* Columna 3: Pagos */}
+          <section className="flex-1 min-w-0">
+            <div className="px-5 md:px-7 py-6">
+              <h2 className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-5">
+                Pagos
+              </h2>
+              <TabPagos pagos={pagos} />
+            </div>
+          </section>
+
+        </div>
       </div>
     </div>
   );

@@ -62,7 +62,7 @@ export default function TabAsistencias({ asistencias }: Props) {
   const mesesOrdenados = Object.keys(porMes).sort((a, b) => b.localeCompare(a));
 
   return (
-    <div className="flex flex-col gap-6 max-w-2xl">
+    <div className="flex flex-col gap-6">
       {/* Resumen rápido */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <StatCard

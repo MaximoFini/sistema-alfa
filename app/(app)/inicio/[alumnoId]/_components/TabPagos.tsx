@@ -58,7 +58,7 @@ export default function TabPagos({ pagos }: Props) {
   const totalPagado = pagos.reduce((acc, p) => acc + p.precio, 0);
 
   return (
-    <div className="flex flex-col gap-5 max-w-2xl">
+    <div className="flex flex-col gap-5">
       {/* Resumen */}
       <div className="grid grid-cols-2 gap-3">
         <div className="bg-[#dc2626] rounded-xl border border-[#dc2626] p-4 flex flex-col gap-1">
