@@ -137,9 +137,9 @@ export default function AdministracionPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Tabs con scroll horizontal en mobile */}
-      <div className="overflow-x-auto border-b border-gray-100 bg-white">
-        <div className="flex items-center gap-1 px-4 md:px-6 lg:px-8 pt-4 md:pt-6 pb-0 min-w-max">
+      {/* Tabs sin scroll horizontal */}
+      <div className="border-b border-gray-100 bg-white">
+        <div className="flex items-center gap-1 px-4 md:px-6 lg:px-8 pt-4 md:pt-6 pb-0 flex-wrap">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;

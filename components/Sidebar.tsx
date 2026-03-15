@@ -19,6 +19,7 @@ import {
   Dumbbell,
   ClipboardList,
   BookOpen,
+  ShoppingBag,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -51,6 +52,7 @@ export default function Sidebar() {
   const isAdminActive = pathname.startsWith("/administracion");
   const isPlanActive = pathname.startsWith("/planificacion");
   const isIngresoActive = pathname.startsWith("/ingreso-web");
+  const isProductosActive = pathname.startsWith("/productos-ventas");
 
   return (
     <aside
@@ -153,6 +155,25 @@ export default function Sidebar() {
             </div>
           )}
         </div>
+
+        {/* Productos y Ventas */}
+        <Link
+          href="/productos-ventas"
+          className={cn(
+            "flex items-center rounded-lg transition-all duration-150",
+            collapsed ? "justify-center px-2 py-3" : "gap-3 px-3 py-2.5",
+            isProductosActive
+              ? "text-white"
+              : "text-gray-400 hover:text-white hover:bg-neutral-800",
+          )}
+          style={isProductosActive ? { backgroundColor: "#DC2626" } : {}}
+          title={collapsed ? "Productos y Ventas" : undefined}
+        >
+          <ShoppingBag size={18} className="shrink-0" />
+          {!collapsed && (
+            <span className="text-sm font-medium">Productos y Ventas</span>
+          )}
+        </Link>
 
         {/* Comunicacion */}
         <Link
