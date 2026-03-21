@@ -294,12 +294,12 @@ export default function IngresoWebPage() {
             {/* Estado vacío */}
             {result === null && !loading && (
               <div className="flex-1 flex flex-col items-center justify-center gap-8 text-center select-none px-4 py-12">
-                <div className="w-48 h-48 relative flex items-center justify-center">
+                <div className="w-[211px] h-[211px] relative flex items-center justify-center">
                   <Image
                     src="/Mejor logo.png"
                     alt="Alfa Club"
-                    width={192}
-                    height={192}
+                    width={211}
+                    height={211}
                     className="object-contain"
                     priority
                   />

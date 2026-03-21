@@ -57,6 +57,7 @@ interface VentaFormData {
   producto_id: string;
   cantidad: string;
   notas: string;
+  medio_pago: string;
 }
 
 // ─── Modal para crear/editar producto ─────────────────────────────────────────
@@ -280,9 +281,23 @@ function VentaModal({
     producto_id: "",
     cantidad: "1",
     notas: "",
+    medio_pago: "",
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [mediosPago, setMediosPago] = useState<Array<{ name: string }>>([]);
+
+  useEffect(() => {
+    async function loadPaymentMethods() {
+      const { data } = await supabase
+        .from("payment_methods")
+        .select("name")
+        .eq("is_active", true)
+        .order("name", { ascending: true });
+      if (data) setMediosPago(data);
+    }
+    loadPaymentMethods();
+  }, []);
 
   const productoSeleccionado = productos.find((p) => p.id === form.producto_id);
   const total = productoSeleccionado
@@ -318,6 +333,11 @@ function VentaModal({
       return;
     }
 
+    if (!form.medio_pago) {
+      setError("Selecciona un método de pago");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -327,6 +347,7 @@ function VentaModal({
         cantidad: cantidad,
         precio_unitario: productoSeleccionado.precio_venta,
         precio_costo_unitario: productoSeleccionado.precio_costo,
+        medio_pago: form.medio_pago,
         notas: form.notas.trim() || null,
       };
 
@@ -433,6 +454,24 @@ function VentaModal({
 
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Método de Pago *
+            </label>
+            <select
+              value={form.medio_pago}
+              onChange={(e) => setForm({ ...form, medio_pago: e.target.value })}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-50 transition-all"
+            >
+              <option value="">Seleccionar pago...</option>
+              {mediosPago.map((mp) => (
+                <option key={mp.name} value={mp.name}>
+                  {mp.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
               Notas (opcional)
             </label>
             <textarea
@@ -489,7 +528,7 @@ function VentaModal({
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 export default function ProductosVentasPage() {
-  const [tab, setTab] = useState<"productos" | "ventas" | "historial">(
+  const [tab, setTab] = useState<"productos" | "historial">(
     "productos",
   );
   const [productos, setProductos] = useState<Producto[]>([]);
@@ -643,23 +682,6 @@ export default function ProductosVentasPage() {
           >
             Historial de Ventas
             {tab === "historial" && (
-              <div
-                className="absolute bottom-0 left-0 right-0 h-0.5"
-                style={{ backgroundColor: "#DC2626" }}
-              />
-            )}
-          </button>
-          <button
-            onClick={() => setTab("ventas")}
-            className={cn(
-              "px-4 py-2.5 text-sm font-semibold transition-all relative",
-              tab === "ventas"
-                ? "text-red-600"
-                : "text-gray-500 hover:text-gray-700",
-            )}
-          >
-            Estadísticas
-            {tab === "ventas" && (
               <div
                 className="absolute bottom-0 left-0 right-0 h-0.5"
                 style={{ backgroundColor: "#DC2626" }}
@@ -959,87 +981,7 @@ export default function ProductosVentasPage() {
               </div>
             )}
 
-            {tab === "ventas" && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-white rounded-xl border border-gray-100 p-6">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div
-                      className="w-10 h-10 rounded-xl flex items-center justify-center"
-                      style={{ backgroundColor: "#FEF2F2" }}
-                    >
-                      <DollarSign size={20} style={{ color: "#DC2626" }} />
-                    </div>
-                    <h3 className="text-sm font-bold text-gray-600">
-                      VENTAS TOTALES
-                    </h3>
-                  </div>
-                  <p
-                    className="text-3xl font-bold"
-                    style={{ color: "#DC2626" }}
-                  >
-                    ${totalVentas.toFixed(2)}
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {ventas.length} ventas registradas
-                  </p>
-                </div>
 
-                <div className="bg-white rounded-xl border border-gray-100 p-6">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div
-                      className="w-10 h-10 rounded-xl flex items-center justify-center"
-                      style={{ backgroundColor: "#F0FDF4" }}
-                    >
-                      <TrendingUp size={20} style={{ color: "#16A34A" }} />
-                    </div>
-                    <h3 className="text-sm font-bold text-gray-600">
-                      GANANCIAS TOTALES
-                    </h3>
-                  </div>
-                  <p
-                    className="text-3xl font-bold"
-                    style={{ color: "#16A34A" }}
-                  >
-                    ${totalGanancias.toFixed(2)}
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Margen promedio:{" "}
-                    {totalVentas > 0
-                      ? ((totalGanancias / totalVentas) * 100).toFixed(1)
-                      : 0}
-                    %
-                  </p>
-                </div>
-
-                <div className="bg-white rounded-xl border border-gray-100 p-6">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div
-                      className="w-10 h-10 rounded-xl flex items-center justify-center"
-                      style={{ backgroundColor: "#EFF6FF" }}
-                    >
-                      <Package size={20} style={{ color: "#2563EB" }} />
-                    </div>
-                    <h3 className="text-sm font-bold text-gray-600">
-                      PRODUCTOS ACTIVOS
-                    </h3>
-                  </div>
-                  <p
-                    className="text-3xl font-bold"
-                    style={{ color: "#2563EB" }}
-                  >
-                    {productos.filter((p) => p.activo).length}
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {
-                      productos.filter(
-                        (p) => p.activo && p.stock <= p.stock_minimo,
-                      ).length
-                    }{" "}
-                    con stock bajo
-                  </p>
-                </div>
-              </div>
-            )}
           </>
         )}
       </div>

@@ -15,12 +15,15 @@ import EstadisticasPage from "@/app/(app)/estadisticas/page";
 import FinanzasPage from "@/app/(app)/finanzas/page";
 import AjustesPage from "@/app/(app)/administracion/ajustes/page";
 
+import EstadisticasProductosPage from "@/app/(app)/administracion/_components/EstadisticasProductos";
+
 const PASSWORD = "admin123";
 
-type Tab = "estadisticas" | "finanzas" | "ajustes";
+type Tab = "estadisticas" | "estadisticas-productos" | "finanzas" | "ajustes";
 
 const tabs: { id: Tab; label: string; icon: typeof BarChart2 }[] = [
-  { id: "estadisticas", label: "Estadisticas", icon: BarChart2 },
+  { id: "estadisticas", label: "Estadisticas Clientes", icon: BarChart2 },
+  { id: "estadisticas-productos", label: "Estadisticas de Productos", icon: BarChart2 },
   { id: "finanzas", label: "Finanzas", icon: DollarSign },
   { id: "ajustes", label: "Ajustes de Negocio", icon: Settings },
 ];
@@ -163,6 +166,7 @@ export default function AdministracionPage() {
       </div>
       <div className="flex-1">
         {activeTab === "estadisticas" && <EstadisticasPage />}
+        {activeTab === "estadisticas-productos" && <EstadisticasProductosPage />}
         {activeTab === "finanzas" && <FinanzasPage />}
         {activeTab === "ajustes" && <AjustesPage />}
       </div>

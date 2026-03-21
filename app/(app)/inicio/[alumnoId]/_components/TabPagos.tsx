@@ -184,59 +184,60 @@ export default function TabPagos({ alumnoId, pagosIniciales }: Props) {
 
             const config = estadoConfig[estado];
 
-            return ( className={config.dateColor}>
-                        {formatFecha(pago.fecha_vencimiento)}
-                      </span>
-                    </div>
+            return (
+              <div>
+                <span className={config.dateColor}>
+                  {formatFecha(pago.fecha_vencimiento)}
+                </span>
 
-                    {/* Badge estado */}
+                {/* Badge estado */}
+                <span
+                  className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full ${config.badgeBg}`}
+                >
+                  {config.icon}
+                  {config.label}
+                </span>
+
+                {/* Footer con fechas y medio de pago */}
+                <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-border">
+                  {/* Medio de pago */}
+                  <span
+                    className={`text-xs font-bold px-2.5 py-1 rounded-full capitalize ${getMedioPagoClass(pago.medio_pago)}`}
+                  >
+                    {pago.medio_pago}
+                  </span>
+
+                  {/* Fechas */}
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground ml-auto">
+                    <Calendar size={11} />
+                    <span>{formatFecha(pago.fecha_inicio)}</span>
+                    <span className="text-border">→</span>
                     <span
-                      className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full ${config.badgeBg}`}
+                      className={
+                        estado === "vencido"
+                          ? "text-red-500 font-semibold"
+                          : "text-green-600 font-semibold"
+                      }
                     >
-                      {config.icon}
-                      {config.label
-
-                  {/* Footer con fechas y medio de pago */}
-                  <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-border">
-                    {/* Medio de pago */}
-                    <span
-                      className={`text-xs font-bold px-2.5 py-1 rounded-full capitalize ${getMedioPagoClass(pago.medio_pago)}`}
-                    >
-                      {pago.medio_pago}
-                    </span>
-
-                    {/* Fechas */}
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground ml-auto">
-                      <Calendar size={11} />
-                      <span>{formatFecha(pago.fecha_inicio)}</span>
-                      <span className="text-border">→</span>
-                      <span
-                        className={
-                          estaVencido
-                            ? "text-red-500 font-semibold"
-                            : "text-green-600 font-semibold"
-                        }
-                      >
-                        {formatFecha(pago.fecha_vencimiento)}
-                      </span>
-                    </div>
-
-                    {/* Badge vencido/vigente */}
-                    <span
-                      className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full ${
-                        estaVencido
-                          ? "bg-red-50 text-red-600 ring-1 ring-red-200"
-                          : "bg-green-50 text-green-700 ring-1 ring-green-200"
-                      }`}
-                    >
-                      {estaVencido ? (
-                        <XCircle size={10} strokeWidth={2.5} />
-                      ) : (
-                        <CheckCircle2 size={10} strokeWidth={2.5} />
-                      )}
-                      {estaVencido ? "Vencido" : "Vigente"}
+                      {formatFecha(pago.fecha_vencimiento)}
                     </span>
                   </div>
+
+                  {/* Badge vencido/vigente */}
+                  <span
+                    className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full ${
+                      estado === "vencido"
+                        ? "bg-red-50 text-red-600 ring-1 ring-red-200"
+                        : "bg-green-50 text-green-700 ring-1 ring-green-200"
+                    }`}
+                  >
+                    {estado === "vencido" ? (
+                      <XCircle size={10} strokeWidth={2.5} />
+                    ) : (
+                      <CheckCircle2 size={10} strokeWidth={2.5} />
+                    )}
+                    {estado === "vencido" ? "Vencido" : "Vigente"}
+                  </span>
                 </div>
               </div>
             );
