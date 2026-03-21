@@ -3,18 +3,19 @@
 import { useState, useRef, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import Image from "next/image";
-import { CheckCircle2, XCircle, Clock } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
-type Estado = "al-dia" | "vencido" | "advertencia";
+type Estado = "al-dia" | "vencido" | "advertencia" | "periodo_gracia";
 type Result =
   | {
       nombre: string;
       estado: Estado;
       vencimiento: string;
       actividad?: string;
+      clasesGracia?: { usadas: number; disponibles: number };
     }
   | "not-found"
   | null;
@@ -68,6 +69,17 @@ const estadoConfig: Record<
     labelColor: "text-yellow-700",
     badgeBg: "bg-yellow-100",
     ring: "#eab308",
+  },
+  periodo_gracia: {
+    label: "Ingreso permitido: Clase de cortesía",
+    description: "Ests usando una clase de gracia. Recordá renovar tu plan para seguir entrenando sin interrupciones.",
+    icon: Info,
+    bg: "bg-blue-50",
+    border: "border-blue-200",
+    iconColor: "text-blue-500",
+    labelColor: "text-blue-700",
+    badgeBg: "bg-blue-100",
+    ring: "#2563EB",
   },
 };
 
@@ -187,6 +199,16 @@ export default function IngresoWebPage() {
       icon: Clock,
       label: "CUOTA POR VENCER",
       sublabel: "Tu plan vence pronto. Renovalo para seguir entrenando.",
+    },
+    periodo_gracia: {
+      bg: "#2563EB",
+      bgDark: "#1e3a8a",
+      accent: "#93c5fd",
+      textPrimary: "#ffffff",
+      textSecondary: "rgba(255,255,255,0.80)",
+      icon: Info,
+      label: "PERÍODO DE GRACIA",
+      sublabel: "Renovate para seguir entrenando.",
     },
   } as const;
 
@@ -429,7 +451,7 @@ export default function IngresoWebPage() {
                       </div>
 
                       {/* Datos del plan */}
-                      {(result.plan || result.vencimiento) && (
+                      {result.vencimiento && (
                         <div
                           className="mt-2 rounded-2xl px-8 py-5 flex flex-col items-center gap-1"
                           style={{ backgroundColor: "rgba(0,0,0,0.2)" }}
@@ -447,6 +469,26 @@ export default function IngresoWebPage() {
                             style={{ color: theme!.textSecondary }}
                           >
                             Vence {result.vencimiento}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Clase de gracia: contador */}
+                      {result.estado === "periodo_gracia" && result.clasesGracia && (
+                        <div
+                          className="mt-2 rounded-2xl px-8 py-4 flex flex-col items-center gap-1"
+                          style={{ backgroundColor: "rgba(0,0,0,0.2)" }}
+                        >
+                          <p
+                            className="text-2xl font-black"
+                            style={{ color: "#ffffff" }}
+                          >
+                            Clase {result.clasesGracia.usadas} de {result.clasesGracia.disponibles}
+                          </p>
+                          <p className="text-sm" style={{ color: "rgba(255,255,255,0.7)" }}>
+                            Clase{result.clasesGracia.disponibles - result.clasesGracia.usadas === 0
+                              ? "s de gracia agotadas"
+                              : ` — te queda${result.clasesGracia.disponibles - result.clasesGracia.usadas === 1 ? " 1 clase" : ` ${result.clasesGracia.disponibles - result.clasesGracia.usadas} clases`} más`}
                           </p>
                         </div>
                       )}

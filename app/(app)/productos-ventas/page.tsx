@@ -14,6 +14,7 @@ import {
   Search,
   X,
   ShoppingBag,
+  Shirt,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -26,6 +27,8 @@ interface Producto {
   stock: number;
   stock_minimo: number;
   activo: boolean;
+  categoria: string;
+  talles: Record<string, number> | null;
   created_at: string;
   updated_at: string;
 }
@@ -39,10 +42,16 @@ interface Venta {
   total: number;
   ganancia: number;
   notas: string | null;
+  talle_vendido: string | null;
   created_at: string;
   productos?: {
     nombre: string;
   };
+}
+
+interface TalleStock {
+  talle: string;
+  stock: string;
 }
 
 interface ProductoFormData {
@@ -51,6 +60,8 @@ interface ProductoFormData {
   precio_costo: string;
   stock: string;
   stock_minimo: string;
+  categoria: string;
+  tallesStock: TalleStock[];
 }
 
 interface VentaFormData {
@@ -58,7 +69,10 @@ interface VentaFormData {
   cantidad: string;
   notas: string;
   medio_pago: string;
+  talle_vendido: string;
 }
+
+const TALLES_DISPONIBLES = ["XS", "S", "M", "L", "XL", "XXL"];
 
 // ─── Modal para crear/editar producto ─────────────────────────────────────────
 function ProductoModal({
@@ -70,15 +84,55 @@ function ProductoModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const getInitialTallesStock = (): TalleStock[] => {
+    if (producto?.talles) {
+      return Object.entries(producto.talles).map(([t, s]) => ({
+        talle: t,
+        stock: s.toString(),
+      }));
+    }
+    return [{ talle: "S", stock: "0" }];
+  };
+
   const [form, setForm] = useState<ProductoFormData>({
     nombre: producto?.nombre || "",
     precio_venta: producto?.precio_venta.toString() || "",
     precio_costo: producto?.precio_costo.toString() || "",
     stock: producto?.stock.toString() || "0",
     stock_minimo: producto?.stock_minimo.toString() || "0",
+    categoria: producto?.categoria || "General",
+    tallesStock: getInitialTallesStock(),
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const esIndumentaria = form.categoria === "Indumentaria";
+
+  const stockTotalCalculado = esIndumentaria
+    ? form.tallesStock.reduce((acc, t) => acc + (parseInt(t.stock) || 0), 0)
+    : parseInt(form.stock) || 0;
+
+  function agregarTalle() {
+    const disponibles = TALLES_DISPONIBLES.filter(
+      (t) => !form.tallesStock.some((ts) => ts.talle === t)
+    );
+    if (disponibles.length === 0) return;
+    setForm({
+      ...form,
+      tallesStock: [...form.tallesStock, { talle: disponibles[0], stock: "0" }],
+    });
+  }
+
+  function quitarTalle(idx: number) {
+    const nuevo = form.tallesStock.filter((_, i) => i !== idx);
+    setForm({ ...form, tallesStock: nuevo });
+  }
+
+  function updateTalle(idx: number, field: "talle" | "stock", value: string) {
+    const nuevo = [...form.tallesStock];
+    nuevo[idx] = { ...nuevo[idx], [field]: value };
+    setForm({ ...form, tallesStock: nuevo });
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -94,15 +148,33 @@ function ProductoModal({
       return;
     }
 
+    if (esIndumentaria && form.tallesStock.length === 0) {
+      setError("Debes agregar al menos un talle");
+      return;
+    }
+
     setLoading(true);
 
     try {
+      let tallesObj: Record<string, number> | null = null;
+      let stockFinal = parseInt(form.stock) || 0;
+
+      if (esIndumentaria) {
+        tallesObj = {};
+        form.tallesStock.forEach((ts) => {
+          if (ts.talle) tallesObj![ts.talle] = parseInt(ts.stock) || 0;
+        });
+        stockFinal = Object.values(tallesObj).reduce((a, b) => a + b, 0);
+      }
+
       const data = {
         nombre: form.nombre.trim(),
         precio_venta: parseFloat(form.precio_venta),
         precio_costo: parseFloat(form.precio_costo) || 0,
-        stock: parseInt(form.stock) || 0,
+        stock: stockFinal,
         stock_minimo: parseInt(form.stock_minimo) || 0,
+        categoria: form.categoria,
+        talles: tallesObj,
         updated_at: new Date().toISOString(),
       };
 
@@ -176,6 +248,38 @@ function ProductoModal({
             />
           </div>
 
+          {/* Categoría */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Categoría *
+            </label>
+            <div className="flex gap-3">
+              {["General", "Indumentaria"].map((cat) => (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() =>
+                    setForm({
+                      ...form,
+                      categoria: cat,
+                      tallesStock: cat === "Indumentaria" ? [{ talle: "S", stock: "0" }] : form.tallesStock,
+                    })
+                  }
+                  className={cn(
+                    "flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border text-sm font-semibold transition-all",
+                    form.categoria === cat
+                      ? "border-red-500 bg-red-50 text-red-700"
+                      : "border-gray-200 text-gray-600 hover:border-gray-300"
+                  )}
+                >
+                  {cat === "Indumentaria" && <Shirt size={15} />}
+                  {cat === "General" && <Package size={15} />}
+                  {cat}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -212,37 +316,118 @@ function ProductoModal({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Stock Actual
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={form.stock}
-                onChange={(e) => setForm({ ...form, stock: e.target.value })}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-50 transition-all"
-                placeholder="0"
-              />
-            </div>
+          {/* Sección condicional: stock normal vs. talles */}
+          {!esIndumentaria ? (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Stock Actual
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={form.stock}
+                  onChange={(e) => setForm({ ...form, stock: e.target.value })}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-50 transition-all"
+                  placeholder="0"
+                />
+              </div>
 
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Stock Mínimo
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={form.stock_minimo}
-                onChange={(e) =>
-                  setForm({ ...form, stock_minimo: e.target.value })
-                }
-                className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-50 transition-all"
-                placeholder="0"
-              />
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Stock Mínimo
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={form.stock_minimo}
+                  onChange={(e) =>
+                    setForm({ ...form, stock_minimo: e.target.value })
+                  }
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-50 transition-all"
+                  placeholder="0"
+                />
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="block text-sm font-semibold text-gray-700">
+                  Stock por Talle
+                </label>
+                <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
+                  Total: {stockTotalCalculado} unidades
+                </span>
+              </div>
+
+              {form.tallesStock.map((ts, idx) => {
+                const tallesUsados = form.tallesStock
+                  .filter((_, i) => i !== idx)
+                  .map((x) => x.talle);
+                return (
+                  <div key={idx} className="flex gap-2 items-center">
+                    <select
+                      value={ts.talle}
+                      onChange={(e) => updateTalle(idx, "talle", e.target.value)}
+                      className="w-28 border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-50"
+                    >
+                      {TALLES_DISPONIBLES.filter(
+                        (t) => !tallesUsados.includes(t) || t === ts.talle
+                      ).map((t) => (
+                        <option key={t} value={t}>
+                          {t}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      type="number"
+                      min="0"
+                      value={ts.stock}
+                      onChange={(e) => updateTalle(idx, "stock", e.target.value)}
+                      className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-50"
+                      placeholder="0"
+                    />
+                    {form.tallesStock.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => quitarTalle(idx)}
+                        className="text-gray-400 hover:text-red-500 transition-colors p-1"
+                      >
+                        <X size={16} />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+
+              {form.tallesStock.length < TALLES_DISPONIBLES.length && (
+                <button
+                  type="button"
+                  onClick={agregarTalle}
+                  className="w-full py-2 border border-dashed border-gray-300 rounded-lg text-sm text-gray-500 hover:border-red-300 hover:text-red-500 transition-colors flex items-center justify-center gap-2"
+                >
+                  <Plus size={15} />
+                  Agregar talle
+                </button>
+              )}
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Stock Mínimo (total)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={form.stock_minimo}
+                  onChange={(e) =>
+                    setForm({ ...form, stock_minimo: e.target.value })
+                  }
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-50 transition-all"
+                  placeholder="0"
+                />
+              </div>
+            </div>
+          )}
 
           <div className="flex gap-3 pt-4">
             <button
@@ -282,6 +467,7 @@ function VentaModal({
     cantidad: "1",
     notas: "",
     medio_pago: "",
+    talle_vendido: "",
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -300,6 +486,21 @@ function VentaModal({
   }, []);
 
   const productoSeleccionado = productos.find((p) => p.id === form.producto_id);
+  const esIndumentaria = productoSeleccionado?.categoria === "Indumentaria";
+
+  // talles con stock disponible
+  const tallesDisponibles = esIndumentaria && productoSeleccionado?.talles
+    ? Object.entries(productoSeleccionado.talles)
+        .filter(([, qty]) => qty > 0)
+        .map(([talle, qty]) => ({ talle, qty }))
+    : [];
+
+  // stock disponible del talle seleccionado
+  const stockTalleSeleccionado =
+    esIndumentaria && form.talle_vendido && productoSeleccionado?.talles
+      ? productoSeleccionado.talles[form.talle_vendido] ?? 0
+      : productoSeleccionado?.stock ?? 0;
+
   const total = productoSeleccionado
     ? productoSeleccionado.precio_venta * parseFloat(form.cantidad || "0")
     : 0;
@@ -328,9 +529,21 @@ function VentaModal({
       return;
     }
 
-    if (productoSeleccionado.stock < cantidad) {
-      setError("Stock insuficiente");
+    if (esIndumentaria && !form.talle_vendido) {
+      setError("Debes seleccionar el talle que se vende");
       return;
+    }
+
+    if (esIndumentaria) {
+      if (stockTalleSeleccionado < cantidad) {
+        setError(`Stock insuficiente para el talle ${form.talle_vendido} (disponible: ${stockTalleSeleccionado})`);
+        return;
+      }
+    } else {
+      if (productoSeleccionado.stock < cantidad) {
+        setError("Stock insuficiente");
+        return;
+      }
     }
 
     if (!form.medio_pago) {
@@ -342,13 +555,14 @@ function VentaModal({
 
     try {
       // Registrar venta
-      const ventaData = {
+      const ventaData: any = {
         producto_id: form.producto_id,
         cantidad: cantidad,
         precio_unitario: productoSeleccionado.precio_venta,
         precio_costo_unitario: productoSeleccionado.precio_costo,
         medio_pago: form.medio_pago,
         notas: form.notas.trim() || null,
+        talle_vendido: esIndumentaria ? form.talle_vendido : null,
       };
 
       const { error: ventaError } = await supabase
@@ -356,16 +570,32 @@ function VentaModal({
         .insert([ventaData]);
       if (ventaError) throw ventaError;
 
-      // Decrementar stock
-      const nuevoStock = productoSeleccionado.stock - cantidad;
-      const { error: stockError } = await supabase
-        .from("productos")
-        .update({
-          stock: nuevoStock,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", form.producto_id);
-      if (stockError) throw stockError;
+      // Actualizar stock
+      if (esIndumentaria && productoSeleccionado.talles) {
+        const nuevosTalles = { ...productoSeleccionado.talles };
+        nuevosTalles[form.talle_vendido] = (nuevosTalles[form.talle_vendido] || 0) - cantidad;
+        const nuevoStockTotal = Object.values(nuevosTalles).reduce((a, b) => a + b, 0);
+
+        const { error: stockError } = await supabase
+          .from("productos")
+          .update({
+            talles: nuevosTalles,
+            stock: nuevoStockTotal,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", form.producto_id);
+        if (stockError) throw stockError;
+      } else {
+        const nuevoStock = productoSeleccionado.stock - cantidad;
+        const { error: stockError } = await supabase
+          .from("productos")
+          .update({
+            stock: nuevoStock,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", form.producto_id);
+        if (stockError) throw stockError;
+      }
 
       onSaved();
       onClose();
@@ -378,7 +608,7 @@ function VentaModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
         <div className="bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between rounded-t-2xl">
           <div className="flex items-center gap-3">
             <div
@@ -418,7 +648,7 @@ function VentaModal({
             <select
               value={form.producto_id}
               onChange={(e) =>
-                setForm({ ...form, producto_id: e.target.value })
+                setForm({ ...form, producto_id: e.target.value, talle_vendido: "" })
               }
               className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-50 transition-all"
             >
@@ -432,6 +662,37 @@ function VentaModal({
                 ))}
             </select>
           </div>
+
+          {/* Selección de talle (solo para indumentaria) */}
+          {esIndumentaria && (
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Talle *
+              </label>
+              {tallesDisponibles.length === 0 ? (
+                <p className="text-sm text-red-500">Sin stock disponible para ningún talle</p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {tallesDisponibles.map(({ talle, qty }) => (
+                    <button
+                      key={talle}
+                      type="button"
+                      onClick={() => setForm({ ...form, talle_vendido: talle })}
+                      className={cn(
+                        "px-4 py-2 rounded-lg border text-sm font-semibold transition-all",
+                        form.talle_vendido === talle
+                          ? "border-red-500 bg-red-50 text-red-700"
+                          : "border-gray-200 text-gray-700 hover:border-gray-300"
+                      )}
+                    >
+                      {talle}
+                      <span className="ml-1.5 text-xs opacity-70">({qty})</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -447,7 +708,12 @@ function VentaModal({
             />
             {productoSeleccionado && (
               <p className="text-xs text-gray-500 mt-1">
-                Stock disponible: {productoSeleccionado.stock} unidades
+                Stock disponible:{" "}
+                {esIndumentaria && form.talle_vendido
+                  ? `${stockTalleSeleccionado} unidades (talle ${form.talle_vendido})`
+                  : esIndumentaria
+                  ? "Selecciona un talle"
+                  : `${productoSeleccionado.stock} unidades`}
               </p>
             )}
           </div>
@@ -744,6 +1010,7 @@ export default function ProductosVentasPage() {
                       {productosActivos.map((producto) => {
                         const stockBajo =
                           producto.stock <= producto.stock_minimo;
+                        const esIndumentaria = producto.categoria === "Indumentaria";
                         return (
                           <div
                             key={producto.id}
@@ -767,9 +1034,17 @@ export default function ProductosVentasPage() {
                             )}
 
                             <div className="mb-3">
-                              <h4 className="font-bold text-gray-900 mb-1">
-                                {producto.nombre}
-                              </h4>
+                              <div className="flex items-center gap-1.5 mb-1">
+                                {esIndumentaria && (
+                                  <Shirt
+                                    size={14}
+                                    className="text-gray-400 shrink-0"
+                                  />
+                                )}
+                                <h4 className="font-bold text-gray-900 truncate">
+                                  {producto.nombre}
+                                </h4>
+                              </div>
                               <div className="flex items-center gap-2">
                                 <span
                                   className="text-2xl font-bold"
@@ -781,8 +1056,17 @@ export default function ProductosVentasPage() {
                             </div>
 
                             <div className="space-y-2 mb-4">
+                              {/* Categoria */}
+                              {esIndumentaria && (
+                                <div className="mb-2">
+                                  <span className="text-xs font-semibold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full">
+                                    Indumentaria
+                                  </span>
+                                </div>
+                              )}
+
                               <div className="flex justify-between text-sm">
-                                <span className="text-gray-600">Stock:</span>
+                                <span className="text-gray-600">Stock total:</span>
                                 <span
                                   className={cn(
                                     "font-semibold",
@@ -794,6 +1078,29 @@ export default function ProductosVentasPage() {
                                   {producto.stock} unidades
                                 </span>
                               </div>
+
+                              {/* Desglose de talles */}
+                              {esIndumentaria && producto.talles && Object.keys(producto.talles).length > 0 && (
+                                <div>
+                                  <p className="text-xs text-gray-500 mb-1">Talles:</p>
+                                  <div className="flex flex-wrap gap-1">
+                                    {Object.entries(producto.talles).map(([talle, qty]) => (
+                                      <span
+                                        key={talle}
+                                        className={cn(
+                                          "text-xs font-semibold px-2 py-0.5 rounded-full border",
+                                          qty === 0
+                                            ? "border-gray-200 text-gray-400 line-through bg-gray-50"
+                                            : "border-blue-200 text-blue-700 bg-blue-50"
+                                        )}
+                                      >
+                                        {talle}: {qty}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
                               <div className="flex justify-between text-sm">
                                 <span className="text-gray-600">
                                   Stock mínimo:
@@ -897,6 +1204,9 @@ export default function ProductosVentasPage() {
                           <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
                             Producto
                           </th>
+                          <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+                            Talle
+                          </th>
                           <th className="px-6 py-4 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">
                             Cantidad
                           </th>
@@ -917,7 +1227,7 @@ export default function ProductosVentasPage() {
                       <tbody className="divide-y divide-gray-100">
                         {ventas.length === 0 ? (
                           <tr>
-                            <td colSpan={7} className="px-6 py-12 text-center">
+                            <td colSpan={8} className="px-6 py-12 text-center">
                               <ShoppingCart
                                 size={48}
                                 className="mx-auto mb-3 text-gray-300"
@@ -947,6 +1257,15 @@ export default function ProductosVentasPage() {
                               </td>
                               <td className="px-6 py-4 text-sm font-semibold text-gray-900">
                                 {venta.productos?.nombre || "N/A"}
+                              </td>
+                              <td className="px-6 py-4 text-sm text-gray-700">
+                                {venta.talle_vendido ? (
+                                  <span className="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-xs font-semibold">
+                                    {venta.talle_vendido}
+                                  </span>
+                                ) : (
+                                  <span className="text-gray-400">-</span>
+                                )}
                               </td>
                               <td className="px-6 py-4 text-sm text-right text-gray-900">
                                 {venta.cantidad}

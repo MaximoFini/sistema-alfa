@@ -239,6 +239,60 @@ export default function EstadisticasPage() {
         </div>
       </div>
 
+      {/* Ranking por asistencia */}
+      <div className="bg-white rounded-xl border border-gray-100 p-5">
+        <div className="flex items-center gap-2 mb-5">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2">
+            <path d="M6 9H4a2 2 0 01-2-2V5h4" /><path d="M18 9h2a2 2 0 002-2V5h-4" />
+            <path d="M12 17v4" /><path d="M8 21h8" /><path d="M6 5h12v6a6 6 0 01-12 0V5z" />
+          </svg>
+          <span className="text-xs font-semibold tracking-widest text-gray-500 uppercase">Ranking</span>
+          <span className="text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">Top 5 por asistencia</span>
+        </div>
+        <div className="flex flex-col gap-3">
+          {[
+            { pos: 1, nombre: "Martín González",  inicial: "M", clases: 12 },
+            { pos: 2, nombre: "Sofía Ramírez",     inicial: "S", clases: 10 },
+            { pos: 3, nombre: "Lucas Fernández",   inicial: "L", clases: 9  },
+            { pos: 4, nombre: "Valentina Torres",  inicial: "V", clases: 8  },
+            { pos: 5, nombre: "Diego Morales",     inicial: "D", clases: 7  },
+          ].map(({ pos, nombre, inicial, clases }) => {
+            const medalColors: Record<number, { bg: string; text: string; label: string }> = {
+              1: { bg: "#fffbeb", text: "#d97706", label: "🥇" },
+              2: { bg: "#f8fafc", text: "#64748b", label: "🥈" },
+              3: { bg: "#fff7ed", text: "#c2410c", label: "🥉" },
+            }
+            const medal = medalColors[pos]
+            return (
+              <div key={pos} className="flex items-center gap-3">
+                {/* Posición / medalla */}
+                <div
+                  className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold"
+                  style={medal
+                    ? { backgroundColor: medal.bg, color: medal.text }
+                    : { backgroundColor: "#f3f4f6", color: "#6b7280" }}
+                >
+                  {medal ? medal.label : pos}
+                </div>
+                {/* Avatar */}
+                <div
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0"
+                  style={{ backgroundColor: pos === 1 ? "#DC2626" : "#9ca3af" }}
+                >
+                  {inicial}
+                </div>
+                {/* Nombre */}
+                <span className={`flex-1 text-sm ${pos === 1 ? "font-semibold text-gray-900" : "text-gray-600"}`}>
+                  {nombre}
+                </span>
+                {/* Clases */}
+                <span className="text-xs font-semibold text-gray-400">{clases} clases</span>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
       {/* Fila 4 — Estacionalidad de ingresos + Género */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Estacionalidad (ocupa 2/3) */}

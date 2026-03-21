@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { Calendar, Banknote, CheckCircle2, XCircle, Plus, Clock } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Calendar, Banknote, CheckCircle2, XCircle, Plus, Clock, Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import RegistrarCobroModal from "./RegistrarCobroModal";
 
@@ -53,8 +54,102 @@ function getMedioPagoClass(medio: string): string {
 }
 
 export default function TabPagos({ alumnoId, pagosIniciales }: Props) {
+  const router = useRouter();
   const [pagos, setPagos] = useState<Pago[]>(pagosIniciales);
   const [modalAbierto, setModalAbierto] = useState(false);
+
+  const [pagoAEliminar, setPagoAEliminar] = useState<Pago | null>(null);
+  const [isPressingDelete, setIsPressingDelete] = useState(false);
+  const [deleteProgress, setDeleteProgress] = useState(0);
+  const [eliminando, setEliminando] = useState(false);
+
+  const deleteTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+  const LONG_PRESS_DURATION = 3000;
+
+  function handleDeleteMouseDown(pago: Pago) {
+    setIsPressingDelete(true);
+    let startTime = Date.now();
+
+    const updateProgress = () => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min((elapsed / LONG_PRESS_DURATION) * 100, 100);
+      setDeleteProgress(progress);
+
+      if (progress < 100) {
+        animationFrameRef.current = requestAnimationFrame(updateProgress);
+      }
+    };
+
+    deleteTimerRef.current = setTimeout(() => {
+      setIsPressingDelete(false);
+      setDeleteProgress(0);
+      handleEliminarPago(pago);
+    }, LONG_PRESS_DURATION);
+
+    animationFrameRef.current = requestAnimationFrame(updateProgress);
+  }
+
+  function handleDeleteMouseUp() {
+    if (deleteTimerRef.current) {
+      clearTimeout(deleteTimerRef.current);
+      deleteTimerRef.current = null;
+    }
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+    setIsPressingDelete(false);
+    setDeleteProgress(0);
+  }
+
+  useEffect(() => {
+    return () => {
+      if (deleteTimerRef.current) clearTimeout(deleteTimerRef.current);
+      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+    };
+  }, []);
+
+  async function handleEliminarPago(pago: Pago) {
+    setEliminando(true);
+
+    const { error } = await supabase.from("pagos").delete().eq("id", pago.id);
+
+    if (error) {
+      alert("Error al eliminar el pago: " + error.message);
+      setEliminando(false);
+      return;
+    }
+
+    // Buscar el último pago restante para actualizar el estado del alumno
+    const { data: pagosRestantes } = await supabase
+      .from("pagos")
+      .select("*")
+      .eq("alumno_id", alumnoId)
+      .order("fecha_vencimiento", { ascending: false })
+      .limit(1);
+
+    const updateData = pagosRestantes && pagosRestantes.length > 0
+      ? {
+          abono_ultima_inscripcion: pagosRestantes[0].actividad,
+          fecha_proximo_vencimiento: pagosRestantes[0].fecha_vencimiento,
+          actividad_proximo_vencimiento: pagosRestantes[0].actividad,
+          fecha_ultimo_inicio: pagosRestantes[0].fecha_inicio,
+        }
+      : {
+          abono_ultima_inscripcion: null,
+          fecha_proximo_vencimiento: null,
+          actividad_proximo_vencimiento: null,
+          fecha_ultimo_inicio: null,
+        };
+
+    await supabase.from("alumnos").update(updateData).eq("id", alumnoId);
+
+    setEliminando(false);
+    setPagoAEliminar(null);
+    refrescarPagos();
+    router.refresh();
+  }
 
   // Refrescar pagos desde la base de datos
   async function refrescarPagos() {
@@ -185,59 +280,81 @@ export default function TabPagos({ alumnoId, pagosIniciales }: Props) {
             const config = estadoConfig[estado];
 
             return (
-              <div>
-                <span className={config.dateColor}>
-                  {formatFecha(pago.fecha_vencimiento)}
-                </span>
-
-                {/* Badge estado */}
-                <span
-                  className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full ${config.badgeBg}`}
-                >
-                  {config.icon}
-                  {config.label}
-                </span>
-
-                {/* Footer con fechas y medio de pago */}
-                <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-border">
-                  {/* Medio de pago */}
-                  <span
-                    className={`text-xs font-bold px-2.5 py-1 rounded-full capitalize ${getMedioPagoClass(pago.medio_pago)}`}
+              <div
+                key={pago.id}
+                className="group relative bg-card rounded-2xl border border-border p-4 flex flex-col gap-3 shadow-sm overflow-hidden"
+              >
+                {/* Botones de acción (Eliminar) */}
+                <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity z-10 hidden md:block">
+                  <button
+                    onClick={() => setPagoAEliminar(pago)}
+                    className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Dar de baja este plan"
                   >
-                    {pago.medio_pago}
-                  </span>
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+                {/* En móvil, mostrar siempre el botón de eliminar, pero más sutil */}
+                <div className="absolute top-3 right-3 opacity-100 z-10 md:hidden">
+                  <button
+                    onClick={() => setPagoAEliminar(pago)}
+                    className="p-1.5 text-gray-300 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
 
-                  {/* Fechas */}
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground ml-auto">
-                    <Calendar size={11} />
-                    <span>{formatFecha(pago.fecha_inicio)}</span>
-                    <span className="text-border">→</span>
-                    <span
-                      className={
-                        estado === "vencido"
-                          ? "text-red-500 font-semibold"
-                          : "text-green-600 font-semibold"
-                      }
-                    >
-                      {formatFecha(pago.fecha_vencimiento)}
-                    </span>
+                {/* Línea decorativa del estado */}
+                <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${config.barColor}`} />
+                
+                <div className="flex flex-col gap-3 pl-2 pr-6">
+                  {/* Top section: Actividad & Precio */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex flex-col">
+                      <h4 className="text-base font-extrabold text-foreground tracking-tight capitalize">
+                        {pago.actividad}
+                      </h4>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <span className={`text-sm font-bold ${config.dateColor}`}>
+                          Vence: {formatFecha(pago.fecha_vencimiento)}
+                        </span>
+                        <span
+                          className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${config.badgeBg}`}
+                        >
+                          {config.icon}
+                          {config.label}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end">
+                      <span className="text-lg font-black text-foreground leading-none">
+                        {formatPrecio(pago.precio)}
+                      </span>
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">
+                        Abonado
+                      </span>
+                    </div>
                   </div>
 
-                  {/* Badge vencido/vigente */}
-                  <span
-                    className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full ${
-                      estado === "vencido"
-                        ? "bg-red-50 text-red-600 ring-1 ring-red-200"
-                        : "bg-green-50 text-green-700 ring-1 ring-green-200"
-                    }`}
-                  >
-                    {estado === "vencido" ? (
-                      <XCircle size={10} strokeWidth={2.5} />
-                    ) : (
-                      <CheckCircle2 size={10} strokeWidth={2.5} />
-                    )}
-                    {estado === "vencido" ? "Vencido" : "Vigente"}
-                  </span>
+                  {/* Bottom section: Medio de pago y periodos */}
+                  <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-border/60">
+                    <span
+                      className={`text-[10px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wider ${getMedioPagoClass(
+                        pago.medio_pago
+                      )}`}
+                    >
+                      {pago.medio_pago}
+                    </span>
+
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
+                      <Calendar size={12} className="opacity-70" />
+                      <span>{formatFecha(pago.fecha_inicio)}</span>
+                      <span className="text-border/50">→</span>
+                      <span className={config.dateColor}>
+                        {formatFecha(pago.fecha_vencimiento)}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
             );
@@ -253,6 +370,96 @@ export default function TabPagos({ alumnoId, pagosIniciales }: Props) {
           onClose={() => setModalAbierto(false)}
           onGuardado={handleCobroGuardado}
         />
+      )}
+
+      {/* Modal Confirmar Eliminar Pago */}
+      {pagoAEliminar && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/60 z-[100]"
+            onClick={() => !eliminando && setPagoAEliminar(null)}
+          />
+          <div
+            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[101] bg-white rounded-2xl shadow-2xl w-[90vw] md:w-full max-w-md p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex flex-col items-center text-center gap-4">
+              <div className="w-14 h-14 rounded-full bg-red-100 flex items-center justify-center">
+                <Trash2 size={24} className="text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 mb-2">
+                  ¿Dar de baja este plan?
+                </h3>
+                <p className="text-sm text-gray-500">
+                  Estás por eliminar el pago de{" "}
+                  <span className="font-semibold text-gray-900">
+                    {pagoAEliminar.actividad}
+                  </span>{" "}
+                  por{" "}
+                  <span className="font-semibold text-gray-900">
+                    {formatPrecio(pagoAEliminar.precio)}
+                  </span>
+                  .
+                </p>
+                <p className="text-sm text-red-600 font-medium mt-2">
+                  Esta acción revertirá las fechas y estado del alumno al plan anterior (si existe). No se puede deshacer.
+                </p>
+              </div>
+              <div className="w-full p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-xs text-blue-700 font-medium whitespace-break-spaces">
+                  💡 Mantén presionado el botón "Dar de baja" durante 3 segundos para confirmar
+                </p>
+              </div>
+              <div className="flex gap-3 w-full pt-2">
+                <button
+                  onClick={() => setPagoAEliminar(null)}
+                  className="flex-1 py-2.5 text-gray-600 bg-gray-50 border border-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-100"
+                  disabled={isPressingDelete || eliminando}
+                >
+                  Cancelar
+                </button>
+                <button
+                  onMouseDown={() => handleDeleteMouseDown(pagoAEliminar)}
+                  onMouseUp={handleDeleteMouseUp}
+                  onMouseLeave={handleDeleteMouseUp}
+                  onTouchStart={() => handleDeleteMouseDown(pagoAEliminar)}
+                  onTouchEnd={handleDeleteMouseUp}
+                  disabled={eliminando}
+                  className="flex-1 py-2.5 bg-red-600 text-white text-sm font-bold rounded-lg hover:bg-red-700 disabled:opacity-70 relative overflow-hidden transition-all select-none"
+                  title={
+                    isPressingDelete
+                      ? "Mantén presionado para eliminar..."
+                      : "Mantén presionado 3 segundos para eliminar"
+                  }
+                >
+                  <div
+                    className="absolute inset-0 bg-red-700 transition-all"
+                    style={{
+                      width: isPressingDelete ? `${deleteProgress}%` : "0%",
+                      zIndex: 0,
+                    }}
+                  />
+                  <span className="relative z-10 flex items-center justify-center gap-2 pointer-events-none">
+                    {eliminando ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        Eliminando...
+                      </>
+                    ) : isPressingDelete ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        {Math.round(deleteProgress)}%
+                      </>
+                    ) : (
+                      <>Dar de baja</>
+                    )}
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
       )}
     </>
   );

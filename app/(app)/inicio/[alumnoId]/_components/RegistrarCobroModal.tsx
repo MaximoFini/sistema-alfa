@@ -121,9 +121,9 @@ export default function RegistrarCobroModal({
     async function fetchData() {
       // Cargar planes
       const { data: planes } = await supabase
-        .from("suscripcion_planes")
+        .from("subscription_plans")
         .select("name, price, duration_days")
-        .eq("activo", true)
+        .eq("is_active", true)
         .order("name", { ascending: true });
 
       if (planes) setPlanesSuscripcion(planes);
@@ -228,7 +228,7 @@ export default function RegistrarCobroModal({
       return;
     }
 
-    // Actualizar alumno con el nuevo plan
+    // Actualizar alumno con el nuevo plan (y reiniciar counter de gracia)
     const { error: errorUpdate } = await supabase
       .from("alumnos")
       .update({
@@ -236,6 +236,9 @@ export default function RegistrarCobroModal({
         fecha_proximo_vencimiento: fechaProximoVencimiento,
         actividad_proximo_vencimiento: pagoForm.actividad,
         fecha_ultimo_inicio: pagoForm.fechaInicio,
+        // Resetear clases de gracia al renovar el plan
+        clases_gracia_disponibles: 0,
+        clases_gracia_usadas: 0,
       })
       .eq("id", alumnoId);
 

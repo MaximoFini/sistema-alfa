@@ -17,6 +17,8 @@ import {
   Trash2,
   X,
   ChevronDown,
+  Gift,
+  RotateCcw,
 } from "lucide-react";
 
 interface Alumno {
@@ -34,6 +36,8 @@ interface Alumno {
   fecha_ultima_asistencia: string | null;
   genero: string | null;
   fecha_nacimiento: string | null;
+  clases_gracia_disponibles: number;
+  clases_gracia_usadas: number;
 }
 
 function formatFecha(dateStr: string | null): string {
@@ -110,6 +114,20 @@ export default function PanelInfoPersonal({ alumno }: { alumno: Alumno }) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isPressingDelete, setIsPressingDelete] = useState(false);
   const [deleteProgress, setDeleteProgress] = useState(0);
+  const [otorgandoGracia, setOtorgandoGracia] = useState(false);
+  const [clasesGraciaDisponibles, setClasesGraciaDisponibles] = useState(
+    alumno.clases_gracia_disponibles
+  );
+  const [clasesGraciaUsadas, setClasesGraciaUsadas] = useState(
+    alumno.clases_gracia_usadas
+  );
+
+  // Sync state when alumno prop updates (e.g. from server fetch)
+  useEffect(() => {
+    setClasesGraciaDisponibles(alumno.clases_gracia_disponibles);
+    setClasesGraciaUsadas(alumno.clases_gracia_usadas);
+  }, [alumno]);
+
   const deleteTimerRef = useRef<NodeJS.Timeout | null>(null);
   const animationFrameRef = useRef<number | null>(null);
 
@@ -217,6 +235,52 @@ export default function PanelInfoPersonal({ alumno }: { alumno: Alumno }) {
     router.refresh();
   }
 
+  async function handleOtorgarGracia() {
+    setOtorgandoGracia(true);
+    const { error } = await supabase
+      .from("alumnos")
+      .update({
+        clases_gracia_disponibles: 1,
+        clases_gracia_usadas: 0,
+      })
+      .eq("id", alumno.id);
+      
+    if (error) {
+      setOtorgandoGracia(false);
+      alert("Error al otorgar clases de gracia: " + error.message);
+      return;
+    }
+    
+    // Optistic UI update for instant feedback
+    setClasesGraciaDisponibles(1);
+    setClasesGraciaUsadas(0);
+    setOtorgandoGracia(false);
+    router.refresh();
+  }
+
+  async function handleReiniciarGracia() {
+    setOtorgandoGracia(true);
+    const { error } = await supabase
+      .from("alumnos")
+      .update({
+        clases_gracia_disponibles: 0,
+        clases_gracia_usadas: 0,
+      })
+      .eq("id", alumno.id);
+      
+    if (error) {
+      setOtorgandoGracia(false);
+      alert("Error al reiniciar: " + error.message);
+      return;
+    }
+    
+    // Optistic UI update for instant feedback
+    setClasesGraciaDisponibles(0);
+    setClasesGraciaUsadas(0);
+    setOtorgandoGracia(false);
+    router.refresh();
+  }
+
   const LONG_PRESS_DURATION = 3000; // 3 segundos
 
   function handleDeleteMouseDown() {
@@ -228,18 +292,16 @@ export default function PanelInfoPersonal({ alumno }: { alumno: Alumno }) {
       const progress = Math.min((elapsed / LONG_PRESS_DURATION) * 100, 100);
       setDeleteProgress(progress);
 
-      if (progress < 100 && isPressingDelete) {
+      if (progress < 100) {
         animationFrameRef.current = requestAnimationFrame(updateProgress);
       }
     };
 
     deleteTimerRef.current = setTimeout(() => {
-      if (isPressingDelete) {
-        setIsPressingDelete(false);
-        setDeleteProgress(0);
-        handleEliminar();
-        setShowDeleteModal(false);
-      }
+      setIsPressingDelete(false);
+      setDeleteProgress(0);
+      handleEliminar();
+      setShowDeleteModal(false);
     }, LONG_PRESS_DURATION);
 
     animationFrameRef.current = requestAnimationFrame(updateProgress);
@@ -340,6 +402,56 @@ export default function PanelInfoPersonal({ alumno }: { alumno: Alumno }) {
             Eliminar
           </button>
         </div>
+
+        {/* Clases de gracia — visible solo si el alumno está inactivo */}
+        {!estaActivo && (
+          <div className="w-full mt-1 p-3 rounded-xl bg-blue-50 border border-blue-100 flex flex-col gap-2">
+            <p className="text-xs font-bold text-blue-700 uppercase tracking-wider">
+              Clases de Gracia
+            </p>
+            {clasesGraciaDisponibles > 0 ? (
+              <>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-blue-600">
+                    Usadas:{" "}
+                    <span className="font-bold">
+                      {clasesGraciaUsadas} /{" "}
+                      {clasesGraciaDisponibles}
+                    </span>
+                  </span>
+                  <span
+                    className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                      clasesGraciaUsadas >= clasesGraciaDisponibles
+                        ? "bg-red-100 text-red-600"
+                        : "bg-blue-100 text-blue-700"
+                    }`}
+                  >
+                    {clasesGraciaDisponibles - clasesGraciaUsadas > 0
+                      ? `${clasesGraciaDisponibles - clasesGraciaUsadas} disponibles`
+                      : "Agotadas"}
+                  </span>
+                </div>
+                <button
+                  onClick={handleReiniciarGracia}
+                  disabled={otorgandoGracia}
+                  className="flex items-center justify-center gap-1.5 text-xs font-semibold text-red-500 hover:text-red-700 transition-colors disabled:opacity-50"
+                >
+                  <RotateCcw size={12} />
+                  Reiniciar contador
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={handleOtorgarGracia}
+                disabled={otorgandoGracia}
+                className="flex items-center justify-center gap-2 w-full py-2 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-60"
+              >
+                <Gift size={13} />
+                {otorgandoGracia ? "Otorgando..." : "Otorgar 1 clase de gracia"}
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Modal de Edición */}
@@ -525,7 +637,7 @@ export default function PanelInfoPersonal({ alumno }: { alumno: Alumno }) {
             onClick={() => setShowDeleteModal(false)}
           />
           <div
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[101] bg-white rounded-2xl shadow-2xl w-full max-w-md p-6"
+            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[101] bg-white rounded-2xl shadow-2xl w-[90vw] md:w-full max-w-md p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex flex-col items-center text-center gap-4">
@@ -548,9 +660,8 @@ export default function PanelInfoPersonal({ alumno }: { alumno: Alumno }) {
                 </p>
               </div>
               <div className="w-full p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-xs text-blue-700 font-medium">
-                  💡 Mantén presionado el botón "Eliminar" durante 3 segundos
-                  para confirmar
+                <p className="text-xs text-blue-700 font-medium whitespace-break-spaces">
+                  💡 Mantén presionado el botón "Eliminar" durante 3 segundos para confirmar
                 </p>
               </div>
               <div className="flex gap-3 w-full pt-2">
@@ -568,7 +679,7 @@ export default function PanelInfoPersonal({ alumno }: { alumno: Alumno }) {
                   onTouchStart={handleDeleteMouseDown}
                   onTouchEnd={handleDeleteMouseUp}
                   disabled={eliminando}
-                  className="flex-1 py-2.5 bg-red-600 text-white text-sm font-bold rounded-lg hover:bg-red-700 disabled:opacity-70 relative overflow-hidden transition-all"
+                  className="flex-1 py-2.5 bg-red-600 text-white text-sm font-bold rounded-lg hover:bg-red-700 disabled:opacity-70 relative overflow-hidden transition-all select-none"
                   title={
                     isPressingDelete
                       ? "Mantén presionado para eliminar..."
@@ -584,7 +695,7 @@ export default function PanelInfoPersonal({ alumno }: { alumno: Alumno }) {
                     }}
                   />
                   {/* Contenido del botón */}
-                  <span className="relative z-10 flex items-center justify-center gap-2">
+                  <span className="relative z-10 flex items-center justify-center gap-2 pointer-events-none">
                     {eliminando ? (
                       <>
                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />

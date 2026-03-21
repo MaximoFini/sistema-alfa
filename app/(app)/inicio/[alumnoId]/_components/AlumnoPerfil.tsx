@@ -21,6 +21,8 @@ interface Alumno {
   fecha_proximo_vencimiento: string | null;
   actividad_proximo_vencimiento: string | null;
   fecha_ultimo_inicio: string | null;
+  clases_gracia_disponibles: number;
+  clases_gracia_usadas: number;
 }
 
 interface Asistencia {
