@@ -10,6 +10,7 @@ import {
   Clock,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { ModalWithHistory } from "@/components/ModalWithHistory";
 import RegistrarCobroModal from "./RegistrarCobroModal";
 
 interface Pago {
@@ -96,14 +97,17 @@ export default function TabPagos({ alumnoId, pagosIniciales }: Props) {
             Registrar Primer Cobro
           </button>
         </div>
-        {modalAbierto && (
+        <ModalWithHistory
+          isOpen={modalAbierto}
+          onClose={() => setModalAbierto(false)}
+        >
           <RegistrarCobroModal
             alumnoId={alumnoId}
             pagosExistentes={pagos}
             onClose={() => setModalAbierto(false)}
             onGuardado={handleCobroGuardado}
           />
-        )}
+        </ModalWithHistory>
       </>
     );
   }
@@ -252,15 +256,18 @@ export default function TabPagos({ alumnoId, pagosIniciales }: Props) {
         </div>
       </div>
 
-      {/* Modal */}
-      {modalAbierto && (
+      {/* Modal con soporte para botón "Atrás" */}
+      <ModalWithHistory
+        isOpen={modalAbierto}
+        onClose={() => setModalAbierto(false)}
+      >
         <RegistrarCobroModal
           alumnoId={alumnoId}
           pagosExistentes={pagos}
           onClose={() => setModalAbierto(false)}
           onGuardado={handleCobroGuardado}
         />
-      )}
+      </ModalWithHistory>
     </>
   );
 }

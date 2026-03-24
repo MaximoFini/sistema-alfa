@@ -72,7 +72,7 @@ export default function MobileNav() {
     <>
       {/* Top Bar móvil con logo y hamburguesa */}
       <div
-        className="md:hidden sticky top-0 z-40 flex items-center justify-between px-4 py-3 border-b border-neutral-800"
+        className="md:hidden fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-4 pl-[max(env(safe-area-inset-left),1rem)] pr-[max(env(safe-area-inset-right),1rem)] py-3 pt-[max(env(safe-area-inset-top),0.75rem)] border-b border-neutral-800"
         style={{ backgroundColor: "#000000" }}
       >
         {/* Logo */}

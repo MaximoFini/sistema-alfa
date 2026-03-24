@@ -3,6 +3,7 @@
 import * as React from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useModalHistory } from "@/hooks/use-modal-history";
 
 interface BottomSheetProps {
   isOpen: boolean;
@@ -21,6 +22,9 @@ export function BottomSheet({
   description,
   showCloseButton = true,
 }: BottomSheetProps) {
+  // Integración del hook de history para manejar el botón "Atrás"
+  useModalHistory(isOpen, onClose);
+
   const [isAnimating, setIsAnimating] = React.useState(false);
   const [startY, setStartY] = React.useState(0);
   const [currentY, setCurrentY] = React.useState(0);

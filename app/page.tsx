@@ -1,47 +1,53 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import Image from "next/image"
-import { Eye, EyeOff, Mail, Lock, ArrowRight, Loader2 } from "lucide-react"
-import { supabase } from "@/lib/supabase"
-import { getUserRole } from "@/lib/auth"
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Image from "next/image";
+import { Eye, EyeOff, Mail, Lock, ArrowRight, Loader2 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+import { getUserRole } from "@/lib/auth";
+import { triggerHapticFeedback, HapticPresets } from "@/lib/utils";
 
 export default function LoginPage() {
-  const router = useRouter()
-  const [showPassword, setShowPassword] = useState(false)
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
+  const router = useRouter();
+  const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
-  const [loading, setLoading] = useState(false)
-  const [errorMsg, setErrorMsg] = useState("")
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
   async function handleLogin(e: React.FormEvent) {
-    e.preventDefault()
-    setLoading(true)
-    setErrorMsg("")
+    e.preventDefault();
+    setLoading(true);
+    setErrorMsg("");
+
+    triggerHapticFeedback(HapticPresets.light);
 
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
-    })
+    });
 
     if (error) {
-      setErrorMsg("Correo o contraseña incorrectos.")
-      setLoading(false)
-      return
+      triggerHapticFeedback(HapticPresets.error);
+      setErrorMsg("Correo o contraseña incorrectos.");
+      setLoading(false);
+      return;
     }
 
     // Verificamos el rol para ver si puede ingresar al sistema
-    const role = await getUserRole()
-    
+    const role = await getUserRole();
+
     if (role === "Administrador" || role === "Recepcionista") {
-      router.push("/inicio")
+      triggerHapticFeedback(HapticPresets.success);
+      router.push("/inicio");
     } else {
       // Si es Alumno o no tiene rol asignado, le cerramos sesión y mostramos error
-      await supabase.auth.signOut()
-      setErrorMsg("No tienes permisos para acceder a este panel.")
-      setLoading(false)
+      triggerHapticFeedback(HapticPresets.error);
+      await supabase.auth.signOut();
+      setErrorMsg("No tienes permisos para acceder a este panel.");
+      setLoading(false);
     }
   }
 
@@ -132,9 +138,7 @@ export default function LoginPage() {
             </div>
 
             {errorMsg && (
-              <p className="text-sm font-medium text-red-600">
-                {errorMsg}
-              </p>
+              <p className="text-sm font-medium text-red-600">{errorMsg}</p>
             )}
 
             {/* Submit */}
@@ -164,5 +168,5 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

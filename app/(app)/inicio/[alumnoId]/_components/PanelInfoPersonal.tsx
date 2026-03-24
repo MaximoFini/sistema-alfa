@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { triggerHapticFeedback, HapticPresets } from "@/lib/utils";
 import {
   User,
   Phone,
@@ -122,10 +123,10 @@ export default function PanelInfoPersonal({
   const [deleteProgress, setDeleteProgress] = useState(0);
   const [otorgandoGracia, setOtorgandoGracia] = useState(false);
   const [clasesGraciaDisponibles, setClasesGraciaDisponibles] = useState(
-    alumno.clases_gracia_disponibles
+    alumno.clases_gracia_disponibles,
   );
   const [clasesGraciaUsadas, setClasesGraciaUsadas] = useState(
-    alumno.clases_gracia_usadas
+    alumno.clases_gracia_usadas,
   );
 
   // Sync state when alumno prop updates (e.g. from server fetch)
@@ -148,11 +149,11 @@ export default function PanelInfoPersonal({
 
   const hoy = new Date();
   hoy.setHours(0, 0, 0, 0); // Normalizar a medianoche para comparar solo fechas
-  
+
   const vencimiento = alumno.fecha_proximo_vencimiento
     ? new Date(alumno.fecha_proximo_vencimiento)
     : null;
-  
+
   // El alumno está activo si no ha pasado el periodo de gracia después del vencimiento
   let estaActivo = false;
   if (vencimiento) {
@@ -195,8 +196,12 @@ export default function PanelInfoPersonal({
   }
 
   async function handleGuardarCambios() {
-    if (!validateForm()) return;
+    if (!validateForm()) {
+      triggerHapticFeedback(HapticPresets.warning);
+      return;
+    }
 
+    triggerHapticFeedback(HapticPresets.medium);
     setGuardando(true);
     const edadCalculada = calcularEdad(formData.fecha_nacimiento);
 
@@ -216,15 +221,18 @@ export default function PanelInfoPersonal({
     setGuardando(false);
 
     if (error) {
+      triggerHapticFeedback(HapticPresets.error);
       alert("Error al actualizar el alumno: " + error.message);
       return;
     }
 
+    triggerHapticFeedback(HapticPresets.success);
     setShowEditModal(false);
     router.refresh();
   }
 
   async function handleEliminar() {
+    triggerHapticFeedback(HapticPresets.heavy);
     setEliminando(true);
 
     // Primero eliminar las asistencias relacionadas
@@ -242,16 +250,19 @@ export default function PanelInfoPersonal({
     setEliminando(false);
 
     if (error) {
+      triggerHapticFeedback(HapticPresets.error);
       alert("Error al eliminar el alumno: " + error.message);
       return;
     }
 
+    triggerHapticFeedback(HapticPresets.success);
     // Redirigir a la lista de alumnos
     router.push("/inicio");
     router.refresh();
   }
 
   async function handleOtorgarGracia() {
+    triggerHapticFeedback(HapticPresets.medium);
     setOtorgandoGracia(true);
     const { error } = await supabase
       .from("alumnos")
@@ -260,13 +271,15 @@ export default function PanelInfoPersonal({
         clases_gracia_usadas: 0,
       })
       .eq("id", alumno.id);
-      
+
     if (error) {
       setOtorgandoGracia(false);
+      triggerHapticFeedback(HapticPresets.error);
       alert("Error al otorgar clases de gracia: " + error.message);
       return;
     }
-    
+
+    triggerHapticFeedback(HapticPresets.success);
     // Optistic UI update for instant feedback
     setClasesGraciaDisponibles(1);
     setClasesGraciaUsadas(0);
@@ -275,6 +288,7 @@ export default function PanelInfoPersonal({
   }
 
   async function handleReiniciarGracia() {
+    triggerHapticFeedback(HapticPresets.medium);
     setOtorgandoGracia(true);
     const { error } = await supabase
       .from("alumnos")
@@ -283,13 +297,15 @@ export default function PanelInfoPersonal({
         clases_gracia_usadas: 0,
       })
       .eq("id", alumno.id);
-      
+
     if (error) {
       setOtorgandoGracia(false);
+      triggerHapticFeedback(HapticPresets.error);
       alert("Error al reiniciar: " + error.message);
       return;
     }
-    
+
+    triggerHapticFeedback(HapticPresets.success);
     // Optistic UI update for instant feedback
     setClasesGraciaDisponibles(0);
     setClasesGraciaUsadas(0);
@@ -431,8 +447,7 @@ export default function PanelInfoPersonal({
                   <span className="text-xs text-blue-600">
                     Usadas:{" "}
                     <span className="font-bold">
-                      {clasesGraciaUsadas} /{" "}
-                      {clasesGraciaDisponibles}
+                      {clasesGraciaUsadas} / {clasesGraciaDisponibles}
                     </span>
                   </span>
                   <span
@@ -677,7 +692,8 @@ export default function PanelInfoPersonal({
               </div>
               <div className="w-full p-3 bg-blue-50 border border-blue-200 rounded-lg">
                 <p className="text-xs text-blue-700 font-medium whitespace-break-spaces">
-                  💡 Mantén presionado el botón "Eliminar" durante 3 segundos para confirmar
+                  💡 Mantén presionado el botón "Eliminar" durante 3 segundos
+                  para confirmar
                 </p>
               </div>
               <div className="flex gap-3 w-full pt-2">

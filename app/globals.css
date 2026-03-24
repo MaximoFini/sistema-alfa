@@ -125,13 +125,73 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
+/* ====================================== */
+/* Control de Viewport y Scroll Mobile   */
+/* ====================================== */
+
+/* Prevenir scroll en el body - solo debe hacer scroll el contenedor main */
+html,
+body {
+  overflow: hidden;
+  height: 100dvh;
+  position: fixed;
+  width: 100%;
+  overscroll-behavior-y: none; /* Desactiva Pull-to-Refresh */
+}
+
+/* Smooth scrolling con momentum en iOS */
+main {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    -webkit-tap-highlight-color: transparent; /* Elimina el highlight azul/gris al tocar */
   }
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* ================================================ */
+/* Eliminación de "Web Quirks" - Comportamiento App */
+/* ================================================ */
+
+/* Prevenir selección de texto en elementos UI (comportamiento tipo app) */
+/* Excluye inputs, textareas y elementos editables */
+body,
+div:not([contenteditable="true"]),
+button,
+a,
+nav,
+header,
+aside,
+label,
+span:not([contenteditable="true"]) {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none; /* Previene menú contextual en iOS al mantener presionado */
+}
+
+/* Permitir explícitamente selección en elementos de entrada */
+input,
+textarea,
+[contenteditable="true"],
+.allow-select,
+p,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+pre,
+code {
+  user-select: text;
+  -webkit-user-select: text;
+  -webkit-touch-callout: default;
 }
 
 /* ========================================
@@ -153,17 +213,9 @@
   }
 }
 
-/* Optimización táctil */
+/* Optimización táctil - Elimina delay de 300ms en taps */
 .touch-manipulation {
-  touch-action: manipulation; /* Elimina delay de 300ms en taps */
-  -webkit-tap-highlight-color: transparent; /* Quita el highlight azul en iOS/Android */
-}
-
-/* Prevenir selección de texto en elementos UI (no copiables) */
-.select-none {
-  user-select: none;
-  -webkit-user-select: none;
-  -webkit-touch-callout: none; /* Previene menú contextual largo-press en iOS */
+  touch-action: manipulation;
 }
 
 /* Scroll suave en toda la app */
@@ -178,6 +230,28 @@ html {
 .overflow-x-auto {
   -webkit-overflow-scrolling: touch;
 }
+
+/* =========================================== */
+/* Safe Areas - Soporte para Notch y Barras */
+/* =========================================== */
+
+/* Safe areas implementadas:
+   ✅ Header móvil (MobileNav.tsx):
+      - pt-[max(env(safe-area-inset-top),0.75rem)] (superior)
+      - pl-[max(env(safe-area-inset-left),1rem)] (izquierda)
+      - pr-[max(env(safe-area-inset-right),1rem)] (derecha)
+   
+   ✅ Contenedor principal (layout.tsx):
+      - pl-[env(safe-area-inset-left)] (izquierda)
+      - pr-[env(safe-area-inset-right)] (derecha)
+   
+   ✅ Main content (layout.tsx):
+      - pt-[calc(60px+env(safe-area-inset-top))] (superior compensado por header)
+   
+   📋 Para navegación inferior (cuando se implemente):
+      - Agregar: pb-[max(env(safe-area-inset-bottom),1rem)]
+      - Esto evita que los botones queden tapados por la barra táctil de iOS/Android
+*/
 
 /* Safe area para dispositivos con notch */
 @supports (padding: max(0px)) {

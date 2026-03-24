@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
 import { ChevronDown, X, AlertCircle, Calendar } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { triggerHapticFeedback, HapticPresets } from "@/lib/utils";
 
 interface PagoForm {
   actividad: string;
@@ -192,9 +193,11 @@ export default function RegistrarCobroModal({
     const errs = validateForm();
     if (Object.keys(errs).length > 0) {
       setErrors(errs);
+      triggerHapticFeedback(HapticPresets.warning);
       return;
     }
 
+    triggerHapticFeedback(HapticPresets.medium);
     setGuardando(true);
 
     let fechaProximoVencimiento = null;
@@ -224,6 +227,7 @@ export default function RegistrarCobroModal({
 
     if (errorPago) {
       setGuardando(false);
+      triggerHapticFeedback(HapticPresets.error);
       alert("Error al registrar cobro: " + errorPago.message);
       return;
     }
@@ -245,9 +249,12 @@ export default function RegistrarCobroModal({
     setGuardando(false);
 
     if (errorUpdate) {
+      triggerHapticFeedback(HapticPresets.error);
       alert("Error al actualizar alumno: " + errorUpdate.message);
       return;
     }
+
+    triggerHapticFeedback(HapticPresets.success);
 
     onGuardado();
     onClose();

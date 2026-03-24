@@ -17,6 +17,8 @@ import {
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { BottomSheet, BottomSheetContent } from "@/components/ui/bottom-sheet";
+import { ModalWithHistory } from "@/components/ModalWithHistory";
+import { triggerHapticFeedback, HapticPresets } from "@/lib/utils";
 import Paginacion from "./Paginacion";
 import Buscador from "./Buscador";
 
@@ -238,9 +240,11 @@ function NuevoAlumnoModal({
     const errs = validatePaso1();
     if (Object.keys(errs).length > 0) {
       setErrors(errs);
+      triggerHapticFeedback(HapticPresets.warning);
       return;
     }
 
+    triggerHapticFeedback(HapticPresets.medium);
     setGuardando(true);
     const edadCalculada = calcularEdad(form.fechaNacimiento);
 
@@ -262,6 +266,7 @@ function NuevoAlumnoModal({
     setGuardando(false);
 
     if (error || !data) {
+      triggerHapticFeedback(HapticPresets.error);
       alert(
         "Error al guardar el alumno: " +
           (error?.message || "Error desconocido"),
@@ -269,6 +274,7 @@ function NuevoAlumnoModal({
       return;
     }
 
+    triggerHapticFeedback(HapticPresets.success);
     if (goToStep2) {
       setCreatedStudentId(data.id);
       setStep(2);
@@ -283,9 +289,11 @@ function NuevoAlumnoModal({
     const errs = validatePaso2();
     if (Object.keys(errs).length > 0) {
       setErrors(errs);
+      triggerHapticFeedback(HapticPresets.warning);
       return;
     }
 
+    triggerHapticFeedback(HapticPresets.medium);
     setGuardando(true);
 
     let fechaProximoVencimiento = null;
@@ -314,6 +322,7 @@ function NuevoAlumnoModal({
 
     if (errorPago) {
       setGuardando(false);
+      triggerHapticFeedback(HapticPresets.error);
       alert("Error al registrar cobro: " + errorPago.message);
       return;
     }
@@ -331,10 +340,12 @@ function NuevoAlumnoModal({
     setGuardando(false);
 
     if (errorUpdate) {
+      triggerHapticFeedback(HapticPresets.error);
       alert("Error al actualizar alumno: " + errorUpdate.message);
       return;
     }
 
+    triggerHapticFeedback(HapticPresets.success);
     onGuardado();
     onClose();
   }
@@ -890,13 +901,13 @@ export default function AlumnosList({
 
   return (
     <div className="p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto">
-      {/* Modal */}
-      {showModal && (
+      {/* Modal con soporte para botón "Atrás" */}
+      <ModalWithHistory isOpen={showModal} onClose={() => setShowModal(false)}>
         <NuevoAlumnoModal
           onClose={() => setShowModal(false)}
           onGuardado={handleGuardado}
         />
-      )}
+      </ModalWithHistory>
 
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
