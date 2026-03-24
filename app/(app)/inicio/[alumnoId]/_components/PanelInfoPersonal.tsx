@@ -105,7 +105,13 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   );
 }
 
-export default function PanelInfoPersonal({ alumno }: { alumno: Alumno }) {
+export default function PanelInfoPersonal({
+  alumno,
+  diasInactivo,
+}: {
+  alumno: Alumno;
+  diasInactivo: number;
+}) {
   const router = useRouter();
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -141,10 +147,20 @@ export default function PanelInfoPersonal({ alumno }: { alumno: Alumno }) {
   });
 
   const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0); // Normalizar a medianoche para comparar solo fechas
+  
   const vencimiento = alumno.fecha_proximo_vencimiento
     ? new Date(alumno.fecha_proximo_vencimiento)
     : null;
-  const estaActivo = vencimiento ? vencimiento >= hoy : false;
+  
+  // El alumno está activo si no ha pasado el periodo de gracia después del vencimiento
+  let estaActivo = false;
+  if (vencimiento) {
+    vencimiento.setHours(0, 0, 0, 0); // Normalizar a medianoche
+    const vencimientoConGracia = new Date(vencimiento);
+    vencimientoConGracia.setDate(vencimientoConGracia.getDate() + diasInactivo);
+    estaActivo = vencimientoConGracia >= hoy;
+  }
 
   const initials = getInitials(alumno.nombre);
   const avatarColor = getAvatarColor(alumno.nombre);

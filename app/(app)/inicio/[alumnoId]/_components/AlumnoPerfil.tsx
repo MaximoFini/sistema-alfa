@@ -1,10 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, UserCircle2 } from "lucide-react";
+import { ArrowLeft, UserCircle2, Sparkles, CheckCircle } from "lucide-react";
 import PanelInfoPersonal from "./PanelInfoPersonal";
 import TabAsistencias from "./TabAsistencias";
 import TabPagos from "./TabPagos";
+import { supabase } from "@/lib/supabase";
+import { useRouter } from "next/navigation";
 
 interface Alumno {
   id: string;
@@ -23,6 +26,8 @@ interface Alumno {
   fecha_ultimo_inicio: string | null;
   clases_gracia_disponibles: number;
   clases_gracia_usadas: number;
+  es_prueba?: boolean | null;
+  actividad_interes?: string | null;
 }
 
 interface Asistencia {
@@ -47,13 +52,66 @@ export default function AlumnoPerfil({
   alumno,
   asistencias,
   pagos,
+  diasInactivo,
 }: {
   alumno: Alumno;
   asistencias: Asistencia[];
   pagos: Pago[];
+  diasInactivo: number;
 }) {
+  const router = useRouter();
+  const [convirtiendo, setConvirtiendo] = useState(false);
+  const esPrueba = alumno.es_prueba === true;
+
+  async function handleConvertir() {
+    if (!confirm("¿Estás seguro de convertir este prospecto en alumno regular? Deberás registrar su primer pago a continuación.")) {
+      return;
+    }
+
+    setConvirtiendo(true);
+    
+    // Actualizar es_prueba a false
+    const { error } = await supabase
+      .from("alumnos")
+      .update({ es_prueba: false })
+      .eq("id", alumno.id);
+
+    if (error) {
+      alert("Error al convertir el alumno: " + error.message);
+      setConvirtiendo(false);
+      return;
+    }
+
+    // Refresh para cargar el estado actualizado
+    router.refresh();
+  }
+
   return (
     <div className="min-h-screen bg-background">
+      {/* Banner de Clase de Prueba */}
+      {esPrueba && (
+        <div className="bg-gradient-to-r from-orange-500 to-orange-600 px-4 md:px-8 py-4 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <Sparkles size={24} className="text-white shrink-0" />
+            <div>
+              <p className="text-white font-bold text-sm md:text-base">
+                Clase de Prueba{alumno.actividad_interes ? ` • ${alumno.actividad_interes}` : ""}
+              </p>
+              <p className="text-white/90 text-xs md:text-sm">
+                Este prospecto todavía no se ha inscrito formalmente
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleConvertir}
+            disabled={convirtiendo}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-white hover:bg-orange-50 text-orange-600 text-sm font-bold rounded-lg transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+          >
+            <CheckCircle size={16} />
+            {convirtiendo ? "Convirtiendo..." : "Convertir a Alumno"}
+          </button>
+        </div>
+      )}
       {/* Top bar */}
       <div className="border-b border-border bg-card px-4 md:px-8 py-3 flex items-center gap-3 sticky top-0 z-10">
         <Link
@@ -77,7 +135,7 @@ export default function AlumnoPerfil({
         {/* Columna 1: datos personales */}
         <aside className="w-full xl:w-72 2xl:w-80 shrink-0 border-b xl:border-b-0 xl:border-r border-border bg-card">
           <div className="xl:sticky xl:top-[49px] xl:max-h-[calc(100vh-49px)] xl:overflow-y-auto">
-            <PanelInfoPersonal alumno={alumno} />
+            <PanelInfoPersonal alumno={alumno} diasInactivo={diasInactivo} />
           </div>
         </aside>
 

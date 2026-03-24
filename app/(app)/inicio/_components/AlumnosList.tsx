@@ -30,6 +30,8 @@ export interface AlumnoRow {
   edad_actual: number | null;
   fecha_registro: string | null; // "YYYY-MM-DD"
   dni: string | null;
+  es_prueba?: boolean | null;
+  actividad_interes?: string | null;
   ultimaAsistencia: {
     fecha: string;
     hora: string | null;
@@ -707,6 +709,7 @@ function AlumnoCard({ alumno }: { alumno: AlumnoConUI }) {
   const fechaHoyStr = hoy.toLocaleDateString("en-CA"); // 'en-CA' da formato YYYY-MM-DD
 
   const esAsistenciaHoy = tieneAsistencia === fechaHoyStr;
+  const esPrueba = alumno.es_prueba === true;
 
   return (
     <Link
@@ -716,14 +719,21 @@ function AlumnoCard({ alumno }: { alumno: AlumnoConUI }) {
       <div className="flex items-center gap-3 md:gap-4 group min-h-[76px]">
         <div
           className="w-12 h-12 md:w-11 md:h-11 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0 select-none"
-          style={{ backgroundColor: alumno.color }}
+          style={{ backgroundColor: esPrueba ? "#ea580c" : alumno.color }}
         >
           {alumno.initials}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-semibold text-gray-900 text-base md:text-sm truncate">
-            {alumno.nombre ?? "Sin nombre"}
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="font-semibold text-gray-900 text-base md:text-sm truncate">
+              {alumno.nombre ?? "Sin nombre"}
+            </p>
+            {esPrueba && (
+              <span className="inline-flex items-center gap-1 text-xs font-semibold text-orange-700 bg-orange-100 px-2 py-0.5 rounded-full shrink-0">
+                PRUEBA
+              </span>
+            )}
+          </div>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
             <span className="inline-flex items-center gap-1 text-xs text-gray-500">
               <UserIcon size={12} className="text-gray-400" />
@@ -736,6 +746,11 @@ function AlumnoCard({ alumno }: { alumno: AlumnoConUI }) {
             {esAsistenciaHoy && (
               <span className="inline-flex items-center gap-1 text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
                 ✓ Hoy {horaAsistencia}
+              </span>
+            )}
+            {esPrueba && alumno.actividad_interes && (
+              <span className="inline-flex items-center gap-1 text-xs text-orange-600">
+                🥊 {alumno.actividad_interes}
               </span>
             )}
             {alumno.dni && (

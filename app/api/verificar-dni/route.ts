@@ -1,7 +1,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextRequest, NextResponse } from "next/server";
 
-type Estado = "al-dia" | "vencido" | "advertencia" | "periodo_gracia";
+type Estado = "al-dia" | "vencido" | "advertencia" | "periodo_gracia" | "prueba";
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,6 +23,40 @@ export async function POST(request: NextRequest) {
     // Si no se encuentra el alumno
     if (alumnoError || !alumno) {
       return NextResponse.json({ found: false }, { status: 200 });
+    }
+
+    // Verificar si es un usuario de prueba
+    if (alumno.es_prueba === true) {
+      // Registrar asistencia para clase de prueba
+      const now = new Date();
+      const fechaISO = now.toISOString();
+      const horaLocal = now.toTimeString().split(" ")[0]; // HH:MM:SS
+
+      // Actualizar fecha_ultima_asistencia
+      await supabase
+        .from("alumnos")
+        .update({ fecha_ultima_asistencia: fechaISO })
+        .eq("id", alumno.id);
+
+      // Crear registro en tabla asistencias
+      await supabase
+        .from("asistencias")
+        .insert({
+          alumno_id: alumno.id,
+          fecha: fechaISO,
+          hora: horaLocal,
+        });
+
+      return NextResponse.json({
+        found: true,
+        alumno: {
+          nombre: alumno.nombre,
+          estado: "prueba" as Estado,
+          vencimiento: "Clase de Prueba",
+          actividad: alumno.actividad_interes || "Clase de Prueba",
+          esPrueba: true,
+        },
+      });
     }
 
     // 1. Determinar el estado ANTES de registrar asistencia

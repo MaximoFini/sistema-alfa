@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
-type Estado = "al-dia" | "vencido" | "advertencia" | "periodo_gracia";
+type Estado = "al-dia" | "vencido" | "advertencia" | "periodo_gracia" | "prueba";
 type Result =
   | {
       nombre: string;
@@ -80,6 +80,17 @@ const estadoConfig: Record<
     labelColor: "text-blue-700",
     badgeBg: "bg-blue-100",
     ring: "#2563EB",
+  },
+  prueba: {
+    label: "¡Bienvenido/a a tu clase de prueba!",
+    description: "Disfrutá tu clase gratuita. Si te gusta, acercate a secretaría para inscribirte.",
+    icon: CheckCircle2,
+    bg: "bg-orange-50",
+    border: "border-orange-200",
+    iconColor: "text-orange-500",
+    labelColor: "text-orange-700",
+    badgeBg: "bg-orange-100",
+    ring: "#ea580c",
   },
 };
 
@@ -209,6 +220,16 @@ export default function IngresoWebPage() {
       icon: Info,
       label: "PERÍODO DE GRACIA",
       sublabel: "Renovate para seguir entrenando.",
+    },
+    prueba: {
+      bg: "#ea580c",
+      bgDark: "#7c2d12",
+      accent: "#fdba74",
+      textPrimary: "#ffffff",
+      textSecondary: "rgba(255,255,255,0.85)",
+      icon: CheckCircle2,
+      label: "CLASE DE PRUEBA",
+      sublabel: "¡Bienvenido/a! Disfrutá tu clase gratuita.",
     },
   } as const;
 

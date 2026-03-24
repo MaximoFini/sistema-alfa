@@ -33,11 +33,21 @@ export default async function AlumnoPerfilPage({
     .eq("alumno_id", alumnoId)
     .order("fecha_cobro", { ascending: false });
 
+  // Fetch configuración de días de inactividad
+  const { data: settings } = await supabase
+    .from("settings")
+    .select("days_after_expiration_inactive")
+    .limit(1)
+    .single();
+
+  const diasInactivo = settings?.days_after_expiration_inactive ?? 7;
+
   return (
     <AlumnoPerfil
       alumno={alumno}
       asistencias={asistencias ?? []}
       pagos={pagos ?? []}
+      diasInactivo={diasInactivo}
     />
   );
 }

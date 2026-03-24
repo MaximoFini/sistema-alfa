@@ -15,6 +15,12 @@ import {
   Percent,
   Trash2,
   CreditCard,
+  Users,
+  Key,
+  Mail,
+  User,
+  CheckSquare,
+  Square,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
@@ -33,6 +39,14 @@ interface PaymentMethod {
   id: string;
   nombre: string;
   activo: boolean;
+}
+
+interface SystemUser {
+  id: string;
+  username: string;
+  email: string;
+  is_admin: boolean;
+  is_active: boolean;
 }
 
 // ─── Accordion section wrapper ────────────────────────────────────────────────
@@ -157,6 +171,19 @@ export default function AjustesPage() {
   const [newMetodoNombre, setNewMetodoNombre] = useState("");
   const [showNewMetodo, setShowNewMetodo] = useState(false);
 
+  // Usuarios
+  const [usuarios, setUsuarios] = useState<SystemUser[]>([]);
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [editUserName, setEditUserName] = useState("");
+  const [editUserEmail, setEditUserEmail] = useState("");
+  const [newUserName, setNewUserName] = useState("");
+  const [newUserEmail, setNewUserEmail] = useState("");
+  const [newUserPassword, setNewUserPassword] = useState("");
+  const [showNewUser, setShowNewUser] = useState(false);
+  const [generatingPassword, setGeneratingPassword] = useState<string | null>(
+    null,
+  );
+
   useEffect(() => {
     async function loadData() {
       const { data: settings } = await supabase
@@ -203,6 +230,23 @@ export default function AjustesPage() {
           })),
         );
       }
+
+      const { data: users } = await supabase
+        .from("system_users")
+        .select("*")
+        .order("username", { ascending: true });
+      if (users) {
+        setUsuarios(
+          users.map((u: any) => ({
+            id: u.id,
+            username: u.username,
+            email: u.email,
+            is_admin: u.is_admin,
+            is_active: u.is_active,
+          })),
+        );
+      }
+
       setLoading(false);
     }
     loadData();
@@ -362,6 +406,202 @@ export default function AjustesPage() {
     if (!error) {
       setMetodos((m) => m.filter((x) => x.id !== id));
     }
+  }
+
+  // ─── Users Logic ─────────────────────────────────────────────────────────────
+  async function toggleUserActive(user: SystemUser) {
+    const { error } = await supabase
+      .from("system_users")
+      .update({ is_active: !user.is_active })
+      .eq("id", user.id);
+    if (!error) {
+      setUsuarios((u) =>
+        u.map((x) =>
+          x.id === user.id ? { ...x, is_active: !user.is_active } : x,
+        ),
+      );
+    }
+  }
+
+  async function toggleUserAdmin(user: SystemUser) {
+    const newIsAdmin = !user.is_admin;
+    const newRole = newIsAdmin ? "Administrador" : "Recepcionista";
+    
+    // Actualizar en system_users
+    const { error: systemError } = await supabase
+      .from("system_users")
+      .update({ is_admin: newIsAdmin })
+      .eq("id", user.id);
+    
+    if (systemError) {
+      console.error("Error al actualizar system_users:", systemError);
+      alert("Error al actualizar el rol del usuario");
+      return;
+    }
+    
+    // Actualizar en profiles (para el login)
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .update({ role: newRole })
+      .eq("id", user.id);
+    
+    if (profileError) {
+      console.warn("Error al actualizar profile:", profileError);
+      // No fallar si solo falla el perfil
+    }
+    
+    setUsuarios((u) =>
+      u.map((x) =>
+        x.id === user.id ? { ...x, is_admin: newIsAdmin } : x,
+      ),
+    );
+  }
+
+  function startEditUser(user: SystemUser) {
+    setEditingUserId(user.id);
+    setEditUserName(user.username);
+    setEditUserEmail(user.email);
+  }
+
+  async function saveEditUser() {
+    if (!editingUserId || !editUserName.trim() || !editUserEmail.trim()) return;
+    
+    try {
+      const response = await fetch("/api/users", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: editingUserId,
+          username: editUserName.trim(),
+          email: editUserEmail.trim(),
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        alert(error.error || "Error al actualizar el usuario");
+        return;
+      }
+
+      const data = await response.json();
+      setUsuarios((u) =>
+        u.map((x) =>
+          x.id === editingUserId
+            ? {
+                ...x,
+                username: data.username,
+                email: data.email,
+              }
+            : x,
+        ),
+      );
+      setEditingUserId(null);
+    } catch (error) {
+      console.error(error);
+      alert("Error al actualizar el usuario");
+    }
+  }
+
+  async function addUser() {
+    if (!newUserName.trim() || !newUserEmail.trim() || !newUserPassword.trim())
+      return;
+    
+    try {
+      const response = await fetch("/api/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: newUserName.trim(),
+          email: newUserEmail.trim(),
+          password: newUserPassword.trim(),
+          isAdmin: false, // Por defecto es Recepcionista
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        alert(error.error || "Error al crear el usuario");
+        return;
+      }
+
+      const data = await response.json();
+      
+      // Mostrar mensaje si el usuario puede o no hacer login
+      if (data.canLogin === false) {
+        alert(
+          "⚠️ Usuario creado en la tabla de gestión, pero NO podrá hacer login.\n\n" +
+          "Para habilitar el login, configura SUPABASE_SERVICE_ROLE_KEY en las variables de entorno."
+        );
+      }
+      
+      setUsuarios((u) => [
+        ...u,
+        {
+          id: data.id,
+          username: data.username,
+          email: data.email,
+          is_admin: data.is_admin,
+          is_active: data.is_active,
+        },
+      ]);
+      setNewUserName("");
+      setNewUserEmail("");
+      setNewUserPassword("");
+      setShowNewUser(false);
+    } catch (error) {
+      console.error(error);
+      alert("Error al crear el usuario");
+    }
+  }
+
+  async function deleteUser(id: string) {
+    if (!confirm("¿Estás seguro de que deseas eliminar este usuario?")) return;
+    const { error } = await supabase.from("system_users").delete().eq("id", id);
+    if (!error) {
+      setUsuarios((u) => u.filter((x) => x.id !== id));
+    }
+  }
+
+  function generatePassword() {
+    const chars =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
+    let password = "";
+    for (let i = 0; i < 12; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return password;
+  }
+
+  async function resetUserPassword(user: SystemUser) {
+    const newPassword = generatePassword();
+    setGeneratingPassword(user.id);
+
+    try {
+      const response = await fetch("/api/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user.id,
+          newPassword: newPassword,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        alert(error.error || "Error al generar la contraseña");
+        setGeneratingPassword(null);
+        return;
+      }
+
+      alert(
+        `Nueva contraseña para ${user.username}:\n\n${newPassword}\n\nGuarda esta contraseña, no se mostrará nuevamente.`,
+      );
+    } catch (error) {
+      console.error(error);
+      alert("Error al generar la contraseña");
+    }
+    
+    setGeneratingPassword(null);
   }
 
   async function handleSaveAll() {
@@ -575,6 +815,221 @@ export default function AjustesPage() {
                   className="py-3 items-center justify-center flex gap-2 border border-dashed border-gray-200 rounded-xl text-gray-400 hover:text-red-500 hover:border-red-200 hover:bg-red-50/10 transition-all text-xs font-bold mt-1"
                 >
                   <Plus size={14} /> Nuevo medio de pago
+                </button>
+              )}
+            </div>
+          </Section>
+
+          {/* New Users Section */}
+          <Section
+            icon={Users}
+            title="Control de Usuarios"
+            subtitle="Gestión de accesos y permisos del sistema"
+          >
+            <div className="flex flex-col gap-2 mt-3 max-h-[500px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-200">
+              {usuarios.map((usuario) => (
+                <div
+                  key={usuario.id}
+                  className={cn(
+                    "flex flex-col gap-3 px-4 py-3 rounded-xl border group transition-all",
+                    usuario.is_active
+                      ? "bg-white border-gray-100 shadow-sm"
+                      : "bg-gray-50/50 border-gray-100 opacity-60",
+                  )}
+                >
+                  {editingUserId === usuario.id ? (
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-center gap-2">
+                        <User size={14} className="text-gray-400" />
+                        <input
+                          value={editUserName}
+                          onChange={(e) => setEditUserName(e.target.value)}
+                          placeholder="Nombre de usuario"
+                          autoFocus
+                          className="flex-1 bg-white border border-red-200 rounded-lg px-2.5 py-1.5 text-sm outline-none shadow-inner"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Mail size={14} className="text-gray-400" />
+                        <input
+                          value={editUserEmail}
+                          onChange={(e) => setEditUserEmail(e.target.value)}
+                          placeholder="Email"
+                          type="email"
+                          className="flex-1 bg-white border border-red-200 rounded-lg px-2.5 py-1.5 text-sm outline-none shadow-inner"
+                        />
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <button
+                          onClick={() => setEditingUserId(null)}
+                          className="text-xs font-bold text-gray-400 px-3"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          onClick={saveEditUser}
+                          className="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-all text-xs font-bold px-4"
+                        >
+                          <Save size={12} className="inline mr-1" /> Guardar
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-sm font-bold text-gray-900 truncate">
+                              {usuario.username}
+                            </span>
+                            {usuario.is_admin && (
+                              <span className="text-[9px] uppercase tracking-widest font-black text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
+                                ADMIN
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                            <Mail size={11} />
+                            <span className="truncate">{usuario.email}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            onClick={() => toggleUserActive(usuario)}
+                            className="transition-transform active:scale-90"
+                            title={usuario.is_active ? "Desactivar" : "Activar"}
+                          >
+                            {usuario.is_active ? (
+                              <ToggleRight
+                                size={20}
+                                className="text-green-500"
+                              />
+                            ) : (
+                              <ToggleLeft size={20} className="text-gray-300" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-2 pt-2 border-t border-gray-50">
+                        <button
+                          onClick={() => toggleUserAdmin(usuario)}
+                          className="flex items-center gap-1.5 text-xs font-medium transition-colors hover:text-red-600"
+                          title={
+                            usuario.is_admin ? "Quitar admin" : "Hacer admin"
+                          }
+                        >
+                          {usuario.is_admin ? (
+                            <CheckSquare size={14} className="text-red-600" />
+                          ) : (
+                            <Square size={14} className="text-gray-400" />
+                          )}
+                          <span
+                            className={
+                              usuario.is_admin
+                                ? "text-red-600"
+                                : "text-gray-400"
+                            }
+                          >
+                            Administrador
+                          </span>
+                        </button>
+
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => startEditUser(usuario)}
+                            className="p-1.5 text-gray-400 hover:text-gray-900 transition-colors"
+                            title="Editar"
+                          >
+                            <Pencil size={13} />
+                          </button>
+                          <button
+                            onClick={() => resetUserPassword(usuario)}
+                            disabled={generatingPassword === usuario.id}
+                            className="p-1.5 text-gray-400 hover:text-blue-500 transition-colors disabled:opacity-50"
+                            title="Generar contraseña"
+                          >
+                            <Key size={13} />
+                          </button>
+                          <button
+                            onClick={() => deleteUser(usuario.id)}
+                            className="p-1.5 text-gray-400 hover:text-red-500 transition-colors"
+                            title="Eliminar"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))}
+
+              {showNewUser ? (
+                <div className="p-4 bg-red-50/30 border border-dashed border-red-200 rounded-xl space-y-3">
+                  <div className="flex items-center gap-2">
+                    <User size={14} className="text-gray-400" />
+                    <input
+                      value={newUserName}
+                      onChange={(e) => setNewUserName(e.target.value)}
+                      placeholder="Nombre de usuario"
+                      className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-red-400"
+                      autoFocus
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Mail size={14} className="text-gray-400" />
+                    <input
+                      value={newUserEmail}
+                      onChange={(e) => setNewUserEmail(e.target.value)}
+                      placeholder="Email"
+                      type="email"
+                      className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-red-400"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Key size={14} className="text-gray-400" />
+                    <input
+                      value={newUserPassword}
+                      onChange={(e) => setNewUserPassword(e.target.value)}
+                      placeholder="Contraseña"
+                      type="password"
+                      className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-red-400"
+                    />
+                    <button
+                      onClick={() => setNewUserPassword(generatePassword())}
+                      className="p-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg transition-all text-xs font-bold"
+                      title="Generar contraseña aleatoria"
+                    >
+                      <Key size={14} />
+                    </button>
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <button
+                      onClick={() => {
+                        setShowNewUser(false);
+                        setNewUserName("");
+                        setNewUserEmail("");
+                        setNewUserPassword("");
+                      }}
+                      className="text-xs font-bold text-gray-400 hover:text-gray-600 px-2"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={addUser}
+                      className="bg-[#DC2626] text-white text-xs font-bold px-4 py-1.5 rounded-lg hover:brightness-110 transition-all"
+                    >
+                      Crear Usuario
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowNewUser(true)}
+                  className="py-3 items-center justify-center flex gap-2 border border-dashed border-gray-200 rounded-xl text-gray-400 hover:text-red-500 hover:border-red-200 hover:bg-red-50/10 transition-all text-xs font-bold mt-1"
+                >
+                  <Plus size={14} /> Nuevo usuario
                 </button>
               )}
             </div>

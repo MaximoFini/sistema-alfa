@@ -102,6 +102,8 @@ export default async function InicioPage({
       edad_actual: row.edad_actual,
       fecha_registro: row.fecha_registro,
       dni: row.dni,
+      es_prueba: row.es_prueba,
+      actividad_interes: row.actividad_interes,
       ultimaAsistencia: row.ult_fecha
         ? { fecha: row.ult_fecha, hora: row.ult_hora ?? null }
         : null,
@@ -143,7 +145,7 @@ async function fallbackQuery(
   let q = supabase
     .from("alumnos")
     .select(
-      "id, nombre, edad_actual, fecha_registro, dni, fecha_ultima_asistencia",
+      "id, nombre, edad_actual, fecha_registro, dni, fecha_ultima_asistencia, es_prueba, actividad_interes",
       {
         count: "exact",
       },
@@ -171,6 +173,8 @@ async function fallbackQuery(
     edad_actual: row.edad_actual,
     fecha_registro: row.fecha_registro,
     dni: row.dni,
+    es_prueba: row.es_prueba,
+    actividad_interes: row.actividad_interes,
     ultimaAsistencia: row.fecha_ultima_asistencia
       ? { fecha: row.fecha_ultima_asistencia.split("T")[0], hora: null }
       : null,
