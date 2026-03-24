@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { CheckCircle2, XCircle, Clock, Info } from "lucide-react";
@@ -124,7 +124,7 @@ async function verificarDNI(dni: string): Promise<Result> {
 
 const RESET_DELAY_MS = 15000;
 
-export default function IngresoWebPage() {
+function IngresoWebPageContent() {
   const searchParams = useSearchParams();
   const isClientView = searchParams.get("view") === "client";
   const [dni, setDni] = useState("");
@@ -749,5 +749,13 @@ export default function IngresoWebPage() {
         )}
       </div>
     </main>
+  );
+}
+
+export default function IngresoWebPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#fb923c]" />}>
+      <IngresoWebPageContent />
+    </Suspense>
   );
 }
