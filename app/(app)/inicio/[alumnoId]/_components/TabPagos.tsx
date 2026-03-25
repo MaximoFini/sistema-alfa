@@ -196,7 +196,7 @@ export default function TabPagos({ alumnoId, pagosIniciales }: Props) {
             const config = estadoConfig[estado];
 
             return (
-              <div>
+              <div key={pago.id}>
                 <span className={config.dateColor}>
                   {formatFecha(pago.fecha_vencimiento)}
                 </span>
