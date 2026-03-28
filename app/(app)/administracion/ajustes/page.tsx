@@ -21,10 +21,12 @@ import {
   User,
   CheckSquare,
   Square,
+  Copy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 import { useEffect } from "react";
+import { toast } from "sonner";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Plan {
@@ -183,6 +185,12 @@ export default function AjustesPage() {
   const [generatingPassword, setGeneratingPassword] = useState<string | null>(
     null,
   );
+  const [userToDelete, setUserToDelete] = useState<SystemUser | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [adminPassword, setAdminPassword] = useState("");
+  const [deletingUser, setDeletingUser] = useState(false);
+  const [resettingPasswordUserId, setResettingPasswordUserId] = useState<string | null>(null);
+  const [newManualPassword, setNewManualPassword] = useState("");
 
   useEffect(() => {
     async function loadData() {
@@ -435,7 +443,7 @@ export default function AjustesPage() {
     
     if (systemError) {
       console.error("Error al actualizar system_users:", systemError);
-      alert("Error al actualizar el rol del usuario");
+      toast.error("Error al actualizar el rol del usuario");
       return;
     }
     
@@ -479,7 +487,7 @@ export default function AjustesPage() {
 
       if (!response.ok) {
         const error = await response.json();
-        alert(error.error || "Error al actualizar el usuario");
+        toast.error(error.error || "Error al actualizar el usuario");
         return;
       }
 
@@ -496,9 +504,10 @@ export default function AjustesPage() {
         ),
       );
       setEditingUserId(null);
+      toast.success("Usuario actualizado correctamente");
     } catch (error) {
       console.error(error);
-      alert("Error al actualizar el usuario");
+      toast.error("Error al actualizar el usuario");
     }
   }
 
@@ -520,7 +529,7 @@ export default function AjustesPage() {
 
       if (!response.ok) {
         const error = await response.json();
-        alert(error.error || "Error al crear el usuario");
+        toast.error(error.error || "Error al crear el usuario");
         return;
       }
 
@@ -528,9 +537,8 @@ export default function AjustesPage() {
       
       // Mostrar mensaje si el usuario puede o no hacer login
       if (data.canLogin === false) {
-        alert(
-          "⚠️ Usuario creado en la tabla de gestión, pero NO podrá hacer login.\n\n" +
-          "Para habilitar el login, configura SUPABASE_SERVICE_ROLE_KEY en las variables de entorno."
+        toast.warning(
+          "Usuario creado en la tabla de gestión, pero NO podrá hacer login. Configura SUPABASE_SERVICE_ROLE_KEY."
         );
       }
       
@@ -548,33 +556,70 @@ export default function AjustesPage() {
       setNewUserEmail("");
       setNewUserPassword("");
       setShowNewUser(false);
+      toast.success("Usuario creado correctamente");
     } catch (error) {
       console.error(error);
-      alert("Error al crear el usuario");
+      toast.error("Error al crear el usuario");
     }
   }
 
-  async function deleteUser(id: string) {
-    if (!confirm("¿Estás seguro de que deseas eliminar este usuario?")) return;
-    const { error } = await supabase.from("system_users").delete().eq("id", id);
-    if (!error) {
-      setUsuarios((u) => u.filter((x) => x.id !== id));
+  function confirmDeleteUser(usuario: SystemUser) {
+    setUserToDelete(usuario);
+    setAdminPassword("");
+    setShowDeleteModal(true);
+  }
+
+  async function executeDeleteUser() {
+    if (!userToDelete || !adminPassword) return;
+
+    setDeletingUser(true);
+    try {
+      // Obtener el email del admin actual usando current session auth user
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user?.email) {
+        toast.error("No se pudo verificar la sesión actual del administrador.");
+        setDeletingUser(false);
+        return;
+      }
+
+      const response = await fetch("/api/users", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userIdToDelete: userToDelete.id,
+          adminEmail: user.email,
+          adminPassword: adminPassword,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        toast.error(error.error || "Contraseña incorrecta o error al eliminar usuario");
+        setDeletingUser(false);
+        return;
+      }
+
+      setUsuarios((u) => u.filter((x) => x.id !== userToDelete.id));
+      setShowDeleteModal(false);
+      setUserToDelete(null);
+      setAdminPassword("");
+      toast.success("Usuario eliminado correctamente");
+    } catch (error) {
+      console.error(error);
+      toast.error("Error al eliminar el usuario");
+    } finally {
+      setDeletingUser(false);
     }
   }
 
-  function generatePassword() {
-    const chars =
-      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
-    let password = "";
-    for (let i = 0; i < 12; i++) {
-      password += chars.charAt(Math.floor(Math.random() * chars.length));
+  async function saveNewPassword(user: SystemUser) {
+    if (!newManualPassword.trim()) {
+      toast.error("Por favor, ingresa una contraseña.");
+      return;
     }
-    return password;
-  }
-
-  async function resetUserPassword(user: SystemUser) {
-    const newPassword = generatePassword();
-    setGeneratingPassword(user.id);
 
     try {
       const response = await fetch("/api/users", {
@@ -582,26 +627,23 @@ export default function AjustesPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: user.id,
-          newPassword: newPassword,
+          newPassword: newManualPassword.trim(),
         }),
       });
 
       if (!response.ok) {
         const error = await response.json();
-        alert(error.error || "Error al generar la contraseña");
-        setGeneratingPassword(null);
+        alert(error.error || "Error al actualizar la contraseña");
         return;
       }
 
-      alert(
-        `Nueva contraseña para ${user.username}:\n\n${newPassword}\n\nGuarda esta contraseña, no se mostrará nuevamente.`,
-      );
+      alert("Contraseña actualizada exitosamente.");
+      setResettingPasswordUserId(null);
+      setNewManualPassword("");
     } catch (error) {
       console.error(error);
-      alert("Error al generar la contraseña");
+      alert("Error al actualizar la contraseña");
     }
-    
-    setGeneratingPassword(null);
   }
 
   async function handleSaveAll() {
@@ -637,7 +679,7 @@ export default function AjustesPage() {
   }
 
   return (
-    <div className="p-4 lg:p-6 w-full mx-auto flex flex-col gap-6 bg-[#FAFAFA] min-h-screen">
+    <div className="p-4 lg:p-6 w-full mx-auto flex flex-col gap-6 bg-[#FAFAFA] min-h-full">
       {/* Header - Fixed to top feel */}
       <div className="flex items-center justify-between bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
         <div>
@@ -874,6 +916,49 @@ export default function AjustesPage() {
                         </button>
                       </div>
                     </div>
+                  ) : resettingPasswordUserId === usuario.id ? (
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-center gap-2">
+                        <Key size={14} className="text-gray-400" />
+                        <input
+                          value={newManualPassword}
+                          onChange={(e) => setNewManualPassword(e.target.value)}
+                          placeholder="Nueva contraseña"
+                          autoFocus
+                          type="text"
+                          className="flex-1 bg-white border border-red-200 rounded-lg px-2.5 py-1.5 text-sm outline-none shadow-inner font-mono"
+                        />
+                        <button
+                          onClick={() => {
+                            if (newManualPassword) {
+                              navigator.clipboard.writeText(newManualPassword);
+                              alert("Contraseña copiada al portapapeles");
+                            }
+                          }}
+                          className="p-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg transition-all text-xs font-bold"
+                          title="Copiar contraseña"
+                        >
+                          <Copy size={14} />
+                        </button>
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <button
+                          onClick={() => {
+                            setResettingPasswordUserId(null);
+                            setNewManualPassword("");
+                          }}
+                          className="text-xs font-bold text-gray-400 px-3"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          onClick={() => saveNewPassword(usuario)}
+                          className="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-all text-xs font-bold px-4"
+                        >
+                          <Save size={12} className="inline mr-1" /> Guardar
+                        </button>
+                      </div>
+                    </div>
                   ) : (
                     <>
                       <div className="flex items-start justify-between gap-3">
@@ -944,15 +1029,17 @@ export default function AjustesPage() {
                             <Pencil size={13} />
                           </button>
                           <button
-                            onClick={() => resetUserPassword(usuario)}
-                            disabled={generatingPassword === usuario.id}
-                            className="p-1.5 text-gray-400 hover:text-blue-500 transition-colors disabled:opacity-50"
-                            title="Generar contraseña"
+                            onClick={() => {
+                              setResettingPasswordUserId(usuario.id);
+                              setNewManualPassword("");
+                            }}
+                            className="p-1.5 text-gray-400 hover:text-blue-500 transition-colors"
+                            title="Cambiar contraseña"
                           >
                             <Key size={13} />
                           </button>
                           <button
-                            onClick={() => deleteUser(usuario.id)}
+                            onClick={() => confirmDeleteUser(usuario)}
                             className="p-1.5 text-gray-400 hover:text-red-500 transition-colors"
                             title="Eliminar"
                           >
@@ -996,13 +1083,6 @@ export default function AjustesPage() {
                       type="password"
                       className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-red-400"
                     />
-                    <button
-                      onClick={() => setNewUserPassword(generatePassword())}
-                      className="p-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg transition-all text-xs font-bold"
-                      title="Generar contraseña aleatoria"
-                    >
-                      <Key size={14} />
-                    </button>
                   </div>
                   <div className="flex justify-end gap-2">
                     <button
@@ -1218,6 +1298,62 @@ export default function AjustesPage() {
           </Section>
         </div>
       </div>
+
+      {showDeleteModal && userToDelete && (
+        <div className="fixed inset-0 bg-black/50 flex flex-col items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full space-y-4 shadow-xl translate-y-[-20%]">
+            <h3 className="text-xl font-black text-gray-900 tracking-tight flex items-center gap-2">
+              <Trash2 className="text-red-500" size={24} />
+              Eliminar Usuario
+            </h3>
+            <p className="text-sm text-gray-600 font-medium leading-relaxed">
+              Para eliminar al usuario <span className="font-bold text-gray-900">{userToDelete.username}</span>, por favor ingresa tu contraseña de administrador. Esta acción no se puede deshacer.
+            </p>
+            <div className="space-y-1">
+              <input
+                type="password"
+                value={adminPassword}
+                onChange={(e) => setAdminPassword(e.target.value)}
+                placeholder="Contraseña de administrador"
+                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-semibold outline-none focus:border-red-400 focus:bg-white transition-all shadow-sm"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    executeDeleteUser();
+                  }
+                }}
+              />
+            </div>
+            <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+              <button
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setUserToDelete(null);
+                  setAdminPassword("");
+                }}
+                disabled={deletingUser}
+                className="px-5 py-2.5 text-sm font-bold text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-all"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={executeDeleteUser}
+                disabled={deletingUser || !adminPassword}
+                className="px-5 py-2.5 text-sm font-bold bg-[#DC2626] text-white rounded-xl hover:bg-red-700 hover:shadow-lg hover:shadow-red-200 transition-all disabled:opacity-50 disabled:hover:shadow-none flex items-center gap-2"
+              >
+                {deletingUser ? (
+                  <>
+                    <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                    Borrando...
+                  </>
+                ) : (
+                  "Confirmar Eliminación"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

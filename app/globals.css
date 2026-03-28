@@ -130,12 +130,19 @@
 /* ====================================== */
 
 /* Prevenir scroll en el body - solo debe hacer scroll el contenedor main */
-html,
+/* NOTA: position:fixed fue eliminado porque rompe el responsive en DevTools.
+   Usamos overflow:hidden en html + body para prevenir pull-to-refresh
+   sin afectar media queries ni el viewport simulado. */
+html {
+  overflow: hidden;
+  height: 100%;
+  overscroll-behavior-y: none;
+}
+
 body {
   overflow: hidden;
+  min-height: 100dvh;
   height: 100dvh;
-  position: fixed;
-  width: 100%;
   overscroll-behavior-y: none; /* Desactiva Pull-to-Refresh */
 }
 

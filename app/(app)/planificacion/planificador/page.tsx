@@ -388,7 +388,7 @@ export default function PlanificadorPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-full bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-100 z-10 w-full pt-6">
         <div className="w-full px-6 space-y-4">

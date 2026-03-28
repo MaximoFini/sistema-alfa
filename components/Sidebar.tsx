@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
+import { getUserProfile, UserProfile } from "@/lib/auth";
+import { supabase } from "@/lib/supabase";
 import {
   Users,
   MessageSquare,
@@ -41,9 +43,18 @@ export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [planOpen, setPlanOpen] = useState(
     pathname.startsWith("/planificacion"),
   );
+
+  useEffect(() => {
+    async function loadProfile() {
+      const userProfile = await getUserProfile();
+      setProfile(userProfile);
+    }
+    loadProfile();
+  }, []);
 
   function handleLogout() {
     router.push("/");
@@ -189,22 +200,24 @@ export default function Sidebar() {
         </Link>
 
         {/* Administracion */}
-        <Link
-          href="/administracion"
-          className={cn(
-            "flex items-center rounded-lg transition-all duration-150",
-            collapsed ? "justify-center px-2 py-3" : "gap-3 px-3 py-2.5",
-            isAdminActive
-              ? "bg-[#111111] text-white shadow-sm shadow-black/20"
-              : "text-[#111111]/80 hover:text-[#111111] hover:bg-black/10 font-medium",
-          )}
-          title={collapsed ? "Administracion" : undefined}
-        >
-          <ShieldCheck size={18} className="shrink-0" />
-          {!collapsed && (
-            <span className="text-sm">Administracion</span>
-          )}
-        </Link>
+        {profile?.role === "Administrador" && (
+          <Link
+            href="/administracion"
+            className={cn(
+              "flex items-center rounded-lg transition-all duration-150",
+              collapsed ? "justify-center px-2 py-3" : "gap-3 px-3 py-2.5",
+              isAdminActive
+                ? "bg-[#111111] text-white shadow-sm shadow-black/20"
+                : "text-[#111111]/80 hover:text-[#111111] hover:bg-black/10 font-medium",
+            )}
+            title={collapsed ? "Administracion" : undefined}
+          >
+            <ShieldCheck size={18} className="shrink-0" />
+            {!collapsed && (
+              <span className="text-sm">Administracion</span>
+            )}
+          </Link>
+        )}
       </nav>
 
       {/* Ingreso Web placed just above the divider */}
@@ -255,10 +268,10 @@ export default function Sidebar() {
           {!collapsed && (
             <div className="flex flex-col min-w-0">
               <span className="text-[#111111] text-xs font-bold truncate">
-                Secretaria
+                {profile?.full_name || profile?.role || "Cargando..."}
               </span>
               <span className="text-[#111111]/70 text-xs truncate">
-                secretaria@alfaclub.com
+                {profile?.email || ""}
               </span>
             </div>
           )}

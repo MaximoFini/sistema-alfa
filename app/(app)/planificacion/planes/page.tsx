@@ -90,7 +90,7 @@ export default function PlanesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-full bg-gray-50">
       <div className="w-full p-4 md:p-8 space-y-6">
         {/* Header con navegación */}
         <div className="flex flex-col gap-6">

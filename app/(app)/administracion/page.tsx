@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import {
   BarChart2,
@@ -8,16 +8,17 @@ import {
   Eye,
   EyeOff,
   ShieldCheck,
+  ShieldX,
   Settings,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/lib/supabase";
+import { getUserProfile, UserProfile } from "@/lib/auth";
 import EstadisticasPage from "@/app/(app)/estadisticas/page";
 import FinanzasPage from "@/app/(app)/finanzas/page";
 import AjustesPage from "@/app/(app)/administracion/ajustes/page";
-
 import EstadisticasProductosPage from "@/app/(app)/administracion/_components/EstadisticasProductos";
-
-const PASSWORD = "admin123";
 
 type Tab = "estadisticas" | "estadisticas-productos" | "finanzas" | "ajustes";
 
@@ -28,27 +29,38 @@ const tabs: { id: Tab; label: string; icon: typeof BarChart2 }[] = [
   { id: "ajustes", label: "Ajustes de Negocio", icon: Settings },
 ];
 
-function PasswordGate({ onSuccess }: { onSuccess: () => void }) {
+function PasswordGate({ userEmail, onSuccess }: { userEmail: string; onSuccess: () => void }) {
   const [value, setValue] = useState("");
   const [show, setShow] = useState(false);
   const [error, setError] = useState(false);
   const [shake, setShake] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (value === PASSWORD) {
-      setError(false);
-      onSuccess();
-    } else {
+    if (!value) return;
+    
+    setLoading(true);
+    // Verificamos la contraseña real intentando iniciar sesión con ella
+    const { data, error: signInError } = await supabase.auth.signInWithPassword({
+      email: userEmail,
+      password: value
+    });
+    setLoading(false);
+
+    if (signInError) {
       setError(true);
       setShake(true);
       setTimeout(() => setShake(false), 500);
       setValue("");
+    } else {
+      setError(false);
+      onSuccess();
     }
   }
 
   return (
-    <div className="min-h-screen bg-[#111111] flex items-center justify-center px-4 py-8">
+    <div className="bg-[#111111] flex items-center justify-center px-4 py-8 min-h-full">
       <div
         className={cn(
           "bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 md:p-8 flex flex-col items-center gap-5 md:gap-6",
@@ -71,18 +83,16 @@ function PasswordGate({ onSuccess }: { onSuccess: () => void }) {
             </span>
           </div>
           <p className="text-sm text-gray-400 leading-relaxed">
-            Esta sección es de acceso restringido. Ingresá la contraseña para
-            continuar.
+            Ingresá tu contraseña de acceso para continuar a esta sección protegida.
           </p>
         </div>
         <form onSubmit={handleSubmit} className="w-full flex flex-col gap-4">
           <div className="flex flex-col gap-2">
-            <label
-              htmlFor="admin-password"
-              className="text-xs font-semibold text-gray-500 uppercase tracking-wide"
-            >
-              Contraseña
-            </label>
+            {error && (
+              <p className="text-sm text-red-600 font-medium mb-1">
+                Contraseña incorrecta. Intentalo de nuevo.
+              </p>
+            )}
             <div className="relative">
               <input
                 id="admin-password"
@@ -90,6 +100,7 @@ function PasswordGate({ onSuccess }: { onSuccess: () => void }) {
                 value={value}
                 autoFocus
                 autoComplete="current-password"
+                disabled={loading}
                 onChange={(e) => {
                   setValue(e.target.value);
                   setError(false);
@@ -100,29 +111,27 @@ function PasswordGate({ onSuccess }: { onSuccess: () => void }) {
                   error
                     ? "border-red-400 bg-red-50"
                     : "border-gray-200 bg-gray-50 focus:border-[#DC2626] focus:ring-2 focus:ring-red-100",
+                  loading && "opacity-50 cursor-not-allowed"
                 )}
               />
               <button
                 type="button"
                 onClick={() => setShow((s) => !s)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 min-w-[32px] min-h-[32px] flex items-center justify-center text-gray-400 hover:text-gray-600 touch-manipulation"
+                disabled={loading}
+                className="absolute right-3 top-1/2 -translate-y-1/2 min-w-[32px] min-h-[32px] flex items-center justify-center text-gray-400 hover:text-gray-600 touch-manipulation disabled:opacity-50"
                 aria-label={show ? "Ocultar contraseña" : "Mostrar contraseña"}
               >
                 {show ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
-            {error && (
-              <p className="text-sm text-red-600 font-medium">
-                Contraseña incorrecta. Intentalo de nuevo.
-              </p>
-            )}
           </div>
           <button
             type="submit"
-            className="w-full min-h-[44px] py-3 rounded-xl text-white font-bold text-base hover:brightness-110 transition-all touch-manipulation select-none"
+            disabled={loading}
+            className="w-full flex justify-center items-center gap-2 min-h-[44px] py-3 rounded-xl text-white font-bold text-base hover:brightness-110 transition-all touch-manipulation select-none disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
             style={{ backgroundColor: "#DC2626" }}
           >
-            Ingresar
+            {loading ? <Loader2 size={20} className="animate-spin" /> : "Ingresar"}
           </button>
         </form>
       </div>
@@ -132,15 +141,59 @@ function PasswordGate({ onSuccess }: { onSuccess: () => void }) {
 }
 
 export default function AdministracionPage() {
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [status, setStatus] = useState<"loading" | "authorized" | "denied">("loading");
   const [authenticated, setAuthenticated] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>("estadisticas");
 
-  if (!authenticated)
-    return <PasswordGate onSuccess={() => setAuthenticated(true)} />;
+  useEffect(() => {
+    async function checkRole() {
+      const userProfile = await getUserProfile();
+      if (!userProfile) { 
+        setStatus("denied"); 
+        return; 
+      }
+      setProfile(userProfile);
+      setStatus(userProfile.role === "Administrador" ? "authorized" : "denied");
+    }
+    checkRole();
+  }, []);
+
+  if (status === "loading") {
+    return (
+      <div className="min-h-full flex items-center justify-center bg-gray-50">
+        <Loader2 size={28} className="animate-spin text-gray-400" />
+      </div>
+    );
+  }
+
+  if (status === "denied") {
+    return (
+      <div className="min-h-full bg-[#111111] flex items-center justify-center px-4">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8 flex flex-col items-center gap-4 text-center">
+          <div className="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center">
+            <ShieldX size={28} className="text-red-500" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-gray-900">Acceso denegado</h2>
+            <p className="text-sm text-gray-400 mt-1 leading-relaxed">
+              No tenés permisos para acceder a la zona de administración.
+              Contactá a un administrador para solicitar acceso.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Ahora si es authorized (Administrador), mostramos el PasswordGate si no se autenticó todavía.
+  // Es seguro hacer profile!.email porque status es solo "authorized" si existe perfil y rol es Administrador.
+  if (!authenticated && profile?.email) {
+    return <PasswordGate userEmail={profile.email} onSuccess={() => setAuthenticated(true)} />;
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Tabs sin scroll horizontal */}
+    <div className="min-h-full bg-gray-50 flex flex-col">
       <div className="border-b border-gray-100 bg-white">
         <div className="flex items-center gap-1 px-4 md:px-6 lg:px-8 pt-4 md:pt-6 pb-0 flex-wrap">
           {tabs.map((tab) => {
@@ -151,7 +204,7 @@ export default function AdministracionPage() {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={cn(
-                  "flex items-center gap-2 px-4 py-3 min-h-[44px] text-sm md:text-sm font-semibold border-b-2 transition-all -mb-px whitespace-nowrap touch-manipulation select-none",
+                  "flex items-center gap-2 px-4 py-3 min-h-[44px] text-sm font-semibold border-b-2 transition-all -mb-px whitespace-nowrap touch-manipulation select-none",
                   isActive
                     ? "border-[#DC2626] text-[#DC2626]"
                     : "border-transparent text-gray-400 hover:text-gray-700 hover:border-gray-200",

@@ -8,29 +8,8 @@ export const metadata = {
 
 export default function ClasePruebaPage() {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 sm:p-6">
-      <div className="w-full max-w-md">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="flex justify-center mb-6">
-            <Image
-              src="/Mejor logo.png"
-              alt="Alfa Club Logo"
-              width={200}
-              height={200}
-              className="w-40 h-auto"
-              priority
-            />
-          </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Clase de Prueba
-          </h1>
-          <p className="text-gray-600 text-base">
-            Completá el formulario para reservar tu clase gratuita
-          </p>
-        </div>
-
-        {/* Formulario */}
+    <div className="h-[100dvh] w-full overflow-y-auto flex flex-col items-center px-4 py-10 sm:px-6 sm:py-12">
+      <div className="w-full max-w-md my-auto shrink-0">
         <TrialRegistrationForm />
       </div>
     </div>

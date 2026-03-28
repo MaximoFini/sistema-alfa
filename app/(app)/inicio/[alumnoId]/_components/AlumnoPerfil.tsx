@@ -8,7 +8,16 @@ import TabAsistencias from "./TabAsistencias";
 import TabPagos from "./TabPagos";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
-
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 interface Alumno {
   id: string;
   nombre: string | null;
@@ -61,13 +70,10 @@ export default function AlumnoPerfil({
 }) {
   const router = useRouter();
   const [convirtiendo, setConvirtiendo] = useState(false);
+  const [showConvertirModal, setShowConvertirModal] = useState(false);
   const esPrueba = alumno.es_prueba === true;
 
-  async function handleConvertir() {
-    if (!confirm("¿Estás seguro de convertir este prospecto en alumno regular? Deberás registrar su primer pago a continuación.")) {
-      return;
-    }
-
+  async function confirmarConvertir() {
     setConvirtiendo(true);
     
     // Actualizar es_prueba a false
@@ -82,12 +88,13 @@ export default function AlumnoPerfil({
       return;
     }
 
+    setShowConvertirModal(false);
     // Refresh para cargar el estado actualizado
     router.refresh();
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="bg-background">
       {/* Banner de Clase de Prueba */}
       {esPrueba && (
         <div className="bg-gradient-to-r from-orange-500 to-orange-600 px-4 md:px-8 py-4 flex items-center justify-between gap-4">
@@ -103,13 +110,36 @@ export default function AlumnoPerfil({
             </div>
           </div>
           <button
-            onClick={handleConvertir}
+            onClick={() => setShowConvertirModal(true)}
             disabled={convirtiendo}
             className="inline-flex items-center gap-2 px-4 py-2 bg-white hover:bg-orange-50 text-orange-600 text-sm font-bold rounded-lg transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
           >
             <CheckCircle size={16} />
             {convirtiendo ? "Convirtiendo..." : "Convertir a Alumno"}
           </button>
+
+          <AlertDialog open={showConvertirModal} onOpenChange={setShowConvertirModal}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Convertir a Alumno Regular</AlertDialogTitle>
+                <AlertDialogDescription>
+                  ¿Estás seguro de convertir este prospecto en alumno regular? Deberás registrar su primer pago a continuación.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={convirtiendo}>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={(e) => {
+                    e.preventDefault();
+                    confirmarConvertir();
+                  }}
+                  disabled={convirtiendo}
+                >
+                  {convirtiendo ? "Convirtiendo..." : "Aceptar"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       )}
       {/* Top bar */}

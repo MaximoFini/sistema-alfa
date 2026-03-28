@@ -8,12 +8,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <MobileNav />
 
       {/* Sidebar desktop (>= md) */}
-      <div className="hidden md:flex">
+      <div className="hidden md:flex shrink-0">
         <Sidebar />
       </div>
 
-      {/* Contenido principal */}
-      <main className="flex-1 overflow-y-auto pt-[calc(60px+env(safe-area-inset-top))] md:pt-0">
+      {/* Contenido principal — min-h-0 es necesario para que flex-1 + overflow-y-auto funcione correctamente */}
+      <main className="flex-1 min-h-0 overflow-y-auto pt-[calc(60px+env(safe-area-inset-top))] md:pt-0">
         {children}
       </main>
     </div>

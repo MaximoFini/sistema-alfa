@@ -36,6 +36,24 @@ export default function LoginPage() {
       return;
     }
 
+    // Verificar si el usuario está activo en system_users
+    const userId = data.user?.id;
+    if (userId) {
+      const { data: systemUser } = await supabase
+        .from("system_users")
+        .select("is_active")
+        .eq("id", userId)
+        .maybeSingle();
+
+      if (systemUser && systemUser.is_active === false) {
+        triggerHapticFeedback(HapticPresets.error);
+        await supabase.auth.signOut();
+        setErrorMsg("Tu cuenta está desactivada. Contactá al administrador.");
+        setLoading(false);
+        return;
+      }
+    }
+
     // Verificamos el rol para ver si puede ingresar al sistema
     const role = await getUserRole();
 
