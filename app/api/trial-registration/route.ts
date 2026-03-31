@@ -1,6 +1,15 @@
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextRequest, NextResponse } from "next/server";
 
+// Función auxiliar para obtener fecha local en formato YYYY-MM-DD
+function getFechaLocal(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 // Actividades permitidas para clase de prueba
 const ACTIVIDADES_PERMITIDAS = [
   "Boxeo",
@@ -39,7 +48,7 @@ export async function POST(request: NextRequest) {
       if (!body[campo] || body[campo].toString().trim() === "") {
         return NextResponse.json(
           { error: `El campo ${campo} es requerido` },
-          { status: 400 }
+          { status: 400 },
         );
       }
     }
@@ -49,15 +58,18 @@ export async function POST(request: NextRequest) {
     if (!/^\d{7,8}$/.test(dniStr)) {
       return NextResponse.json(
         { error: "El DNI debe tener 7 u 8 dígitos numéricos" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     // Validar que la actividad esté en la lista permitida
     if (!ACTIVIDADES_PERMITIDAS.includes(body.actividad)) {
       return NextResponse.json(
-        { error: "La actividad seleccionada no está disponible para clase de prueba" },
-        { status: 400 }
+        {
+          error:
+            "La actividad seleccionada no está disponible para clase de prueba",
+        },
+        { status: 400 },
       );
     }
 
@@ -65,7 +77,7 @@ export async function POST(request: NextRequest) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(body.fecha_nacimiento)) {
       return NextResponse.json(
         { error: "La fecha de nacimiento debe estar en formato YYYY-MM-DD" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -82,29 +94,30 @@ export async function POST(request: NextRequest) {
       console.error("Error al buscar alumno existente:", searchError);
       return NextResponse.json(
         { error: "Error al verificar el DNI" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
     // Si el DNI existe y ya hizo clase de prueba, rechazar
     if (alumnoExistente && alumnoExistente.es_prueba) {
       return NextResponse.json(
-        { 
-          error: "Ya existe un registro de clase de prueba con este DNI. Por favor, contacta al gimnasio.",
-          code: "TRIAL_ALREADY_REGISTERED"
+        {
+          error:
+            "Ya existe un registro de clase de prueba con este DNI. Por favor, contacta al gimnasio.",
+          code: "TRIAL_ALREADY_REGISTERED",
         },
-        { status: 409 }
+        { status: 409 },
       );
     }
 
     // Si el DNI existe y es un alumno regular, rechazar
     if (alumnoExistente && !alumnoExistente.es_prueba) {
       return NextResponse.json(
-        { 
+        {
           error: "Este DNI ya está registrado como alumno del gimnasio.",
-          code: "ALREADY_MEMBER"
+          code: "ALREADY_MEMBER",
         },
-        { status: 409 }
+        { status: 409 },
       );
     }
 
@@ -114,7 +127,10 @@ export async function POST(request: NextRequest) {
     let edadActual = hoy.getFullYear() - fechaNacimiento.getFullYear();
     const mesActual = hoy.getMonth();
     const mesNacimiento = fechaNacimiento.getMonth();
-    if (mesActual < mesNacimiento || (mesActual === mesNacimiento && hoy.getDate() < fechaNacimiento.getDate())) {
+    if (
+      mesActual < mesNacimiento ||
+      (mesActual === mesNacimiento && hoy.getDate() < fechaNacimiento.getDate())
+    ) {
       edadActual--;
     }
 
@@ -129,7 +145,7 @@ export async function POST(request: NextRequest) {
         domicilio: body.direccion.trim(),
         genero: body.genero,
         edad_actual: edadActual,
-        fecha_registro: new Date().toISOString().split("T")[0],
+        fecha_registro: getFechaLocal(),
         activo: true,
         es_prueba: true,
         saldo: 0,
@@ -141,8 +157,11 @@ export async function POST(request: NextRequest) {
     if (insertError) {
       console.error("Error al insertar alumno de prueba:", insertError);
       return NextResponse.json(
-        { error: "Error al registrar la clase de prueba. Por favor, intenta nuevamente." },
-        { status: 500 }
+        {
+          error:
+            "Error al registrar la clase de prueba. Por favor, intenta nuevamente.",
+        },
+        { status: 500 },
       );
     }
 
@@ -155,14 +174,13 @@ export async function POST(request: NextRequest) {
           actividad: body.actividad,
         },
       },
-      { status: 201 }
+      { status: 201 },
     );
-
   } catch (error) {
     console.error("Error en trial-registration:", error);
     return NextResponse.json(
       { error: "Error interno del servidor" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

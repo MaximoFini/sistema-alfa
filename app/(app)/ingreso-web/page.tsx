@@ -8,7 +8,12 @@ import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
-type Estado = "al-dia" | "vencido" | "advertencia" | "periodo_gracia" | "prueba";
+type Estado =
+  | "al-dia"
+  | "vencido"
+  | "advertencia"
+  | "periodo_gracia"
+  | "prueba";
 type Result =
   | {
       nombre: string;
@@ -16,6 +21,9 @@ type Result =
       vencimiento: string;
       actividad?: string;
       clasesGracia?: { usadas: number; disponibles: number };
+      esPrueba?: boolean;
+      yaUsoClasePrueba?: boolean;
+      razonBloqueo?: "sin_plan" | "plan_no_iniciado";
     }
   | "not-found"
   | null;
@@ -48,8 +56,7 @@ const estadoConfig: Record<
   },
   vencido: {
     label: "No tienes actividades en condiciones para ingresar",
-    description:
-      "No tienes actividades vigentes, estás fuera de tu horario o día permitido, o no tienes reserva a clase",
+    description: "Consultá en secretaría para más información.",
     icon: XCircle,
     bg: "bg-red-50",
     border: "border-red-200",
@@ -72,7 +79,8 @@ const estadoConfig: Record<
   },
   periodo_gracia: {
     label: "Ingreso permitido: Clase de cortesía",
-    description: "Ests usando una clase de gracia. Recordá renovar tu plan para seguir entrenando sin interrupciones.",
+    description:
+      "Ests usando una clase de gracia. Recordá renovar tu plan para seguir entrenando sin interrupciones.",
     icon: Info,
     bg: "bg-blue-50",
     border: "border-blue-200",
@@ -83,7 +91,8 @@ const estadoConfig: Record<
   },
   prueba: {
     label: "¡Bienvenido/a a tu clase de prueba!",
-    description: "Disfrutá tu clase gratuita. Si te gusta, acercate a secretaría para inscribirte.",
+    description:
+      "Disfrutá tu clase gratuita. Si te gusta, acercate a secretaría para inscribirte.",
     icon: CheckCircle2,
     bg: "bg-orange-50",
     border: "border-orange-200",
@@ -235,10 +244,46 @@ function IngresoWebPageContent() {
 
   // Vista simplificada para clientes
   if (isClientView) {
-    const theme =
+    let theme =
       result !== null && result !== "not-found"
         ? clientEstadoTheme[result.estado]
         : null;
+
+    // Caso especial: alumno de prueba que ya usó su clase
+    if (result !== null && result !== "not-found" && result.yaUsoClasePrueba) {
+      theme = {
+        ...clientEstadoTheme.vencido,
+        label: "CLASE DE PRUEBA UTILIZADA" as any,
+        sublabel:
+          "Ya asististe a tu clase de prueba. Acercate a secretaría para inscribirte." as any,
+      };
+    }
+    // Caso especial: alumno sin plan registrado
+    else if (
+      result !== null &&
+      result !== "not-found" &&
+      result.razonBloqueo === "sin_plan"
+    ) {
+      theme = {
+        ...clientEstadoTheme.vencido,
+        label: "SIN PLAN REGISTRADO" as any,
+        sublabel:
+          "No tienes un plan activo. Acercate a secretaría para inscribirte." as any,
+      };
+    }
+    // Caso especial: alumno con plan que aún no ha iniciado
+    else if (
+      result !== null &&
+      result !== "not-found" &&
+      result.razonBloqueo === "plan_no_iniciado"
+    ) {
+      theme = {
+        ...clientEstadoTheme.vencido,
+        label: "PLAN AÚN NO INICIADO" as any,
+        sublabel:
+          `Tu plan comienza el ${result.vencimiento}. Volvé en esa fecha.` as any,
+      };
+    }
 
     return (
       <div
@@ -495,24 +540,32 @@ function IngresoWebPageContent() {
                       )}
 
                       {/* Clase de gracia: contador */}
-                      {result.estado === "periodo_gracia" && result.clasesGracia && (
-                        <div
-                          className="mt-2 rounded-2xl px-8 py-4 flex flex-col items-center gap-1"
-                          style={{ backgroundColor: "rgba(0,0,0,0.2)" }}
-                        >
-                          <p
-                            className="text-2xl font-black"
-                            style={{ color: "#ffffff" }}
+                      {result.estado === "periodo_gracia" &&
+                        result.clasesGracia && (
+                          <div
+                            className="mt-2 rounded-2xl px-8 py-4 flex flex-col items-center gap-1"
+                            style={{ backgroundColor: "rgba(0,0,0,0.2)" }}
                           >
-                            Clase {result.clasesGracia.usadas} de {result.clasesGracia.disponibles}
-                          </p>
-                          <p className="text-sm" style={{ color: "rgba(255,255,255,0.7)" }}>
-                            Clase{result.clasesGracia.disponibles - result.clasesGracia.usadas === 0
-                              ? "s de gracia agotadas"
-                              : ` — te queda${result.clasesGracia.disponibles - result.clasesGracia.usadas === 1 ? " 1 clase" : ` ${result.clasesGracia.disponibles - result.clasesGracia.usadas} clases`} más`}
-                          </p>
-                        </div>
-                      )}
+                            <p
+                              className="text-2xl font-black"
+                              style={{ color: "#ffffff" }}
+                            >
+                              Clase {result.clasesGracia.usadas} de{" "}
+                              {result.clasesGracia.disponibles}
+                            </p>
+                            <p
+                              className="text-sm"
+                              style={{ color: "rgba(255,255,255,0.7)" }}
+                            >
+                              Clase
+                              {result.clasesGracia.disponibles -
+                                result.clasesGracia.usadas ===
+                              0
+                                ? "s de gracia agotadas"
+                                : ` — te queda${result.clasesGracia.disponibles - result.clasesGracia.usadas === 1 ? " 1 clase" : ` ${result.clasesGracia.disponibles - result.clasesGracia.usadas} clases`} más`}
+                            </p>
+                          </div>
+                        )}
                     </div>
 
                     {/* Footer con botón nueva consulta */}
@@ -703,7 +756,35 @@ function IngresoWebPageContent() {
               </>
             ) : (
               (() => {
-                const cfg = estadoConfig[result.estado];
+                let cfg = estadoConfig[result.estado];
+
+                // Caso especial: alumno de prueba que ya usó su clase
+                if (result.yaUsoClasePrueba) {
+                  cfg = {
+                    ...cfg,
+                    label: "CLASE DE PRUEBA UTILIZADA",
+                    description:
+                      "Este alumno ya asistió a su clase de prueba. Debe acercarse a secretaría para inscribirse.",
+                  };
+                }
+                // Caso especial: alumno sin plan registrado
+                else if (result.razonBloqueo === "sin_plan") {
+                  cfg = {
+                    ...cfg,
+                    label: "SIN PLAN REGISTRADO",
+                    description:
+                      "Este alumno no tiene un plan de pago registrado. Debe inscribirse en secretaría.",
+                  };
+                }
+                // Caso especial: alumno con plan que aún no ha iniciado
+                else if (result.razonBloqueo === "plan_no_iniciado") {
+                  cfg = {
+                    ...cfg,
+                    label: "PLAN AÚN NO INICIADO",
+                    description: `El plan de este alumno comienza el ${result.vencimiento}.`,
+                  };
+                }
+
                 const Icon = cfg.icon;
                 return (
                   <>

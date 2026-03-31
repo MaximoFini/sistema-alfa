@@ -27,6 +27,7 @@ interface Pago {
 interface Props {
   alumnoId: string;
   pagosIniciales: Pago[];
+  onAlumnoActualizado?: (datosActualizados: any) => void;
 }
 
 function formatFecha(dateStr: string | null): string {
@@ -60,7 +61,11 @@ function getMedioPagoClass(medio: string): string {
   );
 }
 
-export default function TabPagos({ alumnoId, pagosIniciales }: Props) {
+export default function TabPagos({
+  alumnoId,
+  pagosIniciales,
+  onAlumnoActualizado,
+}: Props) {
   const [pagos, setPagos] = useState<Pago[]>(pagosIniciales);
   const [modalAbierto, setModalAbierto] = useState(false);
 
@@ -77,8 +82,24 @@ export default function TabPagos({ alumnoId, pagosIniciales }: Props) {
     }
   }
 
-  function handleCobroGuardado() {
-    refrescarPagos();
+  async function handleCobroGuardado() {
+    // Refrescar pagos
+    await refrescarPagos();
+
+    // Obtener los datos actualizados del alumno desde la base de datos
+    if (onAlumnoActualizado) {
+      const { data: alumnoActualizado } = await supabase
+        .from("alumnos")
+        .select(
+          "clases_gracia_disponibles, clases_gracia_usadas, fecha_proximo_vencimiento, actividad_proximo_vencimiento, fecha_ultimo_inicio, abono_ultima_inscripcion",
+        )
+        .eq("id", alumnoId)
+        .single();
+
+      if (alumnoActualizado) {
+        onAlumnoActualizado(alumnoActualizado);
+      }
+    }
   }
 
   if (pagos.length === 0) {

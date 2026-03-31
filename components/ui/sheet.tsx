@@ -142,8 +142,34 @@ function SheetDescription({
   );
 }
 
+/**
+ * SheetNavigation - Una variante del Sheet sin manejo de historial del navegador.
+ *
+ * Se usa específicamente para navegación (menús móviles, sidebars), donde el
+ * historial debe ser manejado por Next.js Router, no por el modal.
+ *
+ * Para otros casos de uso (modales, formularios, overlays), usar el componente
+ * Sheet normal que incluye el manejo del botón "Atrás" del navegador.
+ */
+function SheetNavigation({
+  open,
+  onOpenChange,
+  ...props
+}: React.ComponentProps<typeof SheetPrimitive.Root>) {
+  // Sin useModalHistory - el router de Next.js maneja la navegación
+  return (
+    <SheetPrimitive.Root
+      data-slot="sheet-navigation"
+      open={open}
+      onOpenChange={onOpenChange}
+      {...props}
+    />
+  );
+}
+
 export {
   Sheet,
+  SheetNavigation,
   SheetTrigger,
   SheetClose,
   SheetContent,

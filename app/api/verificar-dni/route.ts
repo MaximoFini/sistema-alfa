@@ -1,7 +1,21 @@
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextRequest, NextResponse } from "next/server";
 
-type Estado = "al-dia" | "vencido" | "advertencia" | "periodo_gracia" | "prueba";
+type Estado =
+  | "al-dia"
+  | "vencido"
+  | "advertencia"
+  | "periodo_gracia"
+  | "prueba";
+
+// Función auxiliar para obtener fecha local en formato YYYY-MM-DD
+function getFechaLocal(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,10 +41,54 @@ export async function POST(request: NextRequest) {
 
     // Verificar si es un usuario de prueba
     if (alumno.es_prueba === true) {
-      // Registrar asistencia para clase de prueba
+      // Verificar si ya usó su clase de prueba (ya tiene asistencias registradas)
+      const { data: asistenciasExistentes, error: asistenciasError } =
+        await supabase
+          .from("asistencias")
+          .select("id")
+          .eq("alumno_id", alumno.id)
+          .limit(1);
+
+      if (asistenciasError) {
+        console.error(
+          "Error verificando asistencias de prueba:",
+          asistenciasError,
+        );
+        return NextResponse.json(
+          { error: "Error al verificar el estado de la clase de prueba" },
+          { status: 500 },
+        );
+      }
+
+      // Si ya tiene asistencias registradas, no permitir otra
+      if (asistenciasExistentes && asistenciasExistentes.length > 0) {
+        return NextResponse.json({
+          found: true,
+          alumno: {
+            nombre: alumno.nombre,
+            estado: "vencido" as Estado,
+            vencimiento: "Clase de Prueba Utilizada",
+            actividad: alumno.actividad_interes || "Clase de Prueba",
+            esPrueba: true,
+            yaUsoClasePrueba: true,
+          },
+        });
+      }
+
+      // Registrar asistencia para clase de prueba (solo si no tiene asistencias previas)
       const now = new Date();
-      const fechaISO = now.toISOString();
-      const horaLocal = now.toTimeString().split(" ")[0]; // HH:MM:SS
+
+      // Crear fecha y hora en hora local (sin conversión a UTC)
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, "0");
+      const day = String(now.getDate()).padStart(2, "0");
+      const hours = String(now.getHours()).padStart(2, "0");
+      const minutes = String(now.getMinutes()).padStart(2, "0");
+      const seconds = String(now.getSeconds()).padStart(2, "0");
+
+      const fechaLocal = `${year}-${month}-${day}`;
+      const horaLocal = `${hours}:${minutes}:${seconds}`;
+      const fechaISO = `${fechaLocal}T${horaLocal}`;
 
       // Actualizar fecha_ultima_asistencia
       await supabase
@@ -39,13 +97,11 @@ export async function POST(request: NextRequest) {
         .eq("id", alumno.id);
 
       // Crear registro en tabla asistencias
-      await supabase
-        .from("asistencias")
-        .insert({
-          alumno_id: alumno.id,
-          fecha: fechaISO,
-          hora: horaLocal,
-        });
+      await supabase.from("asistencias").insert({
+        alumno_id: alumno.id,
+        fecha: fechaISO,
+        hora: horaLocal,
+      });
 
       return NextResponse.json({
         found: true,
@@ -61,7 +117,8 @@ export async function POST(request: NextRequest) {
 
     // 1. Determinar el estado ANTES de registrar asistencia
     //    (necesitamos saber si el ingreso está permitido)
-    const { estado, clasesGracia } = await determinarEstado(alumno, supabase);
+    const { estado, clasesGracia, razonBloqueo, fechaInicioPlan } =
+      await determinarEstado(alumno, supabase);
 
     // 2. Solo registrar asistencia si el ingreso está permitido
     const ingresoPermitido =
@@ -71,8 +128,18 @@ export async function POST(request: NextRequest) {
 
     if (ingresoPermitido) {
       const now = new Date();
-      const fechaISO = now.toISOString();
-      const horaLocal = now.toTimeString().split(" ")[0]; // HH:MM:SS
+
+      // Crear fecha y hora en hora local (sin conversión a UTC)
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, "0");
+      const day = String(now.getDate()).padStart(2, "0");
+      const hours = String(now.getHours()).padStart(2, "0");
+      const minutes = String(now.getMinutes()).padStart(2, "0");
+      const seconds = String(now.getSeconds()).padStart(2, "0");
+
+      const fechaLocal = `${year}-${month}-${day}`;
+      const horaLocal = `${hours}:${minutes}:${seconds}`;
+      const fechaISO = `${fechaLocal}T${horaLocal}`;
 
       // Actualizar fecha_ultima_asistencia
       const { error: updateError } = await supabase
@@ -102,8 +169,7 @@ export async function POST(request: NextRequest) {
         const { error: graciaError } = await supabase
           .from("alumnos")
           .update({
-            clases_gracia_usadas:
-              (alumno.clases_gracia_usadas ?? 0) + 1,
+            clases_gracia_usadas: (alumno.clases_gracia_usadas ?? 0) + 1,
           })
           .eq("id", alumno.id);
 
@@ -118,8 +184,8 @@ export async function POST(request: NextRequest) {
       .from("pagos")
       .select("actividad, fecha_vencimiento")
       .eq("alumno_id", alumno.id)
-      .lte("fecha_inicio", new Date().toISOString().split("T")[0])
-      .gte("fecha_vencimiento", new Date().toISOString().split("T")[0])
+      .lte("fecha_inicio", getFechaLocal())
+      .gte("fecha_vencimiento", getFechaLocal())
       .order("fecha_vencimiento", { ascending: false })
       .limit(1)
       .single();
@@ -131,10 +197,15 @@ export async function POST(request: NextRequest) {
         estado,
         vencimiento: planActivo?.fecha_vencimiento
           ? formatearFecha(planActivo.fecha_vencimiento)
-          : "Sin fecha",
+          : razonBloqueo === "sin_plan"
+            ? "Sin plan registrado"
+            : razonBloqueo === "plan_no_iniciado" && fechaInicioPlan
+              ? `Inicia el ${formatearFecha(fechaInicioPlan)}`
+              : "Sin fecha",
         actividad:
           planActivo?.actividad || alumno.actividad_proximo_vencimiento,
         clasesGracia: clasesGracia ?? undefined,
+        razonBloqueo: razonBloqueo,
       },
     });
   } catch (error) {
@@ -152,10 +223,47 @@ async function determinarEstado(
 ): Promise<{
   estado: Estado;
   clasesGracia?: { usadas: number; disponibles: number };
+  razonBloqueo?: "sin_plan" | "plan_no_iniciado";
+  fechaInicioPlan?: string;
 }> {
-  const hoy = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+  const hoy = getFechaLocal(); // YYYY-MM-DD
 
-  // Buscar si existe algún plan activo HOY
+  // VALIDACIÓN 1: Verificar si el alumno tiene algún plan registrado (pasado, presente o futuro)
+  const { data: todosLosPlanes, error: errorTodosPlanes } = await supabase
+    .from("pagos")
+    .select("fecha_inicio, fecha_vencimiento")
+    .eq("alumno_id", alumno.id)
+    .order("fecha_inicio", { ascending: true });
+
+  if (errorTodosPlanes) {
+    console.error("Error buscando planes del alumno:", errorTodosPlanes);
+    return { estado: "vencido" };
+  }
+
+  // Si NO tiene ningún plan registrado → bloquear con razón específica
+  if (!todosLosPlanes || todosLosPlanes.length === 0) {
+    return {
+      estado: "vencido",
+      razonBloqueo: "sin_plan",
+    };
+  }
+
+  // VALIDACIÓN 2: Verificar si el plan más próximo aún no ha iniciado
+  // Buscar el plan que inicia más próximo a hoy (puede ser hoy o en el futuro)
+  const planProximo =
+    todosLosPlanes.find((p: any) => p.fecha_inicio >= hoy) ||
+    todosLosPlanes[todosLosPlanes.length - 1];
+
+  // Si el plan más próximo tiene fecha de inicio FUTURA (después de hoy)
+  if (planProximo && planProximo.fecha_inicio > hoy) {
+    return {
+      estado: "vencido",
+      razonBloqueo: "plan_no_iniciado",
+      fechaInicioPlan: planProximo.fecha_inicio,
+    };
+  }
+
+  // VALIDACIÓN 3: Buscar si existe algún plan activo HOY
   const { data: planesActivos, error } = await supabase
     .from("pagos")
     .select("fecha_inicio, fecha_vencimiento")

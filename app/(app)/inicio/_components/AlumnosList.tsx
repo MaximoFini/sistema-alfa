@@ -152,7 +152,13 @@ function NuevoAlumnoModal({
 
   // Establecer fechas solo en el cliente para evitar problemas de hidratación
   useEffect(() => {
-    const today = new Date().toISOString().split("T")[0];
+    // Obtener fecha local sin conversión a UTC
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    const today = `${year}-${month}-${day}`;
+
     setForm((prev) => ({ ...prev, fechaRegistro: today }));
     setPagoForm((prev) => ({ ...prev, fechaCobro: today, fechaInicio: today }));
   }, []);

@@ -23,7 +23,7 @@ import { getUserProfile, UserProfile } from "@/lib/auth";
 import { useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import {
-  Sheet,
+  SheetNavigation,
   SheetContent,
   SheetHeader,
   SheetTitle,
@@ -88,7 +88,7 @@ export default function MobileNav() {
         </Link>
 
         {/* Botón hamburguesa */}
-        <Sheet open={open} onOpenChange={setOpen}>
+        <SheetNavigation open={open} onOpenChange={setOpen}>
           <SheetTrigger asChild>
             <button
               className="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors touch-manipulation"
@@ -273,7 +273,7 @@ export default function MobileNav() {
               </div>
             </div>
           </SheetContent>
-        </Sheet>
+        </SheetNavigation>
       </div>
     </>
   );

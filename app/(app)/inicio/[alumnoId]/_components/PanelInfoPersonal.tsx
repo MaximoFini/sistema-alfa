@@ -267,7 +267,7 @@ export default function PanelInfoPersonal({
     const { error } = await supabase
       .from("alumnos")
       .update({
-        clases_gracia_disponibles: 1,
+        clases_gracia_disponibles: 2,
         clases_gracia_usadas: 0,
       })
       .eq("id", alumno.id);
@@ -281,7 +281,7 @@ export default function PanelInfoPersonal({
 
     triggerHapticFeedback(HapticPresets.success);
     // Optistic UI update for instant feedback
-    setClasesGraciaDisponibles(1);
+    setClasesGraciaDisponibles(2);
     setClasesGraciaUsadas(0);
     setOtorgandoGracia(false);
     router.refresh();
@@ -478,7 +478,9 @@ export default function PanelInfoPersonal({
                 className="flex items-center justify-center gap-2 w-full py-2 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-60"
               >
                 <Gift size={13} />
-                {otorgandoGracia ? "Otorgando..." : "Otorgar 1 clase de gracia"}
+                {otorgandoGracia
+                  ? "Otorgando..."
+                  : "Otorgar 2 clases de gracia"}
               </button>
             )}
           </div>
