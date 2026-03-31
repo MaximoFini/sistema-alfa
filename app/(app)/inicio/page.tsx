@@ -61,6 +61,7 @@ export default async function InicioPage({
       : "";
 
     // Query principal: alumnos ordenados por última asistencia
+    // La RPC ahora incluye el count total, eliminando la necesidad de una query separada
     const { data: alumnosRaw, error } = await supabase.rpc(
       "alumnos_por_orden_llegada",
       {
@@ -79,19 +80,11 @@ export default async function InicioPage({
       return await fallbackQuery(supabase, query, paginaActual);
     }
 
-    // Count separado para paginación
-    let countQuery = supabase
-      .from("alumnos")
-      .select("id", { count: "exact", head: true });
-
-    if (query) {
-      countQuery = countQuery.or(
-        `nombre.ilike.%${query}%,dni.ilike.%${query}%`,
-      );
-    }
-    const { count } = await countQuery;
-
-    const totalRegistros = count ?? 0;
+    // Extraer el count del resultado (viene en cada fila, tomamos el primero)
+    const totalRegistros =
+      alumnosRaw && alumnosRaw.length > 0
+        ? Number(alumnosRaw[0].total_count)
+        : 0;
     const totalPaginas = Math.max(1, Math.ceil(totalRegistros / POR_PAGINA));
     const paginaFinal = Math.min(paginaActual, totalPaginas);
 

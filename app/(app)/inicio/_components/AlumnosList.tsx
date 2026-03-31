@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { useStaticDataStore } from "@/stores/static-data-store";
 import {
   ChevronRight,
   ChevronDown,
@@ -125,6 +126,14 @@ function NuevoAlumnoModal({
   const [step, setStep] = useState<1 | 2>(1);
   const [createdStudentId, setCreatedStudentId] = useState<string | null>(null);
 
+  // Usar el store de datos estáticos
+  const {
+    subscriptionPlans,
+    paymentMethods,
+    fetchSubscriptionPlans,
+    fetchPaymentMethods,
+  } = useStaticDataStore();
+
   const [form, setForm] = useState<FormData>({
     nombre: "",
     fechaNacimiento: "",
@@ -145,10 +154,6 @@ function NuevoAlumnoModal({
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [guardando, setGuardando] = useState(false);
-  const [planesSuscripcion, setPlanesSuscripcion] = useState<
-    Array<{ name: string; duration_days: number; price: number }>
-  >([]);
-  const [mediosPago, setMediosPago] = useState<Array<{ name: string }>>([]);
 
   // Establecer fechas solo en el cliente para evitar problemas de hidratación
   useEffect(() => {
@@ -163,24 +168,11 @@ function NuevoAlumnoModal({
     setPagoForm((prev) => ({ ...prev, fechaCobro: today, fechaInicio: today }));
   }, []);
 
+  // Cargar datos estáticos desde el store (con caché automático)
   useEffect(() => {
-    async function fetchData() {
-      const { data: planes } = await supabase
-        .from("subscription_plans")
-        .select("name, duration_days, price")
-        .eq("is_active", true)
-        .order("name", { ascending: true });
-      if (planes) setPlanesSuscripcion(planes);
-
-      const { data: metodos } = await supabase
-        .from("payment_methods")
-        .select("name")
-        .eq("is_active", true)
-        .order("name", { ascending: true });
-      if (metodos) setMediosPago(metodos);
-    }
-    fetchData();
-  }, []);
+    fetchSubscriptionPlans();
+    fetchPaymentMethods();
+  }, [fetchSubscriptionPlans, fetchPaymentMethods]);
 
   function setField(field: keyof FormData, value: string) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -194,7 +186,7 @@ function NuevoAlumnoModal({
 
   function handleActividadChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const name = e.target.value;
-    const plan = planesSuscripcion.find((p) => p.name === name);
+    const plan = subscriptionPlans.find((p) => p.name === name);
     setPagoForm((prev) => ({
       ...prev,
       actividad: name,
@@ -303,7 +295,7 @@ function NuevoAlumnoModal({
     setGuardando(true);
 
     let fechaProximoVencimiento = null;
-    const planElegido = planesSuscripcion.find(
+    const planElegido = subscriptionPlans.find(
       (p) => p.name === pagoForm.actividad,
     );
     if (planElegido && planElegido.duration_days) {
@@ -593,7 +585,7 @@ function NuevoAlumnoModal({
                   className="w-full border border-gray-200 rounded-lg px-4 py-3 text-base md:text-sm outline-none min-h-[44px] focus:border-red-400 focus:ring-2 focus:ring-red-50 bg-white appearance-none font-bold"
                 >
                   <option value="">Seleccionar plan...</option>
-                  {planesSuscripcion.map((plan) => (
+                  {subscriptionPlans.map((plan) => (
                     <option key={plan.name} value={plan.name}>
                       {plan.name}
                     </option>
@@ -642,7 +634,7 @@ function NuevoAlumnoModal({
                   className="w-full border border-gray-200 rounded-lg px-4 py-3 text-base md:text-sm outline-none min-h-[44px] focus:border-red-400 focus:ring-2 focus:ring-red-50 bg-white appearance-none"
                 >
                   <option value="">Seleccionar...</option>
-                  {mediosPago.map((mp) => (
+                  {paymentMethods.map((mp) => (
                     <option key={mp.name} value={mp.name}>
                       {mp.name}
                     </option>

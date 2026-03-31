@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   DollarSign,
   Bell,
@@ -23,31 +23,7 @@ import {
   Square,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { supabase } from "@/lib/supabase";
-import { useEffect } from "react";
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-interface Plan {
-  id: string;
-  nombre: string;
-  precio: number;
-  duracion_dias: number;
-  activo: boolean;
-}
-
-interface PaymentMethod {
-  id: string;
-  nombre: string;
-  activo: boolean;
-}
-
-interface SystemUser {
-  id: string;
-  username: string;
-  email: string;
-  is_admin: boolean;
-  is_active: boolean;
-}
+import { useAdminSettings } from "@/hooks/use-admin-settings";
 
 // ─── Accordion section wrapper ────────────────────────────────────────────────
 function Section({
@@ -142,8 +118,33 @@ function SettingRow({
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function AjustesPage() {
-  // Alertas
-  const [settingsId, setSettingsId] = useState<string | null>(null);
+  // Use cached hook with realtime updates
+  const {
+    settings,
+    settingsLoading,
+    planes,
+    planesLoading,
+    metodos,
+    metodosLoading,
+    usuarios,
+    usuariosLoading,
+    updateSettings,
+    togglePlan: togglePlanStore,
+    updatePlan: updatePlanStore,
+    addPlan: addPlanStore,
+    deletePlan: deletePlanStore,
+    toggleMetodo: toggleMetodoStore,
+    updateMetodo: updateMetodoStore,
+    addMetodo: addMetodoStore,
+    deleteMetodo: deleteMetodoStore,
+    toggleUserActive: toggleUserActiveStore,
+    toggleUserAdmin: toggleUserAdminStore,
+    updateUser: updateUserStore,
+    addUser: addUserStore,
+    deleteUser: deleteUserStore,
+  } = useAdminSettings();
+
+  // Local state for alertas
   const [diasVencimiento, setDiasVencimiento] = useState("5");
   const [diasSinAsistencia30, setDiasSinAsistencia30] = useState("15");
   const [diasSinAsistencia60, setDiasSinAsistencia60] = useState("30");
@@ -151,8 +152,19 @@ export default function AjustesPage() {
   const [diasInactivo, setDiasInactivo] = useState("7");
   const [diasPerdido, setDiasPerdido] = useState("90");
 
-  // Planes
-  const [planes, setPlanes] = useState<Plan[]>([]);
+  // Update local state when settings load from store
+  useEffect(() => {
+    if (settings) {
+      setDiasVencimiento(String(settings.notify_days_before_expiration));
+      setDiasSinAsistencia30(String(settings.alert_1_days_no_attendance));
+      setDiasSinAsistencia60(String(settings.alert_2_days_no_attendance));
+      setDiasSinAsistencia90(String(settings.alert_3_days_no_attendance));
+      setDiasInactivo(String(settings.days_after_expiration_inactive));
+      setDiasPerdido(String(settings.days_without_renewal_lost));
+    }
+  }, [settings]);
+
+  // Planes UI state
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editNombre, setEditNombre] = useState("");
   const [editPrecio, setEditPrecio] = useState("");
@@ -162,17 +174,14 @@ export default function AjustesPage() {
   const [newDuracion, setNewDuracion] = useState("");
   const [showNew, setShowNew] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [loading, setLoading] = useState(true);
 
-  // Medios de pago
-  const [metodos, setMetodos] = useState<PaymentMethod[]>([]);
+  // Medios de pago UI state
   const [editingMetodoId, setEditingMetodoId] = useState<string | null>(null);
   const [editMetodoNombre, setEditMetodoNombre] = useState("");
   const [newMetodoNombre, setNewMetodoNombre] = useState("");
   const [showNewMetodo, setShowNewMetodo] = useState(false);
 
-  // Usuarios
-  const [usuarios, setUsuarios] = useState<SystemUser[]>([]);
+  // Usuarios UI state
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [editUserName, setEditUserName] = useState("");
   const [editUserEmail, setEditUserEmail] = useState("");
@@ -180,91 +189,15 @@ export default function AjustesPage() {
   const [newUserEmail, setNewUserEmail] = useState("");
   const [newUserPassword, setNewUserPassword] = useState("");
   const [showNewUser, setShowNewUser] = useState(false);
-  const [generatingPassword, setGeneratingPassword] = useState<string | null>(
-    null,
-  );
+  const [generatingPassword, setGeneratingPassword] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function loadData() {
-      const { data: settings } = await supabase
-        .from("system_settings")
-        .select("*")
-        .limit(1)
-        .single();
-      if (settings) {
-        setSettingsId(settings.id);
-        setDiasVencimiento(String(settings.notify_days_before_expiration));
-        setDiasSinAsistencia30(String(settings.alert_1_days_no_attendance));
-        setDiasSinAsistencia60(String(settings.alert_2_days_no_attendance));
-        setDiasSinAsistencia90(String(settings.alert_3_days_no_attendance));
-        setDiasInactivo(String(settings.days_after_expiration_inactive));
-        setDiasPerdido(String(settings.days_without_renewal_lost));
-      }
+  const loading = settingsLoading || planesLoading || metodosLoading || usuariosLoading;
 
-      const { data: plans } = await supabase
-        .from("subscription_plans")
-        .select("*")
-        .order("price", { ascending: true });
-      if (plans) {
-        setPlanes(
-          plans.map((p: any) => ({
-            id: p.id,
-            nombre: p.name,
-            precio: p.price,
-            duracion_dias: p.duration_days,
-            activo: p.is_active,
-          })),
-        );
-      }
-
-      const { data: payMethods } = await supabase
-        .from("payment_methods")
-        .select("*")
-        .order("name", { ascending: true });
-      if (payMethods) {
-        setMetodos(
-          payMethods.map((m: any) => ({
-            id: m.id,
-            nombre: m.name,
-            activo: m.is_active,
-          })),
-        );
-      }
-
-      const { data: users } = await supabase
-        .from("system_users")
-        .select("*")
-        .order("username", { ascending: true });
-      if (users) {
-        setUsuarios(
-          users.map((u: any) => ({
-            id: u.id,
-            username: u.username,
-            email: u.email,
-            is_admin: u.is_admin,
-            is_active: u.is_active,
-          })),
-        );
-      }
-
-      setLoading(false);
-    }
-    loadData();
-  }, []);
-
-  async function togglePlan(plan: Plan) {
-    const { error } = await supabase
-      .from("subscription_plans")
-      .update({ is_active: !plan.activo })
-      .eq("id", plan.id);
-    if (!error) {
-      setPlanes((p) =>
-        p.map((x) => (x.id === plan.id ? { ...x, activo: !plan.activo } : x)),
-      );
-    }
+  async function togglePlan(plan: any) {
+    await togglePlanStore(plan.id);
   }
 
-  function startEdit(plan: Plan) {
+  function startEdit(plan: any) {
     setEditingId(plan.id);
     setEditNombre(plan.nombre);
     setEditPrecio(String(plan.precio));
@@ -273,191 +206,70 @@ export default function AjustesPage() {
 
   async function saveEdit() {
     if (!editingId) return;
-    const update = {
-      name: editNombre,
-      price: Number(editPrecio),
-      duration_days: Number(editDuracion),
-    };
-    const { error } = await supabase
-      .from("subscription_plans")
-      .update(update)
-      .eq("id", editingId);
-    if (!error) {
-      setPlanes((p) =>
-        p.map((x) =>
-          x.id === editingId
-            ? {
-                ...x,
-                nombre: editNombre,
-                precio: update.price,
-                duracion_dias: update.duration_days,
-              }
-            : x,
-        ),
-      );
-      setEditingId(null);
-    }
+    await updatePlanStore(editingId, {
+      nombre: editNombre,
+      precio: Number(editPrecio),
+      duracion_dias: Number(editDuracion),
+    });
+    setEditingId(null);
   }
 
   async function addPlan() {
     if (!newNombre.trim() || !newPrecio || !newDuracion) return;
-    const insert = {
-      name: newNombre.trim(),
-      price: Number(newPrecio),
-      duration_days: Number(newDuracion),
-      is_active: true,
-    };
-    const { data, error } = await supabase
-      .from("subscription_plans")
-      .insert(insert)
-      .select()
-      .single();
-    if (data && !error) {
-      setPlanes((p) => [
-        ...p,
-        {
-          id: data.id,
-          nombre: data.name,
-          precio: data.price,
-          duracion_dias: data.duration_days,
-          activo: data.is_active,
-        },
-      ]);
-      setNewNombre("");
-      setNewPrecio("");
-      setNewDuracion("");
-      setShowNew(false);
-    }
+    await addPlanStore({
+      nombre: newNombre.trim(),
+      precio: Number(newPrecio),
+      duracion_dias: Number(newDuracion),
+    });
+    setNewNombre("");
+    setNewPrecio("");
+    setNewDuracion("");
+    setShowNew(false);
   }
 
   async function deletePlan(id: string) {
     if (!confirm("¿Estás seguro de que deseas eliminar este plan?")) return;
-    const { error } = await supabase
-      .from("subscription_plans")
-      .delete()
-      .eq("id", id);
-    if (!error) {
-      setPlanes((p) => p.filter((x) => x.id !== id));
-    }
+    await deletePlanStore(id);
   }
 
   // ─── Payment Methods Logic ──────────────────────────────────────────────────
-  async function toggleMetodo(metodo: PaymentMethod) {
-    const { error } = await supabase
-      .from("payment_methods")
-      .update({ is_active: !metodo.activo })
-      .eq("id", metodo.id);
-    if (!error) {
-      setMetodos((m) =>
-        m.map((x) =>
-          x.id === metodo.id ? { ...x, activo: !metodo.activo } : x,
-        ),
-      );
-    }
+  async function toggleMetodo(metodo: any) {
+    await toggleMetodoStore(metodo.id);
   }
 
-  function startEditMetodo(metodo: PaymentMethod) {
+  function startEditMetodo(metodo: any) {
     setEditingMetodoId(metodo.id);
     setEditMetodoNombre(metodo.nombre);
   }
 
   async function saveEditMetodo() {
     if (!editingMetodoId || !editMetodoNombre.trim()) return;
-    const { error } = await supabase
-      .from("payment_methods")
-      .update({ name: editMetodoNombre.trim() })
-      .eq("id", editingMetodoId);
-    if (!error) {
-      setMetodos((m) =>
-        m.map((x) =>
-          x.id === editingMetodoId
-            ? { ...x, nombre: editMetodoNombre.trim() }
-            : x,
-        ),
-      );
-      setEditingMetodoId(null);
-    }
+    await updateMetodoStore(editingMetodoId, editMetodoNombre.trim());
+    setEditingMetodoId(null);
   }
 
   async function addMetodo() {
     if (!newMetodoNombre.trim()) return;
-    const { data, error } = await supabase
-      .from("payment_methods")
-      .insert({ name: newMetodoNombre.trim(), is_active: true })
-      .select()
-      .single();
-    if (data && !error) {
-      setMetodos((m) => [
-        ...m,
-        { id: data.id, nombre: data.name, activo: data.is_active },
-      ]);
-      setNewMetodoNombre("");
-      setShowNewMetodo(false);
-    }
+    await addMetodoStore(newMetodoNombre.trim());
+    setNewMetodoNombre("");
+    setShowNewMetodo(false);
   }
 
   async function deleteMetodo(id: string) {
-    if (!confirm("¿Estás seguro de que deseas eliminar este medio de pago?"))
-      return;
-    const { error } = await supabase
-      .from("payment_methods")
-      .delete()
-      .eq("id", id);
-    if (!error) {
-      setMetodos((m) => m.filter((x) => x.id !== id));
-    }
+    if (!confirm("¿Estás seguro de que deseas eliminar este medio de pago?")) return;
+    await deleteMetodoStore(id);
   }
 
   // ─── Users Logic ─────────────────────────────────────────────────────────────
-  async function toggleUserActive(user: SystemUser) {
-    const { error } = await supabase
-      .from("system_users")
-      .update({ is_active: !user.is_active })
-      .eq("id", user.id);
-    if (!error) {
-      setUsuarios((u) =>
-        u.map((x) =>
-          x.id === user.id ? { ...x, is_active: !user.is_active } : x,
-        ),
-      );
-    }
+  async function toggleUserActive(user: any) {
+    await toggleUserActiveStore(user.id);
   }
 
-  async function toggleUserAdmin(user: SystemUser) {
-    const newIsAdmin = !user.is_admin;
-    const newRole = newIsAdmin ? "Administrador" : "Recepcionista";
-    
-    // Actualizar en system_users
-    const { error: systemError } = await supabase
-      .from("system_users")
-      .update({ is_admin: newIsAdmin })
-      .eq("id", user.id);
-    
-    if (systemError) {
-      console.error("Error al actualizar system_users:", systemError);
-      alert("Error al actualizar el rol del usuario");
-      return;
-    }
-    
-    // Actualizar en profiles (para el login)
-    const { error: profileError } = await supabase
-      .from("profiles")
-      .update({ role: newRole })
-      .eq("id", user.id);
-    
-    if (profileError) {
-      console.warn("Error al actualizar profile:", profileError);
-      // No fallar si solo falla el perfil
-    }
-    
-    setUsuarios((u) =>
-      u.map((x) =>
-        x.id === user.id ? { ...x, is_admin: newIsAdmin } : x,
-      ),
-    );
+  async function toggleUserAdmin(user: any) {
+    await toggleUserAdminStore(user.id);
   }
 
-  function startEditUser(user: SystemUser) {
+  function startEditUser(user: any) {
     setEditingUserId(user.id);
     setEditUserName(user.username);
     setEditUserEmail(user.email);
@@ -483,18 +295,10 @@ export default function AjustesPage() {
         return;
       }
 
-      const data = await response.json();
-      setUsuarios((u) =>
-        u.map((x) =>
-          x.id === editingUserId
-            ? {
-                ...x,
-                username: data.username,
-                email: data.email,
-              }
-            : x,
-        ),
-      );
+      await updateUserStore(editingUserId, {
+        username: editUserName.trim(),
+        email: editUserEmail.trim(),
+      });
       setEditingUserId(null);
     } catch (error) {
       console.error(error);
@@ -503,8 +307,7 @@ export default function AjustesPage() {
   }
 
   async function addUser() {
-    if (!newUserName.trim() || !newUserEmail.trim() || !newUserPassword.trim())
-      return;
+    if (!newUserName.trim() || !newUserEmail.trim() || !newUserPassword.trim()) return;
     
     try {
       const response = await fetch("/api/users", {
@@ -514,7 +317,7 @@ export default function AjustesPage() {
           username: newUserName.trim(),
           email: newUserEmail.trim(),
           password: newUserPassword.trim(),
-          isAdmin: false, // Por defecto es Recepcionista
+          isAdmin: false,
         }),
       });
 
@@ -526,7 +329,6 @@ export default function AjustesPage() {
 
       const data = await response.json();
       
-      // Mostrar mensaje si el usuario puede o no hacer login
       if (data.canLogin === false) {
         alert(
           "⚠️ Usuario creado en la tabla de gestión, pero NO podrá hacer login.\n\n" +
@@ -534,16 +336,11 @@ export default function AjustesPage() {
         );
       }
       
-      setUsuarios((u) => [
-        ...u,
-        {
-          id: data.id,
-          username: data.username,
-          email: data.email,
-          is_admin: data.is_admin,
-          is_active: data.is_active,
-        },
-      ]);
+      await addUserStore({
+        username: newUserName.trim(),
+        email: newUserEmail.trim(),
+        password: newUserPassword.trim(),
+      });
       setNewUserName("");
       setNewUserEmail("");
       setNewUserPassword("");
@@ -556,15 +353,11 @@ export default function AjustesPage() {
 
   async function deleteUser(id: string) {
     if (!confirm("¿Estás seguro de que deseas eliminar este usuario?")) return;
-    const { error } = await supabase.from("system_users").delete().eq("id", id);
-    if (!error) {
-      setUsuarios((u) => u.filter((x) => x.id !== id));
-    }
+    await deleteUserStore(id);
   }
 
   function generatePassword() {
-    const chars =
-      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
     let password = "";
     for (let i = 0; i < 12; i++) {
       password += chars.charAt(Math.floor(Math.random() * chars.length));
@@ -572,7 +365,7 @@ export default function AjustesPage() {
     return password;
   }
 
-  async function resetUserPassword(user: SystemUser) {
+  async function resetUserPassword(user: any) {
     const newPassword = generatePassword();
     setGeneratingPassword(user.id);
 
@@ -605,19 +398,15 @@ export default function AjustesPage() {
   }
 
   async function handleSaveAll() {
-    if (settingsId) {
-      const update = {
+    if (settings) {
+      await updateSettings({
         notify_days_before_expiration: Number(diasVencimiento),
         alert_1_days_no_attendance: Number(diasSinAsistencia30),
         alert_2_days_no_attendance: Number(diasSinAsistencia60),
         alert_3_days_no_attendance: Number(diasSinAsistencia90),
         days_after_expiration_inactive: Number(diasInactivo),
         days_without_renewal_lost: Number(diasPerdido),
-      };
-      await supabase
-        .from("system_settings")
-        .update(update)
-        .eq("id", settingsId);
+      });
     }
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);

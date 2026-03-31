@@ -218,10 +218,18 @@ export default function AdministracionPage() {
         </div>
       </div>
       <div className="flex-1">
-        {activeTab === "estadisticas" && <EstadisticasPage />}
-        {activeTab === "estadisticas-productos" && <EstadisticasProductosPage />}
-        {activeTab === "finanzas" && <FinanzasPage />}
-        {activeTab === "ajustes" && <AjustesPage />}
+        <div style={{ display: activeTab === "estadisticas" ? "block" : "none" }}>
+          <EstadisticasPage />
+        </div>
+        <div style={{ display: activeTab === "estadisticas-productos" ? "block" : "none" }}>
+          <EstadisticasProductosPage />
+        </div>
+        <div style={{ display: activeTab === "finanzas" ? "block" : "none" }}>
+          <FinanzasPage />
+        </div>
+        <div style={{ display: activeTab === "ajustes" ? "block" : "none" }}>
+          <AjustesPage />
+        </div>
       </div>
     </div>
   );

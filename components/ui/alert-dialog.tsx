@@ -10,10 +10,16 @@ import { useModalHistory } from "@/hooks/use-modal-history";
 function AlertDialog({
   open,
   onOpenChange,
+  disableHistoryIntegration = false,
   ...props
-}: React.ComponentProps<typeof AlertDialogPrimitive.Root>) {
+}: React.ComponentProps<typeof AlertDialogPrimitive.Root> & {
+  disableHistoryIntegration?: boolean;
+}) {
   // Integración del hook de history para manejar el botón "Atrás"
-  useModalHistory(open ?? false, () => onOpenChange?.(false));
+  // Deshabilitado para modales anidados para evitar conflictos
+  useModalHistory(disableHistoryIntegration ? false : (open ?? false), () =>
+    onOpenChange?.(false),
+  );
 
   return (
     <AlertDialogPrimitive.Root

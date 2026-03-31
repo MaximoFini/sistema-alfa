@@ -181,6 +181,8 @@ export default function BaseEjerciciosPage() {
   // HANDLERS FOR CATEGORIES
   const handleCategorySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation(); // Prevenir propagación al modal padre
+
     if (!categoryFormData.name.trim()) {
       toast.error("El nombre de la categoría es requerido");
       return;
@@ -198,18 +200,18 @@ export default function BaseEjerciciosPage() {
         if (error) throw error;
         toast.success("Categoría actualizada");
       } else {
-        const { error } = await supabase
-          .from("exercise_categories")
-          .insert({
-            name: categoryFormData.name.trim(),
-            color: categoryFormData.color,
-          });
+        const { error } = await supabase.from("exercise_categories").insert({
+          name: categoryFormData.name.trim(),
+          color: categoryFormData.color,
+        });
         if (error) throw error;
         toast.success("Categoría creada");
       }
 
       invalidateCategories();
       await refreshCategories();
+
+      // Cerrar solo el segundo modal
       setIsNewCategoryDialogOpen(false);
       setCategoryFormData({ id: "", name: "", color: "#10b981" });
       setIsEditingCategory(false);
@@ -219,7 +221,11 @@ export default function BaseEjerciciosPage() {
     }
   };
 
-  const handleEditCategory = (cat: any) => {
+  const handleEditCategory = (cat: any, e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation(); // Prevenir propagación
+    }
     setCategoryFormData({
       id: cat.id,
       name: cat.name,
@@ -231,7 +237,7 @@ export default function BaseEjerciciosPage() {
 
   const handleDeleteCategory = async (id: string) => {
     // Check if category has exercises
-    const hasExercises = exercises.some(ex => ex.category_id === id);
+    const hasExercises = exercises.some((ex) => ex.category_id === id);
     if (hasExercises) {
       toast.error("No se puede eliminar una categoría que tiene ejercicios");
       return;
@@ -259,13 +265,17 @@ export default function BaseEjerciciosPage() {
         <div className="flex flex-col gap-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Base de Ejercicios</h1>
-              <p className="text-sm text-gray-500 mt-0.5">Gestiona tu biblioteca de ejercicios</p>
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+                Base de Ejercicios
+              </h1>
+              <p className="text-sm text-gray-500 mt-0.5">
+                Gestiona tu biblioteca de ejercicios
+              </p>
             </div>
             <div className="flex items-center gap-3">
-              <Button 
-                variant="outline" 
-                className="border-gray-200 text-gray-700 font-semibold shadow-sm h-11 px-6 rounded-xl border-2 hover:bg-gray-50 transition-all"
+              <Button
+                variant="outline"
+                className="border-gray-200 text-gray-700 font-semibold shadow-sm h-11 px-6 rounded-xl border-2 hover:bg-gray-50 hover:text-gray-700 transition-all"
                 onClick={() => setIsCategoriesDialogOpen(true)}
               >
                 Gestionar Categorías
@@ -290,7 +300,12 @@ export default function BaseEjerciciosPage() {
                   </DialogHeader>
                   <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="flex flex-col gap-2">
-                      <Label htmlFor="name" className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Nombre del ejercicio *</Label>
+                      <Label
+                        htmlFor="name"
+                        className="text-xs font-semibold text-gray-600 uppercase tracking-wide"
+                      >
+                        Nombre del ejercicio *
+                      </Label>
                       <Input
                         id="name"
                         value={formData.name}
@@ -304,7 +319,12 @@ export default function BaseEjerciciosPage() {
                     </div>
 
                     <div className="flex flex-col gap-2">
-                      <Label htmlFor="category" className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Categoría *</Label>
+                      <Label
+                        htmlFor="category"
+                        className="text-xs font-semibold text-gray-600 uppercase tracking-wide"
+                      >
+                        Categoría *
+                      </Label>
                       <Select
                         value={formData.category_id}
                         onValueChange={(value) =>
@@ -332,13 +352,21 @@ export default function BaseEjerciciosPage() {
                     </div>
 
                     <div className="flex flex-col gap-2">
-                      <Label htmlFor="video_url" className="text-xs font-semibold text-gray-600 uppercase tracking-wide">URL del Video</Label>
+                      <Label
+                        htmlFor="video_url"
+                        className="text-xs font-semibold text-gray-600 uppercase tracking-wide"
+                      >
+                        URL del Video
+                      </Label>
                       <Input
                         id="video_url"
                         type="url"
                         value={formData.video_url}
                         onChange={(e) =>
-                          setFormData({ ...formData, video_url: e.target.value })
+                          setFormData({
+                            ...formData,
+                            video_url: e.target.value,
+                          })
                         }
                         placeholder="https://youtube.com/..."
                         className="border border-gray-200 rounded-lg px-4 py-3 text-base min-h-[44px] outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-50 transition-all"
@@ -346,7 +374,12 @@ export default function BaseEjerciciosPage() {
                     </div>
 
                     <div className="flex flex-col gap-2">
-                      <Label htmlFor="notes" className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Notas</Label>
+                      <Label
+                        htmlFor="notes"
+                        className="text-xs font-semibold text-gray-600 uppercase tracking-wide"
+                      >
+                        Notas
+                      </Label>
                       <Textarea
                         id="notes"
                         value={formData.notes}
@@ -371,7 +404,9 @@ export default function BaseEjerciciosPage() {
                         type="submit"
                         className="flex-1 min-h-[44px] bg-orange-600 hover:bg-orange-700 text-white text-base font-semibold rounded-lg hover:brightness-110 transition-all shadow-md"
                       >
-                        {editingExercise ? "Guardar Cambios" : "Crear Ejercicio"}
+                        {editingExercise
+                          ? "Guardar Cambios"
+                          : "Crear Ejercicio"}
                       </Button>
                     </DialogFooter>
                   </form>
@@ -437,11 +472,21 @@ export default function BaseEjerciciosPage() {
             <Table>
               <TableHeader className="bg-gray-50">
                 <TableRow className="border-gray-100 hover:bg-gray-50">
-                  <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wide w-16">Video</TableHead>
-                  <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Nombre</TableHead>
-                  <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Categoría</TableHead>
-                  <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Notas</TableHead>
-                  <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wide w-24">Acciones</TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wide w-16">
+                    Video
+                  </TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                    Nombre
+                  </TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                    Categoría
+                  </TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                    Notas
+                  </TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wide w-24">
+                    Acciones
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -453,7 +498,9 @@ export default function BaseEjerciciosPage() {
                     >
                       <div className="flex flex-col items-center gap-3">
                         <div className="w-10 h-10 border-4 border-orange-600 border-t-transparent rounded-full animate-spin" />
-                        <p className="text-base font-medium">Cargando ejercicios...</p>
+                        <p className="text-base font-medium">
+                          Cargando ejercicios...
+                        </p>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -471,7 +518,8 @@ export default function BaseEjerciciosPage() {
                         </p>
                         {!searchQuery && categoryFilter === "all" && (
                           <p className="text-sm text-gray-500">
-                            Crea tu primer ejercicio haciendo clic en "Nuevo Ejercicio"
+                            Crea tu primer ejercicio haciendo clic en "Nuevo
+                            Ejercicio"
                           </p>
                         )}
                       </div>
@@ -499,7 +547,9 @@ export default function BaseEjerciciosPage() {
                           </div>
                         )}
                       </TableCell>
-                      <TableCell className="font-semibold text-gray-900 text-base">{ex.name}</TableCell>
+                      <TableCell className="font-semibold text-gray-900 text-base">
+                        {ex.name}
+                      </TableCell>
                       <TableCell>
                         {ex.category ? (
                           <Badge
@@ -512,7 +562,10 @@ export default function BaseEjerciciosPage() {
                             {ex.category.name}
                           </Badge>
                         ) : (
-                          <Badge variant="outline" className="border-gray-200 text-gray-600 rounded-full px-3 py-1">
+                          <Badge
+                            variant="outline"
+                            className="border-gray-200 text-gray-600 rounded-full px-3 py-1"
+                          >
                             Sin categoría
                           </Badge>
                         )}
@@ -551,7 +604,9 @@ export default function BaseEjerciciosPage() {
         <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
           <AlertDialogContent className="bg-white border-gray-100 rounded-2xl shadow-2xl">
             <AlertDialogHeader>
-              <AlertDialogTitle className="text-base font-bold text-gray-900">¿Estás seguro?</AlertDialogTitle>
+              <AlertDialogTitle className="text-base font-bold text-gray-900">
+                ¿Estás seguro?
+              </AlertDialogTitle>
               <AlertDialogDescription className="text-sm text-gray-500">
                 Esta acción no se puede deshacer. Se eliminará el ejercicio{" "}
                 <span className="font-semibold text-gray-900">
@@ -574,17 +629,21 @@ export default function BaseEjerciciosPage() {
           </AlertDialogContent>
         </AlertDialog>
 
-        <Dialog open={isCategoriesDialogOpen} onOpenChange={setIsCategoriesDialogOpen}>
+        <Dialog
+          open={isCategoriesDialogOpen}
+          onOpenChange={setIsCategoriesDialogOpen}
+        >
           <DialogContent className="bg-white border-gray-100 rounded-2xl shadow-2xl max-w-md max-h-[90vh] flex flex-col p-0 overflow-hidden text-gray-900">
             <DialogHeader className="p-6 border-b border-gray-100">
               <DialogTitle className="text-xl font-bold flex items-center justify-between">
                 Gestionar Categorías
               </DialogTitle>
             </DialogHeader>
-            
+
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
               <button
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation(); // Prevenir cierre del modal padre
                   setCategoryFormData({ id: "", name: "", color: "#10b981" });
                   setIsEditingCategory(false);
                   setIsNewCategoryDialogOpen(true);
@@ -601,22 +660,27 @@ export default function BaseEjerciciosPage() {
                 </h4>
                 <div className="space-y-2">
                   {categories.map((cat) => (
-                    <div 
+                    <div
                       key={cat.id}
                       className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-shadow group"
                     >
                       <div className="flex items-center gap-3">
-                        <div 
-                          className="w-10 h-10 rounded-lg shrink-0" 
+                        <div
+                          className="w-10 h-10 rounded-lg shrink-0"
                           style={{ backgroundColor: cat.color }}
                         />
-                        <span className="font-semibold text-gray-700">{cat.name}</span>
+                        <span className="font-semibold text-gray-700">
+                          {cat.name}
+                        </span>
                       </div>
                       <div className="flex items-center gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleEditCategory(cat)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditCategory(cat, e);
+                          }}
                           className="h-8 w-8 text-gray-400 hover:text-blue-600 hover:bg-blue-50"
                         >
                           <Pencil className="h-4 w-4" />
@@ -638,8 +702,30 @@ export default function BaseEjerciciosPage() {
           </DialogContent>
         </Dialog>
 
-        <Dialog open={isNewCategoryDialogOpen} onOpenChange={setIsNewCategoryDialogOpen}>
-          <DialogContent className="bg-white border-gray-100 rounded-2xl shadow-2xl max-w-sm text-gray-900">
+        <Dialog
+          open={isNewCategoryDialogOpen}
+          onOpenChange={(open) => {
+            // Solo permitir cerrar el segundo modal, no el primero
+            setIsNewCategoryDialogOpen(open);
+            if (!open) {
+              // Al cerrar, limpiar el formulario
+              setCategoryFormData({ id: "", name: "", color: "#10b981" });
+              setIsEditingCategory(false);
+            }
+          }}
+          disableHistoryIntegration={true}
+        >
+          <DialogContent
+            className="bg-white border-gray-100 rounded-2xl shadow-2xl max-w-sm text-gray-900"
+            onInteractOutside={(e) => {
+              // Solo cerrar este modal, no propagar al padre
+              const target = e.target as HTMLElement;
+              // Verificar si el click fue en el overlay del primer modal
+              if (!target.closest('[data-slot="dialog-content"]')) {
+                e.preventDefault();
+              }
+            }}
+          >
             <DialogHeader>
               <DialogTitle className="text-lg font-bold">
                 {isEditingCategory ? "Editar Categoría" : "Nueva Categoría"}
@@ -647,27 +733,46 @@ export default function BaseEjerciciosPage() {
             </DialogHeader>
             <form onSubmit={handleCategorySubmit} className="space-y-4 pt-4">
               <div className="space-y-2">
-                <Label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Nombre</Label>
+                <Label className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+                  Nombre
+                </Label>
                 <Input
                   value={categoryFormData.name}
-                  onChange={(e) => setCategoryFormData({ ...categoryFormData, name: e.target.value })}
+                  onChange={(e) =>
+                    setCategoryFormData({
+                      ...categoryFormData,
+                      name: e.target.value,
+                    })
+                  }
                   placeholder="Ej: Core, Empujes..."
                   className="h-11 rounded-xl border-gray-200"
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Color</Label>
+                <Label className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+                  Color
+                </Label>
                 <div className="flex gap-2">
                   <Input
                     type="color"
                     value={categoryFormData.color}
-                    onChange={(e) => setCategoryFormData({ ...categoryFormData, color: e.target.value })}
+                    onChange={(e) =>
+                      setCategoryFormData({
+                        ...categoryFormData,
+                        color: e.target.value,
+                      })
+                    }
                     className="w-12 h-11 p-1 rounded-xl border-gray-200 shrink-0"
                   />
                   <Input
                     type="text"
                     value={categoryFormData.color}
-                    onChange={(e) => setCategoryFormData({ ...categoryFormData, color: e.target.value })}
+                    onChange={(e) =>
+                      setCategoryFormData({
+                        ...categoryFormData,
+                        color: e.target.value,
+                      })
+                    }
                     className="h-11 rounded-xl border-gray-200 font-mono"
                   />
                 </div>
@@ -677,7 +782,10 @@ export default function BaseEjerciciosPage() {
                   type="button"
                   variant="outline"
                   className="flex-1 h-11 rounded-xl"
-                  onClick={() => setIsNewCategoryDialogOpen(false)}
+                  onClick={(e) => {
+                    e.stopPropagation(); // Prevenir cierre del modal padre
+                    setIsNewCategoryDialogOpen(false);
+                  }}
                 >
                   Cancelar
                 </Button>

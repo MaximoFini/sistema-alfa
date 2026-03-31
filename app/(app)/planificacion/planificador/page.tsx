@@ -20,8 +20,19 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -53,12 +64,19 @@ import {
   VideoOff,
   Check,
   ChevronDown,
+  Undo2,
+  Redo2,
+  Copy,
+  Clipboard,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { useExercises } from "@/hooks/use-exercises";
 import { useExerciseStages } from "@/hooks/use-exercise-stages";
 import { useTrainingPlans } from "@/hooks/use-training-plans";
+import { usePlanTabs } from "@/hooks/use-plan-tabs";
+import { useUndoRedo } from "@/hooks/use-undo-redo";
 import { PlanExercise, Day } from "@/lib/types/plans";
 
 // Generate unique IDs
@@ -67,15 +85,82 @@ function generateId() {
 }
 
 export default function PlanificadorPage() {
-  // Plan state
-  const [planTitle, setPlanTitle] = useState("Nuevo Plan de Entrenamiento");
-  const [startDate, setStartDate] = useState<string>("");
-  const [endDate, setEndDate] = useState<string>("");
-  const [days, setDays] = useState<Day[]>([
-    { id: generateId(), number: 1, name: "Día 1" },
-  ]);
-  const [activeDay, setActiveDay] = useState<string>(days[0].id);
-  const [exercises, setExercises] = useState<PlanExercise[]>([]);
+  // Plan tabs management
+  const {
+    tabs,
+    activeTab,
+    activeTabId,
+    setActiveTabId,
+    createTab,
+    closeTab,
+    updateActiveTab,
+    duplicateTab,
+    clearAllTabs,
+    canCreateTab,
+  } = usePlanTabs();
+
+  // Undo/Redo state for active plan
+  interface PlanState {
+    title: string;
+    startDate: string;
+    endDate: string;
+    days: Day[];
+    exercises: PlanExercise[];
+    activeDay: string;
+  }
+
+  const {
+    state: planState,
+    setState: setPlanState,
+    setWithoutHistory,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+    reset: resetHistory,
+  } = useUndoRedo<PlanState>(
+    {
+      title: activeTab?.title || "Nuevo Plan de Entrenamiento",
+      startDate: activeTab?.startDate || "",
+      endDate: activeTab?.endDate || "",
+      days: activeTab?.days || [{ id: generateId(), number: 1, name: "Día 1" }],
+      exercises: activeTab?.exercises || [],
+      activeDay: activeTab?.days?.[0]?.id || "",
+    },
+    50,
+  );
+
+  // Sync planState with activeTab
+  useEffect(() => {
+    if (activeTab) {
+      setWithoutHistory({
+        title: activeTab.title,
+        startDate: activeTab.startDate,
+        endDate: activeTab.endDate,
+        days: activeTab.days,
+        exercises: activeTab.exercises,
+        activeDay: activeTab.days[0]?.id || "",
+      });
+    }
+  }, [activeTabId]);
+
+  // Sync changes back to activeTab
+  useEffect(() => {
+    if (activeTab && planState) {
+      updateActiveTab({
+        title: planState.title,
+        startDate: planState.startDate,
+        endDate: planState.endDate,
+        days: planState.days,
+        exercises: planState.exercises,
+      });
+    }
+  }, [planState]);
+
+  // Copy/Paste exercises functionality
+  const [copiedExercises, setCopiedExercises] = useState<PlanExercise[] | null>(
+    null,
+  );
 
   // Modal states
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
@@ -95,16 +180,47 @@ export default function PlanificadorPage() {
   const [newStageColor, setNewStageColor] = useState("#f97316");
 
   // Popover state for exercise selector
-  const [openExercisePopover, setOpenExercisePopover] = useState<string | null>(null);
+  const [openExercisePopover, setOpenExercisePopover] = useState<string | null>(
+    null,
+  );
 
   // Drag state
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [canDrag, setCanDrag] = useState(false);
 
+  // Destructure planState for easier access
+  const {
+    title: planTitle,
+    startDate,
+    endDate,
+    days,
+    exercises,
+    activeDay,
+  } = planState;
+
   // Get active day exercises sorted by order
   const activeDayExercises = exercises
     .filter((ex) => ex.day_id === activeDay)
     .sort((a, b) => (a.order || 0) - (b.order || 0));
+
+  // Keyboard shortcuts for Undo/Redo
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
+        e.preventDefault();
+        if (canUndo) undo();
+      } else if (
+        ((e.ctrlKey || e.metaKey) && e.key === "y") ||
+        ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "z")
+      ) {
+        e.preventDefault();
+        if (canRedo) redo();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [canUndo, canRedo, undo, redo]);
 
   const handleCreateStage = async () => {
     if (!newStageName.trim()) return;
@@ -114,6 +230,63 @@ export default function PlanificadorPage() {
       setNewStageName("");
       setNewStageColor("#f97316");
     }
+  };
+
+  // Copy Day Exercises
+  const handleCopyDay = (dayId: string) => {
+    const day = days.find((d) => d.id === dayId);
+    if (!day) return;
+
+    const dayExercises = exercises.filter((ex) => ex.day_id === dayId);
+
+    if (dayExercises.length === 0) {
+      toast.error("El día no tiene ejercicios para copiar");
+      return;
+    }
+
+    setCopiedExercises(dayExercises);
+    toast.success(
+      `${dayExercises.length} ejercicio(s) copiado(s) de "${day.name}"`,
+    );
+  };
+
+  // Paste Exercises to Active Day
+  const handlePasteDay = () => {
+    if (!copiedExercises || copiedExercises.length === 0) return;
+    if (!activeDay) {
+      toast.error("Selecciona un día donde pegar los ejercicios");
+      return;
+    }
+
+    // Obtener ejercicios actuales del día activo
+    const currentDayExercises = exercises.filter(
+      (ex) => ex.day_id === activeDay,
+    );
+
+    // Calcular el order máximo actual
+    const maxOrder =
+      currentDayExercises.length > 0
+        ? Math.max(...currentDayExercises.map((ex) => ex.order || 0))
+        : -1;
+
+    // Crear nuevos ejercicios con IDs únicos y asignarlos al día activo
+    const newExercises = copiedExercises.map((ex, index) => ({
+      ...ex,
+      id: generateId(),
+      day_id: activeDay,
+      order: maxOrder + 1 + index,
+    }));
+
+    // Agregar los nuevos ejercicios al estado
+    setPlanState((prev) => ({
+      ...prev,
+      exercises: [...prev.exercises, ...newExercises],
+    }));
+
+    const currentDay = days.find((d) => d.id === activeDay);
+    toast.success(
+      `${newExercises.length} ejercicio(s) pegado(s) en "${currentDay?.name || "este día"}"}`,
+    );
   };
 
   const onDragStart = (e: React.DragEvent, index: number) => {
@@ -132,15 +305,18 @@ export default function PlanificadorPage() {
 
     const newDayExercises = [...activeDayExercises];
     const draggedItem = newDayExercises[draggedIndex];
-    
+
     newDayExercises.splice(draggedIndex, 1);
     newDayExercises.splice(index, 0, draggedItem);
-    
-    const updatedWithOrder = newDayExercises.map((ex, i) => ({ ...ex, order: i }));
-    
-    const otherExercises = exercises.filter(ex => ex.day_id !== activeDay);
+
+    const updatedWithOrder = newDayExercises.map((ex, i) => ({
+      ...ex,
+      order: i,
+    }));
+
+    const otherExercises = exercises.filter((ex) => ex.day_id !== activeDay);
     setExercises([...otherExercises, ...updatedWithOrder]);
-    
+
     setDraggedIndex(index);
   };
 
@@ -149,52 +325,52 @@ export default function PlanificadorPage() {
     setCanDrag(false);
   };
 
-  // Initialize dates
-  useEffect(() => {
-    const today = new Date();
-    const nextWeek = new Date(today);
-    nextWeek.setDate(today.getDate() + 7);
-
-    setStartDate(today.toISOString().split("T")[0]);
-    setEndDate(nextWeek.toISOString().split("T")[0]);
-  }, []);
-
-  // Load from localStorage
-  useEffect(() => {
-    const saved = localStorage.getItem("planificador-draft");
-    if (saved) {
-      try {
-        const data = JSON.parse(saved);
-        if (data.planTitle) setPlanTitle(data.planTitle);
-        if (data.startDate) setStartDate(data.startDate);
-        if (data.endDate) setEndDate(data.endDate);
-        if (data.days) setDays(data.days);
-        if (data.exercises) setExercises(data.exercises);
-        if (data.activeDay) setActiveDay(data.activeDay);
-      } catch (error) {
-        console.error("Error loading draft:", error);
+  // Handlers moved up for organization
+  const setPlanTitle = (title: string) => {
+    // Validar que no exista otro plan con el mismo nombre (ignorando el actual)
+    const trimmedTitle = title.trim();
+    if (trimmedTitle) {
+      const isDuplicate = tabs.some(
+        (tab) => tab.id !== activeTabId && tab.title.trim().toLowerCase() === trimmedTitle.toLowerCase()
+      );
+      
+      if (isDuplicate) {
+        toast.error("Ya existe un plan con ese nombre. Por favor elige otro nombre.");
+        return;
       }
     }
-  }, []);
+    
+    setPlanState((prev) => ({ ...prev, title }));
+  };
 
-  // Auto-save to localStorage
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      localStorage.setItem(
-        "planificador-draft",
-        JSON.stringify({
-          planTitle,
-          startDate,
-          endDate,
-          days,
-          exercises,
-          activeDay,
-        }),
-      );
-    }, 1000);
+  const setStartDate = (startDate: string) => {
+    setPlanState((prev) => ({ ...prev, startDate }));
+  };
 
-    return () => clearTimeout(timeout);
-  }, [planTitle, startDate, endDate, days, exercises, activeDay]);
+  const setEndDate = (endDate: string) => {
+    setPlanState((prev) => ({ ...prev, endDate }));
+  };
+
+  const setDays = (days: Day[] | ((prev: Day[]) => Day[])) => {
+    setPlanState((prev) => ({
+      ...prev,
+      days: typeof days === "function" ? days(prev.days) : days,
+    }));
+  };
+
+  const setActiveDay = (activeDay: string) => {
+    setPlanState((prev) => ({ ...prev, activeDay }));
+  };
+
+  const setExercises = (
+    exercises: PlanExercise[] | ((prev: PlanExercise[]) => PlanExercise[]),
+  ) => {
+    setPlanState((prev) => ({
+      ...prev,
+      exercises:
+        typeof exercises === "function" ? exercises(prev.exercises) : exercises,
+    }));
+  };
 
   // Handlers moved up for organization
   const handleAddDay = () => {
@@ -224,17 +400,17 @@ export default function PlanificadorPage() {
   // Confirm remove day
   const confirmRemoveDay = () => {
     if (!dayToDeleteId) return;
-    
+
     setDays(days.filter((d) => d.id !== dayToDeleteId));
     setExercises(exercises.filter((ex) => ex.day_id !== dayToDeleteId));
-    
+
     if (activeDay === dayToDeleteId) {
       const remainingDays = days.filter((d) => d.id !== dayToDeleteId);
       if (remainingDays.length > 0) {
         setActiveDay(remainingDays[0].id);
       }
     }
-    
+
     setDeleteDayDialogOpen(false);
     setDayToDeleteId(null);
     toast.success("Día eliminado");
@@ -272,9 +448,7 @@ export default function PlanificadorPage() {
     value: any,
   ) => {
     setExercises((prev) =>
-      prev.map((ex) =>
-        ex.id === exerciseId ? { ...ex, [field]: value } : ex,
-      ),
+      prev.map((ex) => (ex.id === exerciseId ? { ...ex, [field]: value } : ex)),
     );
   };
 
@@ -283,9 +457,7 @@ export default function PlanificadorPage() {
     updates: Partial<PlanExercise>,
   ) => {
     setExercises((prev) =>
-      prev.map((ex) =>
-        ex.id === exerciseId ? { ...ex, ...updates } : ex,
-      ),
+      prev.map((ex) => (ex.id === exerciseId ? { ...ex, ...updates } : ex)),
     );
   };
 
@@ -370,33 +542,140 @@ export default function PlanificadorPage() {
   };
 
   const confirmResetDraft = () => {
-    setPlanTitle("Nuevo Plan de Entrenamiento");
-    setStartDate("");
-    setEndDate("");
-    setDays([{ id: generateId(), number: 1, name: "Día 1" }]);
-    setActiveDay(""); // Will be set by useEffect if days changes or handled manually
-    setExercises([]);
-    localStorage.removeItem("planificador-draft");
-    setResetDialogOpen(false);
-    toast.success("Borrador reiniciado");
-    
-    // Set active day to the new day
     const newId = generateId();
     const newDay = { id: newId, number: 1, name: "Día 1" };
-    setDays([newDay]);
-    setActiveDay(newId);
+
+    resetHistory({
+      title: "Nuevo Plan de Entrenamiento",
+      startDate: "",
+      endDate: "",
+      days: [newDay],
+      exercises: [],
+      activeDay: newId,
+    });
+
+    setResetDialogOpen(false);
+    toast.success("Borrador reiniciado");
   };
 
   return (
     <div className="min-h-full bg-gray-50">
+      {/* Plan Tabs */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="w-full px-6 flex items-center gap-2 overflow-x-auto">
+          {tabs.map((tab) => (
+            <div
+              key={tab.id}
+              className={`group relative flex items-center gap-2 px-4 py-3 cursor-pointer transition-colors border-b-2 ${
+                tab.id === activeTabId
+                  ? "border-orange-600 bg-orange-50/30"
+                  : "border-transparent hover:bg-gray-50"
+              }`}
+              onClick={() => setActiveTabId(tab.id)}
+            >
+              <span
+                className={`text-sm font-semibold whitespace-nowrap ${
+                  tab.id === activeTabId ? "text-orange-600" : "text-gray-600"
+                }`}
+              >
+                {tab.title.substring(0, 25)}
+                {tab.title.length > 25 ? "..." : ""}
+              </span>
+              {tabs.length > 1 && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    closeTab(tab.id);
+                  }}
+                  className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-gray-200 rounded transition-opacity"
+                >
+                  <X className="h-3.5 w-3.5 text-gray-500" />
+                </button>
+              )}
+            </div>
+          ))}
+          {canCreateTab && (
+            <button
+              onClick={createTab}
+              className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-500 hover:text-orange-600 hover:bg-orange-50 rounded-md transition-colors"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Nuevo Plan</span>
+            </button>
+          )}
+          {tabs.length >= 5 && (
+            <div className="text-xs text-gray-400 px-3">Máximo 5 planes</div>
+          )}
+        </div>
+      </div>
+
       {/* Header */}
       <div className="bg-white border-b border-gray-100 z-10 w-full pt-6">
         <div className="w-full px-6 space-y-4">
           {/* Breadcrumb/indicator */}
-          <div className="flex items-center text-sm text-gray-400 font-medium mb-2">
-            <span>Planificador</span>
-            <span className="mx-2">&gt;</span>
-            <span className="text-gray-900">Nuevo Plan</span>
+          <div className="flex items-center justify-between text-sm text-gray-400 font-medium mb-2">
+            <div className="flex items-center">
+              <span>Planificador</span>
+              <span className="mx-2">&gt;</span>
+              <span className="text-gray-900">
+                {planTitle.substring(0, 40)}
+                {planTitle.length > 40 ? "..." : ""}
+              </span>
+            </div>
+            {/* Undo/Redo & Copy/Paste Buttons */}
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={undo}
+                disabled={!canUndo}
+                className="h-9 px-3 gap-1.5 border-gray-200 hover:bg-gray-50 disabled:opacity-30"
+                title="Deshacer (Ctrl+Z)"
+              >
+                <Undo2 className="h-4 w-4" />
+                <span className="text-xs font-medium">Deshacer</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={redo}
+                disabled={!canRedo}
+                className="h-9 px-3 gap-1.5 border-gray-200 hover:bg-gray-50 disabled:opacity-30"
+                title="Rehacer (Ctrl+Y)"
+              >
+                <Redo2 className="h-4 w-4" />
+                <span className="text-xs font-medium">Rehacer</span>
+              </Button>
+
+              <div className="w-px h-6 bg-gray-200 mx-1"></div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleCopyDay(activeDay)}
+                disabled={!activeDay}
+                className="h-9 px-3 gap-1.5 border-blue-200 hover:bg-blue-50 text-blue-600 disabled:opacity-30"
+                title="Copiar día activo"
+              >
+                <Copy className="h-4 w-4" />
+                <span className="text-xs font-medium">Copiar Día</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePasteDay}
+                disabled={!copiedExercises || copiedExercises.length === 0}
+                className="h-9 px-3 gap-1.5 border-blue-200 hover:bg-blue-50 text-blue-600 disabled:opacity-30"
+                title={
+                  copiedExercises && copiedExercises.length > 0
+                    ? `Pegar ${copiedExercises.length} ejercicio(s)`
+                    : "No hay ejercicios copiados"
+                }
+              >
+                <Clipboard className="h-4 w-4" />
+                <span className="text-xs font-medium">Pegar Día</span>
+              </Button>
+            </div>
           </div>
 
           {/* Title and actions */}
@@ -405,6 +684,23 @@ export default function PlanificadorPage() {
               <Input
                 value={planTitle}
                 onChange={(e) => setPlanTitle(e.target.value)}
+                onBlur={(e) => {
+                  const trimmed = e.target.value.trim();
+                  if (!trimmed) {
+                    // Generar un nombre único cuando el campo queda vacío
+                    let baseName = "Plan sin nombre";
+                    let counter = 1;
+                    let newTitle = baseName;
+                    
+                    while (tabs.some((tab) => tab.id !== activeTabId && tab.title === newTitle)) {
+                      counter++;
+                      newTitle = `${baseName} (${counter})`;
+                    }
+                    
+                    setPlanTitle(newTitle);
+                    toast.info("El plan debe tener un nombre");
+                  }
+                }}
                 className="text-3xl font-extrabold bg-transparent border-none p-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-gray-900 w-auto min-w-[300px]"
                 placeholder="Nombre del plan..."
               />
@@ -438,7 +734,9 @@ export default function PlanificadorPage() {
           {/* Date pickers */}
           <div className="flex items-center gap-4 mb-4 mt-8">
             <div className="flex items-center gap-3 bg-gray-50 border border-gray-100 rounded-lg px-2 shadow-sm">
-              <Label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider pl-2">Desde</Label>
+              <Label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider pl-2">
+                Desde
+              </Label>
               <Input
                 type="date"
                 value={startDate}
@@ -448,7 +746,9 @@ export default function PlanificadorPage() {
             </div>
             <ArrowRight className="h-4 w-4 text-gray-300 mx-1" />
             <div className="flex items-center gap-3 bg-gray-50 border border-gray-100 rounded-lg px-2 shadow-sm">
-              <Label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider pl-2">Hasta</Label>
+              <Label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider pl-2">
+                Hasta
+              </Label>
               <Input
                 type="date"
                 value={endDate}
@@ -460,11 +760,29 @@ export default function PlanificadorPage() {
               <div className="flex items-center gap-2 text-gray-400 text-xs font-medium ml-2">
                 <span className="text-gray-200">|</span>
                 <span>
-                  {Math.ceil(Math.abs(new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1} días totales
+                  {Math.ceil(
+                    Math.abs(
+                      new Date(endDate).getTime() -
+                        new Date(startDate).getTime(),
+                    ) /
+                      (1000 * 60 * 60 * 24),
+                  ) + 1}{" "}
+                  días totales
                 </span>
                 <span className="text-gray-200">·</span>
                 <span>
-                  {Math.ceil((Math.ceil(Math.abs(new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1) / 7)} semanas
+                  {Math.ceil(
+                    (Math.ceil(
+                      Math.abs(
+                        new Date(endDate).getTime() -
+                          new Date(startDate).getTime(),
+                      ) /
+                        (1000 * 60 * 60 * 24),
+                    ) +
+                      1) /
+                      7,
+                  )}{" "}
+                  semanas
                 </span>
               </div>
             )}
@@ -486,7 +804,7 @@ export default function PlanificadorPage() {
                     {day.name}
                   </span>
                   {days.length > 1 && (
-                    <span 
+                    <span
                       className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-100 rounded-md transition-opacity absolute right-1"
                       onClick={(e) => {
                         e.stopPropagation();
@@ -518,16 +836,36 @@ export default function PlanificadorPage() {
             <Table>
               <TableHeader className="bg-white">
                 <TableRow className="border-b border-gray-100 hover:bg-transparent">
-                  <TableHead className="text-xs font-bold text-gray-400 uppercase tracking-widest py-6 w-40 text-center">ETAPA</TableHead>
-                  <TableHead className="text-xs font-bold text-gray-400 uppercase tracking-widest w-12 text-center">#</TableHead>
-                  <TableHead className="text-xs font-bold text-gray-400 uppercase tracking-widest">EJERCICIO</TableHead>
-                  <TableHead className="text-xs font-bold text-gray-400 uppercase tracking-widest w-20 text-center">VIDEO</TableHead>
-                  <TableHead className="text-xs font-bold text-gray-400 uppercase tracking-widest w-24 text-center">SERIES</TableHead>
-                  <TableHead className="text-xs font-bold text-gray-400 uppercase tracking-widest w-24 text-center">REPS</TableHead>
-                  <TableHead className="text-xs font-bold text-gray-400 uppercase tracking-widest w-32 text-center">CARGA (KG)</TableHead>
-                  <TableHead className="text-xs font-bold text-gray-400 uppercase tracking-widest w-32 text-center">PAUSA (S)</TableHead>
-                  <TableHead className="text-xs font-bold text-gray-400 uppercase tracking-widest w-40 text-center">ESCRIBIR PESO</TableHead>
-                  <TableHead className="text-xs font-bold text-gray-400 uppercase tracking-widest min-w-[200px]">NOTAS</TableHead>
+                  <TableHead className="text-xs font-bold text-gray-400 uppercase tracking-widest py-6 w-40 text-center">
+                    ETAPA
+                  </TableHead>
+                  <TableHead className="text-xs font-bold text-gray-400 uppercase tracking-widest w-12 text-center">
+                    #
+                  </TableHead>
+                  <TableHead className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+                    EJERCICIO
+                  </TableHead>
+                  <TableHead className="text-xs font-bold text-gray-400 uppercase tracking-widest w-20 text-center">
+                    VIDEO
+                  </TableHead>
+                  <TableHead className="text-xs font-bold text-gray-400 uppercase tracking-widest w-24 text-center">
+                    SERIES
+                  </TableHead>
+                  <TableHead className="text-xs font-bold text-gray-400 uppercase tracking-widest w-24 text-center">
+                    REPS
+                  </TableHead>
+                  <TableHead className="text-xs font-bold text-gray-400 uppercase tracking-widest w-32 text-center">
+                    CARGA (KG)
+                  </TableHead>
+                  <TableHead className="text-xs font-bold text-gray-400 uppercase tracking-widest w-32 text-center">
+                    PAUSA (S)
+                  </TableHead>
+                  <TableHead className="text-xs font-bold text-gray-400 uppercase tracking-widest w-40 text-center">
+                    ESCRIBIR PESO
+                  </TableHead>
+                  <TableHead className="text-xs font-bold text-gray-400 uppercase tracking-widest min-w-[200px]">
+                    NOTAS
+                  </TableHead>
                   <TableHead className="w-10"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -538,230 +876,304 @@ export default function PlanificadorPage() {
                       colSpan={11}
                       className="text-center py-12 text-gray-500"
                     >
-                      No hay ejercicios para estre día. Haz clic en "Agregar Nuevo Ejercicio" para
-                      comenzar.
+                      No hay ejercicios para estre día. Haz clic en "Agregar
+                      Nuevo Ejercicio" para comenzar.
                     </TableCell>
                   </TableRow>
                 ) : (
                   activeDayExercises.map((ex, index) => {
-                    const stageColor = stages.find(s => s.id === ex.stage_id)?.color || "transparent";
+                    const stageColor =
+                      stages.find((s) => s.id === ex.stage_id)?.color ||
+                      "transparent";
                     return (
-                    <TableRow
-                      key={ex.id}
-                      draggable={canDrag}
-                      onDragStart={(e) => onDragStart(e, index)}
-                      onDragOver={(e) => onDragOver(e, index)}
-                      onDragEnd={onDragEnd}
-                      className={`border-b border-gray-100 hover:bg-gray-50/50 group relative transition-all duration-200 ${
-                        draggedIndex === index ? "opacity-40 bg-orange-50/50 shadow-inner" : ""
-                      }`}
-                    >
-                      {/* Insertion Line Indicator */}
-                      {draggedIndex === index && (
-                        <td className="absolute top-0 left-0 right-0 h-[2px] bg-orange-600 z-50 pointer-events-none" style={{ width: '100%' }} />
-                      )}
-                      <TableCell className="py-2 pl-0 w-40">
-                        <div className="flex items-center h-full">
-                          <div className="w-[5px] h-[52px] bg-gray-200 rounded-r-md mr-4 shrink-0 transition-colors" style={{ backgroundColor: stageColor !== "transparent" ? stageColor : "#e5e7eb" }} />
+                      <TableRow
+                        key={ex.id}
+                        draggable={canDrag}
+                        onDragStart={(e) => onDragStart(e, index)}
+                        onDragOver={(e) => onDragOver(e, index)}
+                        onDragEnd={onDragEnd}
+                        className={`border-b border-gray-100 hover:bg-gray-50/50 group relative transition-all duration-200 ${
+                          draggedIndex === index
+                            ? "opacity-40 bg-orange-50/50 shadow-inner"
+                            : ""
+                        }`}
+                      >
+                        {/* Insertion Line Indicator */}
+                        {draggedIndex === index && (
+                          <td
+                            className="absolute top-0 left-0 right-0 h-[2px] bg-orange-600 z-50 pointer-events-none"
+                            style={{ width: "100%" }}
+                          />
+                        )}
+                        <TableCell className="py-2 pl-0 w-40">
+                          <div className="flex items-center h-full">
+                            <div
+                              className="w-[5px] h-[52px] bg-gray-200 rounded-r-md mr-4 shrink-0 transition-colors"
+                              style={{
+                                backgroundColor:
+                                  stageColor !== "transparent"
+                                    ? stageColor
+                                    : "#e5e7eb",
+                              }}
+                            />
                             <Select
                               value={ex.stage_id || "none"}
                               onValueChange={(val) => {
                                 const stage = stages.find((s) => s.id === val);
                                 handleUpdateExerciseFields(ex.id, {
                                   stage_id: val === "none" ? null : val,
-                                  stage_name: stage?.name || null
+                                  stage_name: stage?.name || null,
                                 });
                               }}
                             >
-                            <SelectTrigger className="w-full bg-white border border-gray-200 shadow-sm rounded-lg text-[11px] font-bold uppercase tracking-wider text-orange-600 shrink-1 h-10 px-3">
-                              <SelectValue placeholder="SELECCIONAR ETAPA" />
-                            </SelectTrigger>
-                            <SelectContent className="bg-white border-gray-200 rounded-xl shadow-lg">
-                              <SelectItem value="none">SIN ETAPA</SelectItem>
-                              {stages.map((stage) => (
-                                <SelectItem key={stage.id} value={stage.id}>
-                                  <div className="flex items-center gap-2">
-                                    <div
-                                      className="w-3 h-3 rounded-full"
-                                      style={{ backgroundColor: stage.color }}
-                                    />
-                                    <span className="font-bold uppercase text-[11px]">{stage.name}</span>
-                                  </div>
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </TableCell>
+                              <SelectTrigger className="w-full bg-white border border-gray-200 shadow-sm rounded-lg text-[11px] font-bold uppercase tracking-wider text-orange-600 shrink-1 h-10 px-3">
+                                <SelectValue placeholder="SELECCIONAR ETAPA" />
+                              </SelectTrigger>
+                              <SelectContent className="bg-white border-gray-200 rounded-xl shadow-lg">
+                                <SelectItem value="none">SIN ETAPA</SelectItem>
+                                {stages.map((stage) => (
+                                  <SelectItem key={stage.id} value={stage.id}>
+                                    <div className="flex items-center gap-2">
+                                      <div
+                                        className="w-3 h-3 rounded-full"
+                                        style={{ backgroundColor: stage.color }}
+                                      />
+                                      <span className="font-bold uppercase text-[11px]">
+                                        {stage.name}
+                                      </span>
+                                    </div>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </TableCell>
 
-                      <TableCell className="w-12 text-center text-gray-300">
-                        <div 
-                          className="cursor-grab active:cursor-grabbing p-2 drag-handle"
-                          onMouseDown={() => setCanDrag(true)}
-                          onMouseUp={() => setCanDrag(false)}
-                        >
-                          <GripVertical className="h-5 w-5 mx-auto" />
-                        </div>
-                      </TableCell>
+                        <TableCell className="w-12 text-center text-gray-300">
+                          <div
+                            className="cursor-grab active:cursor-grabbing p-2 drag-handle"
+                            onMouseDown={() => setCanDrag(true)}
+                            onMouseUp={() => setCanDrag(false)}
+                          >
+                            <GripVertical className="h-5 w-5 mx-auto" />
+                          </div>
+                        </TableCell>
 
-                      <TableCell className="relative w-72">
-                        <Popover 
-                          open={openExercisePopover === ex.id} 
-                          onOpenChange={(open) => setOpenExercisePopover(open ? ex.id : null)}
-                        >
-                          <PopoverTrigger asChild>
-                            <button className="w-full text-left bg-transparent border-none shadow-none p-0 h-auto font-bold text-[14px] text-gray-800 flex justify-between items-center group focus:outline-none">
-                              <span className="truncate pr-2">
-                                {ex.exercise_name || <span className="text-gray-400 font-medium">Seleccionar ejercicio...</span>}
-                              </span>
-                              <ChevronDown className="h-4 w-4 text-gray-400 group-hover:text-gray-600 transition-colors shrink-0" />
-                            </button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-[380px] p-0 bg-white border border-gray-200 rounded-xl shadow-lg" align="start">
-                            <Command className="bg-transparent border-none">
-                              <CommandInput 
-                                placeholder="Buscar ejercicio..." 
-                                className="h-11 border-b border-gray-100 placeholder:text-gray-400"
-                              />
-                              <CommandList className="max-h-[300px] overflow-y-auto p-2 scrollbar-hide">
-                                <CommandEmpty className="py-6 text-center text-sm text-gray-500">No se encontraron ejercicios.</CommandEmpty>
-                                <CommandGroup>
-                                  {libraryExercises.map((exercise) => {
-                                    // Make sure category exists for color coding
-                                    const catColor = (exercise as any).category?.color || "#e5e7eb";
-                                    const catName = (exercise as any).category?.name || "SIN CATEGORÍA";
-                                    
-                                    return (
-                                      <CommandItem
-                                        key={exercise.id}
-                                        value={exercise.name}
-                                        onSelect={() => {
-                                          handleUpdateExerciseFields(ex.id, {
-                                            exercise_name: exercise.name,
-                                            video_url: exercise.video_url || null
-                                          });
-                                          setOpenExercisePopover(null);
-                                        }}
-                                        className="flex flex-col items-start px-3 py-2.5 cursor-pointer rounded-lg hover:bg-gray-50 aria-selected:bg-gray-50 transition-colors border-b border-gray-50 last:border-0 mb-1"
-                                      >
-                                        <div className="flex w-full justify-between items-center mb-1.5">
-                                          <span className="font-semibold text-[14px] text-gray-800">{exercise.name}</span>
-                                          {exercise.video_url && (
-                                            <PlayCircle className="h-4 w-4 text-blue-500 shrink-0" />
-                                          )}
-                                        </div>
-                                        <div 
-                                          className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] font-bold tracking-wide uppercase"
-                                          style={{ 
-                                            backgroundColor: `${catColor}15`, 
-                                            borderColor: `${catColor}30`,
-                                            color: catColor
+                        <TableCell className="relative w-72">
+                          <Popover
+                            open={openExercisePopover === ex.id}
+                            onOpenChange={(open) =>
+                              setOpenExercisePopover(open ? ex.id : null)
+                            }
+                          >
+                            <PopoverTrigger asChild>
+                              <button className="w-full text-left bg-transparent border-none shadow-none p-0 h-auto font-bold text-[14px] text-gray-800 flex justify-between items-center group focus:outline-none">
+                                <span className="truncate pr-2">
+                                  {ex.exercise_name || (
+                                    <span className="text-gray-400 font-medium">
+                                      Buscar y seleccionar ejercicio...
+                                    </span>
+                                  )}
+                                </span>
+                                <ChevronDown className="h-4 w-4 text-gray-400 group-hover:text-gray-600 transition-colors shrink-0" />
+                              </button>
+                            </PopoverTrigger>
+                            <PopoverContent
+                              className="w-[380px] p-0 bg-white border border-gray-200 rounded-xl shadow-lg"
+                              align="start"
+                            >
+                              <Command className="bg-transparent border-none">
+                                <CommandInput
+                                  placeholder="Buscar ejercicio..."
+                                  className="h-11 border-b border-gray-100 placeholder:text-gray-400"
+                                />
+                                <CommandList className="max-h-[300px] overflow-y-auto p-2 scrollbar-hide">
+                                  <CommandEmpty className="py-6 text-center text-sm text-gray-500">
+                                    No se encontraron ejercicios.
+                                  </CommandEmpty>
+                                  <CommandGroup>
+                                    {libraryExercises.map((exercise) => {
+                                      // Make sure category exists for color coding
+                                      const catColor =
+                                        (exercise as any).category?.color ||
+                                        "#e5e7eb";
+                                      const catName =
+                                        (exercise as any).category?.name ||
+                                        "SIN CATEGORÍA";
+
+                                      return (
+                                        <CommandItem
+                                          key={exercise.id}
+                                          value={exercise.name}
+                                          onSelect={() => {
+                                            handleUpdateExerciseFields(ex.id, {
+                                              exercise_name: exercise.name,
+                                              video_url:
+                                                exercise.video_url || null,
+                                            });
+                                            setOpenExercisePopover(null);
                                           }}
+                                          className="flex flex-col items-start px-3 py-2.5 cursor-pointer rounded-lg hover:bg-orange-50 aria-selected:bg-orange-50 transition-colors border-b border-gray-50 last:border-0 mb-1"
                                         >
-                                          <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: catColor }} />
-                                          {catName}
-                                        </div>
-                                      </CommandItem>
-                                    );
-                                  })}
-                                </CommandGroup>
-                              </CommandList>
-                            </Command>
-                            <div className="px-3 py-2 bg-gray-50 border-t border-gray-100 text-[11px] font-medium text-gray-400 rounded-b-xl flex justify-between items-center">
-                              <span>{libraryExercises.length} ejercicios encontrados</span>
-                              <ChevronDown className="h-3.5 w-3.5" />
-                            </div>
-                          </PopoverContent>
-                        </Popover>
-                      </TableCell>
+                                          <div className="flex w-full justify-between items-center mb-1.5">
+                                            <span className="font-semibold text-[14px] text-gray-800">
+                                              {exercise.name}
+                                            </span>
+                                            {exercise.video_url && (
+                                              <PlayCircle className="h-4 w-4 text-blue-500 shrink-0" />
+                                            )}
+                                          </div>
+                                          <div
+                                            className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] font-bold tracking-wide uppercase"
+                                            style={{
+                                              backgroundColor: `${catColor}15`,
+                                              borderColor: `${catColor}30`,
+                                              color: catColor,
+                                            }}
+                                          >
+                                            <div
+                                              className="w-1.5 h-1.5 rounded-full"
+                                              style={{
+                                                backgroundColor: catColor,
+                                              }}
+                                            />
+                                            {catName}
+                                          </div>
+                                        </CommandItem>
+                                      );
+                                    })}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                              <div className="px-3 py-2 bg-gray-50 border-t border-gray-100 text-[11px] font-medium text-gray-400 rounded-b-xl flex justify-between items-center">
+                                <span>
+                                  {libraryExercises.length} ejercicios
+                                  encontrados
+                                </span>
+                                <ChevronDown className="h-3.5 w-3.5" />
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                        </TableCell>
 
-                      <TableCell className="text-center">
-                        {ex.video_url ? (
-                          <a href={ex.video_url} target="_blank" rel="noreferrer" className="inline-flex text-orange-600 hover:text-orange-700">
-                            <PlayCircle className="h-5 w-5 mx-auto" />
-                          </a>
-                        ) : (
-                          <VideoOff className="h-5 w-5 mx-auto text-gray-300" />
-                        )}
-                      </TableCell>
+                        <TableCell className="text-center">
+                          {ex.video_url ? (
+                            <a
+                              href={ex.video_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex text-orange-600 hover:text-orange-700"
+                            >
+                              <PlayCircle className="h-5 w-5 mx-auto" />
+                            </a>
+                          ) : (
+                            <VideoOff className="h-5 w-5 mx-auto text-gray-300" />
+                          )}
+                        </TableCell>
 
-                      <TableCell className="px-2">
-                        <Input
-                          type="number"
-                          value={ex.series}
-                          onChange={(e) =>
-                            handleUpdateExercise(
-                              ex.id,
-                              "series",
-                              parseInt(e.target.value) || 0,
-                            )
-                          }
-                          className="w-full text-center bg-gray-50/50 border border-gray-100 font-semibold text-gray-700 h-[38px] shadow-none rounded-lg"
-                          min="1"
-                        />
-                      </TableCell>
-                      <TableCell className="px-2">
-                        <Input
-                          value={ex.reps}
-                          onChange={(e) =>
-                            handleUpdateExercise(ex.id, "reps", e.target.value)
-                          }
-                          className="w-full text-center bg-gray-50/50 border border-gray-100 font-semibold text-gray-700 h-[38px] shadow-none rounded-lg"
-                          placeholder="10"
-                        />
-                      </TableCell>
-                      <TableCell className="px-2">
-                        <Input
-                          value={ex.carga}
-                          onChange={(e) =>
-                            handleUpdateExercise(ex.id, "carga", e.target.value)
-                          }
-                          className="w-full text-center bg-gray-50/50 border border-gray-100 font-semibold text-gray-700 h-[38px] shadow-none rounded-lg"
-                          placeholder="-"
-                        />
-                      </TableCell>
-                      <TableCell className="px-2">
-                        <Input
-                          value={ex.pause}
-                          onChange={(e) =>
-                            handleUpdateExercise(ex.id, "pause", e.target.value)
-                          }
-                          className="w-full text-center bg-gray-50/50 border border-gray-100 font-semibold text-gray-700 h-[38px] shadow-none rounded-lg"
-                          placeholder="60s"
-                        />
-                      </TableCell>
+                        <TableCell className="px-2">
+                          <Input
+                            type="number"
+                            value={ex.series}
+                            onChange={(e) =>
+                              handleUpdateExercise(
+                                ex.id,
+                                "series",
+                                parseInt(e.target.value) || 0,
+                              )
+                            }
+                            className="w-full text-center bg-gray-50/50 border border-gray-100 font-semibold text-gray-700 h-[38px] shadow-none rounded-lg"
+                            min="1"
+                          />
+                        </TableCell>
+                        <TableCell className="px-2">
+                          <Input
+                            value={ex.reps}
+                            onChange={(e) =>
+                              handleUpdateExercise(
+                                ex.id,
+                                "reps",
+                                e.target.value,
+                              )
+                            }
+                            className="w-full text-center bg-gray-50/50 border border-gray-100 font-semibold text-gray-700 h-[38px] shadow-none rounded-lg"
+                            placeholder="10"
+                          />
+                        </TableCell>
+                        <TableCell className="px-2">
+                          <Input
+                            value={ex.carga}
+                            onChange={(e) =>
+                              handleUpdateExercise(
+                                ex.id,
+                                "carga",
+                                e.target.value,
+                              )
+                            }
+                            className="w-full text-center bg-gray-50/50 border border-gray-100 font-semibold text-gray-700 h-[38px] shadow-none rounded-lg"
+                            placeholder="-"
+                          />
+                        </TableCell>
+                        <TableCell className="px-2">
+                          <Input
+                            value={ex.pause}
+                            onChange={(e) =>
+                              handleUpdateExercise(
+                                ex.id,
+                                "pause",
+                                e.target.value,
+                              )
+                            }
+                            className="w-full text-center bg-gray-50/50 border border-gray-100 font-semibold text-gray-700 h-[38px] shadow-none rounded-lg"
+                            placeholder="60s"
+                          />
+                        </TableCell>
 
-                      <TableCell className="text-center px-2">
-                        <button
-                          onClick={() => handleUpdateExercise(ex.id, "write_weight", !ex.write_weight)}
-                          className={`w-[26px] h-[26px] mx-auto rounded-md flex items-center justify-center transition-colors ${ex.write_weight ? 'bg-[#10b981] text-white' : 'border border-gray-300 bg-white hover:border-gray-400'}`}
-                        >
-                          {ex.write_weight && <Check className="h-4 w-4" strokeWidth={3} />}
-                        </button>
-                      </TableCell>
+                        <TableCell className="text-center px-2">
+                          <button
+                            onClick={() =>
+                              handleUpdateExercise(
+                                ex.id,
+                                "write_weight",
+                                !ex.write_weight,
+                              )
+                            }
+                            className={`w-[26px] h-[26px] mx-auto rounded-md flex items-center justify-center transition-colors ${ex.write_weight ? "bg-[#10b981] text-white" : "border border-gray-300 bg-white hover:border-gray-400"}`}
+                          >
+                            {ex.write_weight && (
+                              <Check className="h-4 w-4" strokeWidth={3} />
+                            )}
+                          </button>
+                        </TableCell>
 
-                      <TableCell className="pr-4">
-                        <Input
-                          value={ex.notes || ""}
-                          onChange={(e) => handleUpdateExercise(ex.id, "notes", e.target.value)}
-                          placeholder="Notas..."
-                          className="w-full bg-transparent border-none shadow-none text-gray-400 placeholder:text-gray-300 focus-visible:ring-1 focus-visible:ring-gray-200 h-[38px] px-2 italic font-medium"
-                        />
-                      </TableCell>
+                        <TableCell className="pr-4">
+                          <Input
+                            value={ex.notes || ""}
+                            onChange={(e) =>
+                              handleUpdateExercise(
+                                ex.id,
+                                "notes",
+                                e.target.value,
+                              )
+                            }
+                            placeholder="Notas..."
+                            className="w-full bg-transparent border-none shadow-none text-gray-400 placeholder:text-gray-300 focus-visible:ring-1 focus-visible:ring-gray-200 h-[38px] px-2 italic font-medium"
+                          />
+                        </TableCell>
 
-                      <TableCell className="w-10">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-gray-400 opacity-0 group-hover:opacity-100 hover:text-red-600 hover:bg-red-50 transition-all rounded-md"
-                          onClick={() => handleDeleteExercise(ex.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
+                        <TableCell className="w-10">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all rounded-md"
+                            onClick={() => handleDeleteExercise(ex.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
                 )}
               </TableBody>
             </Table>
@@ -829,14 +1241,12 @@ export default function PlanificadorPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      
+
       {/* New Stage Dialog */}
       <Dialog open={newStageDialogOpen} onOpenChange={setNewStageDialogOpen}>
         <DialogContent className="bg-white border-gray-200">
           <DialogHeader>
-            <DialogTitle className="text-gray-900">
-              Nueva Etapa
-            </DialogTitle>
+            <DialogTitle className="text-gray-900">Nueva Etapa</DialogTitle>
             <DialogDescription className="text-gray-600">
               Crea una nueva etapa para organizar los ejercicios en tu plan.
             </DialogDescription>
@@ -854,11 +1264,19 @@ export default function PlanificadorPage() {
             <div className="space-y-2">
               <Label>Color de Etiqueta</Label>
               <div className="flex gap-2.5 flex-wrap">
-                {["#f97316", "#ef4444", "#3b82f6", "#10b981", "#8b5cf6", "#f59e0b", "#ec4899"].map((color) => (
+                {[
+                  "#f97316",
+                  "#ef4444",
+                  "#3b82f6",
+                  "#10b981",
+                  "#8b5cf6",
+                  "#f59e0b",
+                  "#ec4899",
+                ].map((color) => (
                   <button
                     key={color}
                     onClick={() => setNewStageColor(color)}
-                    className={`w-8 h-8 rounded-full transition-all focus:outline-none ${newStageColor === color ? 'ring-2 ring-offset-2 ring-gray-400 scale-110' : 'hover:scale-110'}`}
+                    className={`w-8 h-8 rounded-full transition-all focus:outline-none ${newStageColor === color ? "ring-2 ring-offset-2 ring-gray-400 scale-110" : "hover:scale-110"}`}
                     style={{ backgroundColor: color }}
                   />
                 ))}
@@ -884,17 +1302,25 @@ export default function PlanificadorPage() {
         </DialogContent>
       </Dialog>
       {/* Confirm Delete Day Dialog */}
-      <AlertDialog open={deleteDayDialogOpen} onOpenChange={setDeleteDayDialogOpen}>
+      <AlertDialog
+        open={deleteDayDialogOpen}
+        onOpenChange={setDeleteDayDialogOpen}
+      >
         <AlertDialogContent className="bg-white border-gray-100">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-gray-900">¿Eliminar este día?</AlertDialogTitle>
+            <AlertDialogTitle className="text-gray-900">
+              ¿Eliminar este día?
+            </AlertDialogTitle>
             <AlertDialogDescription className="text-gray-600">
-              Se eliminarán todos los ejercicios configurados para este día. Esta acción no se puede deshacer.
+              Se eliminarán todos los ejercicios configurados para este día.
+              Esta acción no se puede deshacer.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="border-gray-200 text-gray-700 hover:bg-gray-50">Cancelar</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogCancel className="border-gray-200 text-gray-700 hover:bg-gray-50">
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
               onClick={confirmRemoveDay}
               className="bg-red-600 hover:bg-red-700 text-white"
             >
@@ -908,14 +1334,19 @@ export default function PlanificadorPage() {
       <AlertDialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
         <AlertDialogContent className="bg-white border-gray-100">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-gray-900">¿Reiniciar borrador?</AlertDialogTitle>
+            <AlertDialogTitle className="text-gray-900">
+              ¿Reiniciar borrador?
+            </AlertDialogTitle>
             <AlertDialogDescription className="text-gray-600">
-              Se perderán todos los cambios que no hayas guardado en la biblioteca. ¿Estás seguro de que quieres empezar de cero?
+              Se perderán todos los cambios que no hayas guardado en la
+              biblioteca. ¿Estás seguro de que quieres empezar de cero?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="border-gray-200 text-gray-700 hover:bg-gray-50">Cancelar</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogCancel className="border-gray-200 text-gray-700 hover:bg-gray-50">
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
               onClick={confirmResetDraft}
               className="bg-orange-600 hover:bg-orange-700 text-white border-none"
             >

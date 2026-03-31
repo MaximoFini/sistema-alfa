@@ -39,8 +39,15 @@ interface SavePlanData {
 
 export function useTrainingPlans() {
   const [professorId, setProfessorId] = useState<string | null>(null);
-  const { plans, plansLoading, fetchPlans, invalidatePlans } =
-    useDataCacheStore();
+  const { 
+    plans, 
+    plansLoading, 
+    fetchPlans, 
+    invalidatePlans,
+    optimisticDeletePlan,
+    optimisticAddPlan,
+    optimisticUpdatePlan
+  } = useDataCacheStore();
 
   // Get current user ID
   useEffect(() => {
@@ -155,11 +162,27 @@ export function useTrainingPlans() {
         if (exercisesError) throw exercisesError;
       }
 
-      // Invalidate cache
+      // Add to UI immediately
+      optimisticAddPlan({
+        id: insertedPlan.id,
+        coach_id: insertedPlan.coach_id,
+        title: insertedPlan.title,
+        description: insertedPlan.description,
+        start_date: insertedPlan.start_date,
+        end_date: insertedPlan.end_date,
+        total_days: insertedPlan.total_days,
+        days_per_week: insertedPlan.days_per_week,
+        total_weeks: insertedPlan.total_weeks,
+        plan_type: insertedPlan.plan_type,
+        difficulty_level: insertedPlan.difficulty_level,
+        is_template: insertedPlan.is_template,
+        is_archived: insertedPlan.is_archived,
+        created_at: insertedPlan.created_at,
+        assignedCount: 0,
+      });
+
+      // Invalidate cache for next fetch
       invalidatePlans();
-      if (professorId) {
-        await fetchPlans(professorId);
-      }
 
       toast.success("Plan guardado exitosamente");
       return insertedPlan.id;
@@ -170,8 +193,11 @@ export function useTrainingPlans() {
     }
   };
 
-  // DELETE PLAN (soft delete) - Query EXACTA
+  // DELETE PLAN (soft delete) - Query EXACTA con optimistic update
   const deletePlan = async (planId: string): Promise<boolean> => {
+    // Optimistic update - remove from UI immediately
+    optimisticDeletePlan(planId);
+
     try {
       const { error } = await supabase
         .from("training_plans")
@@ -180,22 +206,25 @@ export function useTrainingPlans() {
 
       if (error) throw error;
 
-      // Invalidate cache
+      // Success - invalidate cache for next fetch
       invalidatePlans();
-      if (professorId) {
-        await fetchPlans(professorId);
-      }
 
       toast.success("Plan eliminado");
       return true;
     } catch (error) {
       console.error("Error deleting plan:", error);
       toast.error("Error al eliminar el plan");
+      
+      // Rollback - refetch to restore state
+      if (professorId) {
+        await fetchPlans(professorId);
+      }
+      
       return false;
     }
   };
 
-  // DUPLICATE PLAN - Lógica EXACTA del código original
+  // DUPLICATE PLAN - Lógica EXACTA del código original con optimistic update
   const duplicatePlan = async (planId: string): Promise<string | null> => {
     if (!professorId) {
       toast.error("Usuario no autenticado");
@@ -203,6 +232,23 @@ export function useTrainingPlans() {
     }
 
     try {
+      // Fetch original plan for optimistic update
+      const originalPlan = plans.find(p => p.id === planId);
+      if (!originalPlan) throw new Error("Plan no encontrado en cache");
+
+      // Create optimistic plan with temporary ID
+      const tempId = `temp-${Date.now()}`;
+      const optimisticPlan: TrainingPlanSummary = {
+        ...originalPlan,
+        id: tempId,
+        title: `${originalPlan.title} (Copia)`,
+        created_at: new Date().toISOString(),
+        assignedCount: 0,
+      };
+
+      // Add to UI immediately
+      optimisticAddPlan(optimisticPlan);
+
       // Fetch complete plan with days and exercises
       const { data: planData, error: fetchError } = await supabase
         .from("training_plans")
@@ -299,17 +345,40 @@ export function useTrainingPlans() {
         if (exercisesError) throw exercisesError;
       }
 
-      // Invalidate cache
+      // Replace optimistic plan with real one
+      optimisticDeletePlan(tempId);
+      optimisticAddPlan({
+        id: newPlan.id,
+        coach_id: newPlan.coach_id,
+        title: newPlan.title,
+        description: newPlan.description,
+        start_date: newPlan.start_date,
+        end_date: newPlan.end_date,
+        total_days: newPlan.total_days,
+        days_per_week: newPlan.days_per_week,
+        total_weeks: newPlan.total_weeks,
+        plan_type: newPlan.plan_type,
+        difficulty_level: newPlan.difficulty_level,
+        is_template: newPlan.is_template,
+        is_archived: newPlan.is_archived,
+        created_at: newPlan.created_at,
+        assignedCount: 0,
+      });
+
+      // Invalidate cache for next fetch
       invalidatePlans();
-      if (professorId) {
-        await fetchPlans(professorId);
-      }
 
       toast.success("Plan duplicado exitosamente");
       return newPlan.id;
     } catch (error) {
       console.error("Error duplicating plan:", error);
       toast.error("Error al duplicar el plan");
+      
+      // Rollback - refetch to restore state
+      if (professorId) {
+        await fetchPlans(professorId);
+      }
+      
       return null;
     }
   };
@@ -344,11 +413,13 @@ export function useTrainingPlans() {
 
       if (error) throw error;
 
-      // Invalidate cache to update assignment counts
+      // Update assignment count optimistically
+      optimisticUpdatePlan(planId, {
+        assignedCount: (plans.find(p => p.id === planId)?.assignedCount || 0) + studentIds.length,
+      });
+
+      // Invalidate cache for next fetch
       invalidatePlans();
-      if (professorId) {
-        await fetchPlans(professorId);
-      }
 
       toast.success(
         `Plan asignado a ${studentIds.length} alumno${studentIds.length > 1 ? "s" : ""}`,

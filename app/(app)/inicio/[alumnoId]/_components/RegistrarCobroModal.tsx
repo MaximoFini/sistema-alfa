@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
+import { useStaticDataStore } from "@/stores/static-data-store";
 import { ChevronDown, X, AlertCircle, Calendar } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { triggerHapticFeedback, HapticPresets } from "@/lib/utils";
@@ -47,6 +48,14 @@ export default function RegistrarCobroModal({
 }: Props) {
   const isMobile = useIsMobile();
 
+  // Usar el store de datos estáticos
+  const {
+    subscriptionPlans,
+    paymentMethods,
+    fetchSubscriptionPlans,
+    fetchPaymentMethods,
+  } = useStaticDataStore();
+
   const [pagoForm, setPagoForm] = useState<PagoForm>({
     actividad: "",
     precio: "",
@@ -57,10 +66,6 @@ export default function RegistrarCobroModal({
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [guardando, setGuardando] = useState(false);
-  const [planesSuscripcion, setPlanesSuscripcion] = useState<
-    Array<{ name: string; duration_days: number; price: number }>
-  >([]);
-  const [mediosPago, setMediosPago] = useState<Array<{ name: string }>>([]);
 
   // Encontrar plan vigente (memoizado para evitar recálculos)
   const planVigente = useMemo(() => {
@@ -122,30 +127,11 @@ export default function RegistrarCobroModal({
     }));
   }, [planVigente, pagosExistentes]);
 
-  // Cargar planes y medios de pago
+  // Cargar planes y medios de pago desde el store (con caché automático)
   useEffect(() => {
-    async function fetchData() {
-      // Cargar planes
-      const { data: planes } = await supabase
-        .from("subscription_plans")
-        .select("name, price, duration_days")
-        .eq("is_active", true)
-        .order("name", { ascending: true });
-
-      if (planes) setPlanesSuscripcion(planes);
-
-      // Cargar medios de pago
-      const { data: metodos } = await supabase
-        .from("payment_methods")
-        .select("name")
-        .eq("is_active", true)
-        .order("name", { ascending: true });
-
-      if (metodos) setMediosPago(metodos);
-    }
-
-    fetchData();
-  }, []);
+    fetchSubscriptionPlans();
+    fetchPaymentMethods();
+  }, [fetchSubscriptionPlans, fetchPaymentMethods]);
 
   function setPagoField(field: keyof PagoForm, value: string) {
     setPagoForm((f) => ({ ...f, [field]: value }));
@@ -154,7 +140,7 @@ export default function RegistrarCobroModal({
 
   function handleActividadChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const name = e.target.value;
-    const plan = planesSuscripcion.find((p) => p.name === name);
+    const plan = subscriptionPlans.find((p) => p.name === name);
     setPagoForm((prev) => ({
       ...prev,
       actividad: name,
@@ -206,7 +192,7 @@ export default function RegistrarCobroModal({
     setGuardando(true);
 
     let fechaProximoVencimiento = null;
-    const planElegido = planesSuscripcion.find(
+    const planElegido = subscriptionPlans.find(
       (p) => p.name === pagoForm.actividad,
     );
 
@@ -347,7 +333,7 @@ export default function RegistrarCobroModal({
                 className="w-full border border-gray-200 rounded-lg px-4 py-3 text-base md:text-sm outline-none min-h-[44px] focus:border-red-400 focus:ring-2 focus:ring-red-50 bg-white appearance-none font-bold"
               >
                 <option value="">Seleccionar plan...</option>
-                {planesSuscripcion.map((plan) => (
+                {subscriptionPlans.map((plan) => (
                   <option key={plan.name} value={plan.name}>
                     {plan.name}
                   </option>
@@ -396,7 +382,7 @@ export default function RegistrarCobroModal({
                 className="w-full border border-gray-200 rounded-lg px-4 py-3 text-base md:text-sm outline-none min-h-[44px] focus:border-red-400 focus:ring-2 focus:ring-red-50 bg-white appearance-none"
               >
                 <option value="">Seleccionar...</option>
-                {mediosPago.map((mp) => (
+                {paymentMethods.map((mp) => (
                   <option key={mp.name} value={mp.name}>
                     {mp.name}
                   </option>

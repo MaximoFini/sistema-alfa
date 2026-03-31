@@ -22,6 +22,11 @@ interface DataCacheState {
   fetchPlans: (professorId: string) => Promise<void>;
   invalidateCategories: () => void;
   invalidatePlans: () => void;
+  
+  // Optimistic updates
+  optimisticDeletePlan: (planId: string) => void;
+  optimisticAddPlan: (plan: TrainingPlanSummary) => void;
+  optimisticUpdatePlan: (planId: string, updates: Partial<TrainingPlanSummary>) => void;
 }
 
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
@@ -147,5 +152,26 @@ export const useDataCacheStore = create<DataCacheState>((set, get) => ({
 
   invalidatePlans: () => {
     set({ plansLastFetched: null });
+  },
+
+  // Optimistic updates for instant UI feedback
+  optimisticDeletePlan: (planId: string) => {
+    set((state) => ({
+      plans: state.plans.filter((plan) => plan.id !== planId),
+    }));
+  },
+
+  optimisticAddPlan: (plan: TrainingPlanSummary) => {
+    set((state) => ({
+      plans: [plan, ...state.plans],
+    }));
+  },
+
+  optimisticUpdatePlan: (planId: string, updates: Partial<TrainingPlanSummary>) => {
+    set((state) => ({
+      plans: state.plans.map((plan) =>
+        plan.id === planId ? { ...plan, ...updates } : plan
+      ),
+    }));
   },
 }));
