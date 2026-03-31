@@ -46,11 +46,11 @@ function formatPrecio(precio: number): string {
 }
 
 const MEDIO_PAGO_COLORS: Record<string, string> = {
-  efectivo: "bg-green-50 text-green-700 ring-1 ring-green-200",
-  transferencia: "bg-blue-50 text-blue-700 ring-1 ring-blue-200",
-  tarjeta: "bg-purple-50 text-purple-700 ring-1 ring-purple-200",
-  débito: "bg-orange-50 text-orange-700 ring-1 ring-orange-200",
-  crédito: "bg-pink-50 text-pink-700 ring-1 ring-pink-200",
+  efectivo: "bg-muted text-foreground ring-1 ring-border",
+  transferencia: "bg-muted text-foreground ring-1 ring-border",
+  tarjeta: "bg-muted text-foreground ring-1 ring-border",
+  débito: "bg-muted text-foreground ring-1 ring-border",
+  crédito: "bg-muted text-foreground ring-1 ring-border",
 };
 
 function getMedioPagoClass(medio: string): string {
@@ -140,7 +140,7 @@ export default function TabPagos({
       <div className="flex flex-col gap-5">
         {/* Resumen */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-[#dc2626] rounded-xl border border-[#dc2626] p-4 flex flex-col gap-1">
+          <div className="bg-orange-500 rounded-xl border border-orange-500 p-4 flex flex-col gap-1">
             <span className="text-3xl font-black text-white leading-none">
               {pagos.length}
             </span>
@@ -161,7 +161,7 @@ export default function TabPagos({
         {/* Botón Registrar Cobro */}
         <button
           onClick={() => setModalAbierto(true)}
-          className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-xl transition-colors shadow-sm"
+          className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold rounded-xl transition-colors shadow-sm"
         >
           <Plus size={18} strokeWidth={2.5} />
           Registrar Cobro
@@ -192,9 +192,9 @@ export default function TabPagos({
             // Configuración de estilos por estado
             const estadoConfig = {
               proximo: {
-                barColor: "bg-blue-500",
-                badgeBg: "bg-blue-50 text-blue-700 ring-1 ring-blue-200",
-                dateColor: "text-blue-600 font-semibold",
+                barColor: "bg-muted-foreground",
+                badgeBg: "bg-muted text-muted-foreground ring-1 ring-border",
+                dateColor: "text-muted-foreground font-semibold",
                 icon: <Clock size={10} strokeWidth={2.5} />,
                 label: "Próximo",
               },
@@ -217,59 +217,48 @@ export default function TabPagos({
             const config = estadoConfig[estado];
 
             return (
-              <div key={pago.id}>
-                <span className={config.dateColor}>
-                  {formatFecha(pago.fecha_vencimiento)}
-                </span>
+              <div
+                key={pago.id}
+                className="bg-card rounded-xl border border-border overflow-hidden flex"
+              >
+                {/* Barra lateral de estado */}
+                <div className={`w-1 shrink-0 ${config.barColor}`} />
 
-                {/* Badge estado */}
-                <span
-                  className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full ${config.badgeBg}`}
-                >
-                  {config.icon}
-                  {config.label}
-                </span>
-
-                {/* Footer con fechas y medio de pago */}
-                <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-border">
-                  {/* Medio de pago */}
-                  <span
-                    className={`text-xs font-bold px-2.5 py-1 rounded-full capitalize ${getMedioPagoClass(pago.medio_pago)}`}
-                  >
-                    {pago.medio_pago}
-                  </span>
-
-                  {/* Fechas */}
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground ml-auto">
-                    <Calendar size={11} />
-                    <span>{formatFecha(pago.fecha_inicio)}</span>
-                    <span className="text-border">→</span>
+                <div className="flex-1 p-4 flex flex-col gap-3">
+                  {/* Header: actividad + precio + badge */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-sm font-bold text-foreground">
+                        {pago.actividad}
+                      </span>
+                      <span className="text-lg font-black text-foreground leading-tight">
+                        {formatPrecio(pago.precio)}
+                      </span>
+                    </div>
                     <span
-                      className={
-                        estado === "vencido"
-                          ? "text-red-500 font-semibold"
-                          : "text-green-600 font-semibold"
-                      }
+                      className={`inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full shrink-0 ${config.badgeBg}`}
                     >
-                      {formatFecha(pago.fecha_vencimiento)}
+                      {config.icon}
+                      {config.label}
                     </span>
                   </div>
 
-                  {/* Badge vencido/vigente */}
-                  <span
-                    className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full ${
-                      estado === "vencido"
-                        ? "bg-red-50 text-red-600 ring-1 ring-red-200"
-                        : "bg-green-50 text-green-700 ring-1 ring-green-200"
-                    }`}
-                  >
-                    {estado === "vencido" ? (
-                      <XCircle size={10} strokeWidth={2.5} />
-                    ) : (
-                      <CheckCircle2 size={10} strokeWidth={2.5} />
-                    )}
-                    {estado === "vencido" ? "Vencido" : "Vigente"}
-                  </span>
+                  {/* Footer: fechas + medio de pago */}
+                  <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border">
+                    <span
+                      className={`text-xs font-bold px-2.5 py-1 rounded-full capitalize ${getMedioPagoClass(pago.medio_pago)}`}
+                    >
+                      {pago.medio_pago}
+                    </span>
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground ml-auto">
+                      <Calendar size={11} />
+                      <span>{formatFecha(pago.fecha_inicio)}</span>
+                      <span className="text-border">→</span>
+                      <span className={config.dateColor}>
+                        {formatFecha(pago.fecha_vencimiento)}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
             );

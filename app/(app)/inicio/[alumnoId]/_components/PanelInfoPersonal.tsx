@@ -55,14 +55,14 @@ function getInitials(nombre: string | null): string {
 }
 
 const AVATAR_COLORS = [
-  "#374151",
+  "#1a1a1a",
+  "#2d2d2d",
+  "#404040",
+  "#525252",
   "#6b7280",
-  "#dc2626",
-  "#4338ca",
-  "#0f766e",
-  "#9a3412",
-  "#1e40af",
   "#78716c",
+  "#ea580c",
+  "#374151",
 ];
 
 function getAvatarColor(nombre: string | null): string {
@@ -367,8 +367,7 @@ export default function PanelInfoPersonal({
     <div className="flex flex-col">
       {/* Header del panel: avatar + nombre + estado */}
       <div
-        className="px-6 pt-8 pb-6 flex flex-col items-center text-center gap-4"
-        style={{ backgroundColor: "#ffffff" }}
+        className="px-6 pt-8 pb-6 flex flex-col items-center text-center gap-4 bg-card"
       >
         {/* Avatar */}
         <div
@@ -421,14 +420,14 @@ export default function PanelInfoPersonal({
               setErrors({});
               setShowEditModal(true);
             }}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-50 text-blue-600 rounded-lg text-sm font-semibold hover:bg-blue-100 transition-colors"
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-muted text-foreground rounded-lg text-sm font-semibold hover:bg-muted/70 transition-colors"
           >
             <Edit2 size={14} />
             Editar
           </button>
           <button
             onClick={() => setShowDeleteModal(true)}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-red-50 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-100 transition-colors"
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-red-500/10 text-red-500 rounded-lg text-sm font-semibold hover:bg-red-500/15 transition-colors"
           >
             <Trash2 size={14} />
             Eliminar
@@ -437,14 +436,14 @@ export default function PanelInfoPersonal({
 
         {/* Clases de gracia — visible solo si el alumno está inactivo */}
         {!estaActivo && (
-          <div className="w-full mt-1 p-3 rounded-xl bg-blue-50 border border-blue-100 flex flex-col gap-2">
-            <p className="text-xs font-bold text-blue-700 uppercase tracking-wider">
+          <div className="w-full mt-1 p-3 rounded-xl bg-orange-500/10 border border-orange-500/20 flex flex-col gap-2">
+            <p className="text-xs font-bold text-orange-600 uppercase tracking-wider">
               Clases de Gracia
             </p>
             {clasesGraciaDisponibles > 0 ? (
               <>
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-blue-600">
+                  <span className="text-xs text-orange-600">
                     Usadas:{" "}
                     <span className="font-bold">
                       {clasesGraciaUsadas} / {clasesGraciaDisponibles}
@@ -454,7 +453,7 @@ export default function PanelInfoPersonal({
                     className={`text-xs font-bold px-2 py-0.5 rounded-full ${
                       clasesGraciaUsadas >= clasesGraciaDisponibles
                         ? "bg-red-100 text-red-600"
-                        : "bg-blue-100 text-blue-700"
+                        : "bg-orange-500/15 text-orange-600"
                     }`}
                   >
                     {clasesGraciaDisponibles - clasesGraciaUsadas > 0
@@ -465,7 +464,7 @@ export default function PanelInfoPersonal({
                 <button
                   onClick={handleReiniciarGracia}
                   disabled={otorgandoGracia}
-                  className="flex items-center justify-center gap-1.5 text-xs font-semibold text-red-500 hover:text-red-700 transition-colors disabled:opacity-50"
+                  className="flex items-center justify-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
                 >
                   <RotateCcw size={12} />
                   Reiniciar contador
@@ -475,7 +474,7 @@ export default function PanelInfoPersonal({
               <button
                 onClick={handleOtorgarGracia}
                 disabled={otorgandoGracia}
-                className="flex items-center justify-center gap-2 w-full py-2 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-60"
+                className="flex items-center justify-center gap-2 w-full py-2 bg-orange-500 text-white text-xs font-bold rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-60"
               >
                 <Gift size={13} />
                 {otorgandoGracia
@@ -495,29 +494,29 @@ export default function PanelInfoPersonal({
             onClick={() => setShowEditModal(false)}
           />
           <div
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[101] bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto"
+            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[101] bg-card rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="sticky top-0 bg-white border-b border-gray-100 px-5 py-4 flex items-center justify-between z-10">
+            <div className="sticky top-0 bg-card border-b border-border px-5 py-4 flex items-center justify-between z-10">
               <div>
-                <h3 className="text-base font-bold text-gray-900">
+                <h3 className="text-base font-bold text-foreground">
                   Editar Alumno
                 </h3>
-                <p className="text-xs text-gray-400 mt-0.5">
+                <p className="text-xs text-muted-foreground mt-0.5">
                   Modifica los datos personales
                 </p>
               </div>
               <button
                 onClick={() => setShowEditModal(false)}
-                className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-muted/70 transition-colors"
               >
-                <X size={16} className="text-gray-500" />
+                <X size={16} className="text-muted-foreground" />
               </button>
             </div>
 
             <div className="px-5 py-5 flex flex-col gap-4">
               <div className="flex flex-col gap-2">
-                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                   Nombre completo *
                 </label>
                 <input
@@ -527,7 +526,7 @@ export default function PanelInfoPersonal({
                     setFormData({ ...formData, nombre: e.target.value });
                     setErrors({ ...errors, nombre: "" });
                   }}
-                  className="border border-gray-200 rounded-lg px-4 py-3 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50"
+                  className="border border-border rounded-lg px-4 py-3 text-sm bg-background text-foreground outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/10"
                 />
                 {errors.nombre && (
                   <span className="text-xs text-red-500">{errors.nombre}</span>
@@ -535,7 +534,7 @@ export default function PanelInfoPersonal({
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                   DNI *
                 </label>
                 <input
@@ -545,7 +544,7 @@ export default function PanelInfoPersonal({
                     setFormData({ ...formData, dni: e.target.value });
                     setErrors({ ...errors, dni: "" });
                   }}
-                  className="border border-gray-200 rounded-lg px-4 py-3 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50"
+                  className="border border-border rounded-lg px-4 py-3 text-sm bg-background text-foreground outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/10"
                 />
                 {errors.dni && (
                   <span className="text-xs text-red-500">{errors.dni}</span>
@@ -553,7 +552,7 @@ export default function PanelInfoPersonal({
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                   Fecha de Nacimiento *
                 </label>
                 <input
@@ -566,7 +565,7 @@ export default function PanelInfoPersonal({
                     });
                     setErrors({ ...errors, fecha_nacimiento: "" });
                   }}
-                  className="border border-gray-200 rounded-lg px-4 py-3 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50"
+                  className="border border-border rounded-lg px-4 py-3 text-sm bg-background text-foreground outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/10"
                 />
                 {errors.fecha_nacimiento && (
                   <span className="text-xs text-red-500">
@@ -576,7 +575,7 @@ export default function PanelInfoPersonal({
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                   Género *
                 </label>
                 <div className="relative">
@@ -586,7 +585,7 @@ export default function PanelInfoPersonal({
                       setFormData({ ...formData, genero: e.target.value });
                       setErrors({ ...errors, genero: "" });
                     }}
-                    className="w-full border border-gray-200 rounded-lg px-4 py-3 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 bg-white appearance-none"
+                    className="w-full border border-border rounded-lg px-4 py-3 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/10 bg-background text-foreground appearance-none"
                   >
                     <option value="">Seleccionar...</option>
                     <option value="Masculino">Masculino</option>
@@ -594,7 +593,7 @@ export default function PanelInfoPersonal({
                   </select>
                   <ChevronDown
                     size={16}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
                   />
                 </div>
                 {errors.genero && (
@@ -603,7 +602,7 @@ export default function PanelInfoPersonal({
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                   Teléfono *
                 </label>
                 <input
@@ -613,7 +612,7 @@ export default function PanelInfoPersonal({
                     setFormData({ ...formData, telefono: e.target.value });
                     setErrors({ ...errors, telefono: "" });
                   }}
-                  className="border border-gray-200 rounded-lg px-4 py-3 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50"
+                  className="border border-border rounded-lg px-4 py-3 text-sm bg-background text-foreground outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/10"
                 />
                 {errors.telefono && (
                   <span className="text-xs text-red-500">
@@ -623,7 +622,7 @@ export default function PanelInfoPersonal({
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                   Dirección *
                 </label>
                 <input
@@ -633,7 +632,7 @@ export default function PanelInfoPersonal({
                     setFormData({ ...formData, domicilio: e.target.value });
                     setErrors({ ...errors, domicilio: "" });
                   }}
-                  className="border border-gray-200 rounded-lg px-4 py-3 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50"
+                  className="border border-border rounded-lg px-4 py-3 text-sm bg-background text-foreground outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/10"
                 />
                 {errors.domicilio && (
                   <span className="text-xs text-red-500">
@@ -645,14 +644,14 @@ export default function PanelInfoPersonal({
               <div className="flex gap-3 pt-4">
                 <button
                   onClick={() => setShowEditModal(false)}
-                  className="flex-1 py-2.5 text-gray-600 bg-gray-50 border border-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-100"
+                  className="flex-1 py-2.5 text-muted-foreground bg-muted border border-border text-sm font-semibold rounded-lg hover:bg-muted/70"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={handleGuardarCambios}
                   disabled={guardando}
-                  className="flex-1 py-2.5 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 disabled:opacity-70"
+                  className="flex-1 py-2.5 bg-orange-500 text-white text-sm font-bold rounded-lg hover:bg-orange-600 disabled:opacity-70"
                 >
                   {guardando ? "Guardando..." : "Guardar Cambios"}
                 </button>
@@ -670,30 +669,30 @@ export default function PanelInfoPersonal({
             onClick={() => setShowDeleteModal(false)}
           />
           <div
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[101] bg-white rounded-2xl shadow-2xl w-[90vw] md:w-full max-w-md p-6"
+            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[101] bg-card rounded-2xl shadow-2xl w-[90vw] md:w-full max-w-md p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex flex-col items-center text-center gap-4">
-              <div className="w-14 h-14 rounded-full bg-red-100 flex items-center justify-center">
-                <Trash2 size={24} className="text-red-600" />
+              <div className="w-14 h-14 rounded-full bg-red-500/10 flex items-center justify-center">
+                <Trash2 size={24} className="text-red-500" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-gray-900 mb-2">
+                <h3 className="text-lg font-bold text-foreground mb-2">
                   ¿Eliminar alumno?
                 </h3>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-muted-foreground">
                   Esta acción eliminará permanentemente a{" "}
-                  <span className="font-semibold text-gray-900">
+                  <span className="font-semibold text-foreground">
                     {alumno.nombre}
                   </span>
                   , junto con todas sus asistencias y pagos registrados.
                 </p>
-                <p className="text-sm text-red-600 font-medium mt-2">
+                <p className="text-sm text-red-500 font-medium mt-2">
                   Esta acción no se puede deshacer.
                 </p>
               </div>
-              <div className="w-full p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-xs text-blue-700 font-medium whitespace-break-spaces">
+              <div className="w-full p-3 bg-muted border border-border rounded-lg">
+                <p className="text-xs text-muted-foreground font-medium whitespace-break-spaces">
                   💡 Mantén presionado el botón "Eliminar" durante 3 segundos
                   para confirmar
                 </p>
@@ -701,7 +700,7 @@ export default function PanelInfoPersonal({
               <div className="flex gap-3 w-full pt-2">
                 <button
                   onClick={() => setShowDeleteModal(false)}
-                  className="flex-1 py-2.5 text-gray-600 bg-gray-50 border border-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-100"
+                  className="flex-1 py-2.5 text-muted-foreground bg-muted border border-border text-sm font-semibold rounded-lg hover:bg-muted/70"
                   disabled={isPressingDelete}
                 >
                   Cancelar

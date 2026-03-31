@@ -48,9 +48,9 @@ function Section({
       >
         <div
           className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-          style={{ backgroundColor: "#FEF2F2" }}
+          style={{ backgroundColor: "#FFF7ED" }}
         >
-          <Icon size={18} style={{ color: "#DC2626" }} />
+          <Icon size={18} style={{ color: "#F97316" }} />
         </div>
         <div className="flex-1 text-left">
           <p className="text-sm font-bold text-gray-900">{title}</p>
@@ -104,7 +104,7 @@ function SettingRow({
           value={value}
           min={0}
           onChange={(e) => onChange(e.target.value)}
-          className="w-20 text-right border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm font-semibold outline-none focus:border-red-400 focus:ring-2 focus:ring-red-50 transition-all bg-gray-50"
+          className="w-20 text-right border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm font-semibold outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-50 transition-all bg-gray-50"
         />
         {suffix && (
           <span className="text-sm text-gray-400 font-medium w-10">
@@ -416,7 +416,7 @@ export default function AjustesPage() {
     return (
       <div className="h-[calc(100vh-100px)] flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-          <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-[#DC2626]"></div>
+          <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-gray-900"></div>
           <p className="text-sm font-medium text-gray-500 animate-pulse">
             Cargando configuración...
           </p>
@@ -432,7 +432,6 @@ export default function AjustesPage() {
         <div>
           <h1 className="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-3">
             Ajustes de Negocio
-            <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
           </h1>
           <p className="text-sm text-gray-500 mt-1 font-medium">
             Control central de parámetros operativos y comerciales.
@@ -443,8 +442,8 @@ export default function AjustesPage() {
           className={cn(
             "flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all shadow-sm active:scale-95",
             saved
-              ? "bg-green-500 text-white"
-              : "bg-[#DC2626] text-white hover:bg-red-700",
+              ? "bg-green-600 text-white"
+              : "bg-[#111111] text-white hover:bg-gray-800",
           )}
         >
           <Save size={16} />
@@ -530,11 +529,11 @@ export default function AjustesPage() {
                         value={editMetodoNombre}
                         onChange={(e) => setEditMetodoNombre(e.target.value)}
                         autoFocus
-                        className="flex-1 bg-white border border-red-200 rounded-lg px-2.5 py-1.5 text-sm outline-none shadow-inner"
+                        className="flex-1 bg-white border border-orange-200 rounded-lg px-2.5 py-1.5 text-sm outline-none focus:border-orange-400"
                       />
                       <button
                         onClick={saveEditMetodo}
-                        className="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-all"
+                        className="p-2 bg-[#111111] text-white rounded-lg hover:bg-gray-800 transition-all"
                       >
                         <Save size={14} />
                       </button>
@@ -565,7 +564,7 @@ export default function AjustesPage() {
                         className="shrink-0"
                       >
                         {metodo.activo ? (
-                          <ToggleRight size={24} className="text-[#DC2626]" />
+                          <ToggleRight size={24} className="text-orange-500" />
                         ) : (
                           <ToggleLeft size={24} className="text-gray-300" />
                         )}
@@ -575,12 +574,12 @@ export default function AjustesPage() {
                 </div>
               ))}
               {showNewMetodo ? (
-                <div className="p-3 bg-red-50/30 border border-dashed border-red-200 rounded-xl space-y-3">
+                <div className="p-3 bg-orange-50/30 border border-dashed border-orange-200 rounded-xl space-y-3">
                   <input
                     value={newMetodoNombre}
                     onChange={(e) => setNewMetodoNombre(e.target.value)}
                     placeholder="Nombre del medio..."
-                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-red-400"
+                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-orange-400"
                     autoFocus
                   />
                   <div className="flex justify-end gap-2">
@@ -592,7 +591,7 @@ export default function AjustesPage() {
                     </button>
                     <button
                       onClick={addMetodo}
-                      className="bg-[#DC2626] text-white text-xs font-bold px-4 py-1.5 rounded-lg hover:brightness-110 transition-all"
+                      className="bg-[#111111] text-white text-xs font-bold px-4 py-1.5 rounded-lg hover:bg-gray-800 transition-all"
                     >
                       Agregar
                     </button>
@@ -601,15 +600,18 @@ export default function AjustesPage() {
               ) : (
                 <button
                   onClick={() => setShowNewMetodo(true)}
-                  className="py-3 items-center justify-center flex gap-2 border border-dashed border-gray-200 rounded-xl text-gray-400 hover:text-red-500 hover:border-red-200 hover:bg-red-50/10 transition-all text-xs font-bold mt-1"
+                  className="py-3 items-center justify-center flex gap-2 border border-dashed border-gray-200 rounded-xl text-gray-400 hover:text-orange-500 hover:border-orange-200 hover:bg-orange-50/30 transition-all text-xs font-bold mt-1"
                 >
                   <Plus size={14} /> Nuevo medio de pago
                 </button>
               )}
             </div>
           </Section>
+        </div>
 
-          {/* New Users Section */}
+        {/* Right Column: Planes (The intensive part) */}
+        <div className="xl:col-span-7 flex flex-col gap-6 h-full">
+          {/* Users Section - at the top next to Medios de Pago */}
           <Section
             icon={Users}
             title="Control de Usuarios"
@@ -635,7 +637,7 @@ export default function AjustesPage() {
                           onChange={(e) => setEditUserName(e.target.value)}
                           placeholder="Nombre de usuario"
                           autoFocus
-                          className="flex-1 bg-white border border-red-200 rounded-lg px-2.5 py-1.5 text-sm outline-none shadow-inner"
+                          className="flex-1 bg-white border border-orange-200 rounded-lg px-2.5 py-1.5 text-sm outline-none focus:border-orange-400"
                         />
                       </div>
                       <div className="flex items-center gap-2">
@@ -645,7 +647,7 @@ export default function AjustesPage() {
                           onChange={(e) => setEditUserEmail(e.target.value)}
                           placeholder="Email"
                           type="email"
-                          className="flex-1 bg-white border border-red-200 rounded-lg px-2.5 py-1.5 text-sm outline-none shadow-inner"
+                          className="flex-1 bg-white border border-orange-200 rounded-lg px-2.5 py-1.5 text-sm outline-none focus:border-orange-400"
                         />
                       </div>
                       <div className="flex justify-end gap-2">
@@ -657,7 +659,7 @@ export default function AjustesPage() {
                         </button>
                         <button
                           onClick={saveEditUser}
-                          className="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-all text-xs font-bold px-4"
+                          className="p-2 bg-[#111111] text-white rounded-lg hover:bg-gray-800 transition-all text-xs font-bold px-4"
                         >
                           <Save size={12} className="inline mr-1" /> Guardar
                         </button>
@@ -703,20 +705,20 @@ export default function AjustesPage() {
                       <div className="flex items-center justify-between gap-2 pt-2 border-t border-gray-50">
                         <button
                           onClick={() => toggleUserAdmin(usuario)}
-                          className="flex items-center gap-1.5 text-xs font-medium transition-colors hover:text-red-600"
+                          className="flex items-center gap-1.5 text-xs font-medium transition-colors hover:text-orange-600"
                           title={
                             usuario.is_admin ? "Quitar admin" : "Hacer admin"
                           }
                         >
                           {usuario.is_admin ? (
-                            <CheckSquare size={14} className="text-red-600" />
+                            <CheckSquare size={14} className="text-orange-600" />
                           ) : (
                             <Square size={14} className="text-gray-400" />
                           )}
                           <span
                             className={
                               usuario.is_admin
-                                ? "text-red-600"
+                                ? "text-orange-600"
                                 : "text-gray-400"
                             }
                           >
@@ -755,14 +757,14 @@ export default function AjustesPage() {
               ))}
 
               {showNewUser ? (
-                <div className="p-4 bg-red-50/30 border border-dashed border-red-200 rounded-xl space-y-3">
+                <div className="p-4 bg-orange-50/30 border border-dashed border-orange-200 rounded-xl space-y-3">
                   <div className="flex items-center gap-2">
                     <User size={14} className="text-gray-400" />
                     <input
                       value={newUserName}
                       onChange={(e) => setNewUserName(e.target.value)}
                       placeholder="Nombre de usuario"
-                      className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-red-400"
+                      className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-orange-400"
                       autoFocus
                     />
                   </div>
@@ -773,7 +775,7 @@ export default function AjustesPage() {
                       onChange={(e) => setNewUserEmail(e.target.value)}
                       placeholder="Email"
                       type="email"
-                      className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-red-400"
+                      className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-orange-400"
                     />
                   </div>
                   <div className="flex items-center gap-2">
@@ -783,7 +785,7 @@ export default function AjustesPage() {
                       onChange={(e) => setNewUserPassword(e.target.value)}
                       placeholder="Contraseña"
                       type="password"
-                      className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-red-400"
+                      className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-orange-400"
                     />
                     <button
                       onClick={() => setNewUserPassword(generatePassword())}
@@ -807,7 +809,7 @@ export default function AjustesPage() {
                     </button>
                     <button
                       onClick={addUser}
-                      className="bg-[#DC2626] text-white text-xs font-bold px-4 py-1.5 rounded-lg hover:brightness-110 transition-all"
+                      className="bg-[#111111] text-white text-xs font-bold px-4 py-1.5 rounded-lg hover:bg-gray-800 transition-all"
                     >
                       Crear Usuario
                     </button>
@@ -816,17 +818,13 @@ export default function AjustesPage() {
               ) : (
                 <button
                   onClick={() => setShowNewUser(true)}
-                  className="py-3 items-center justify-center flex gap-2 border border-dashed border-gray-200 rounded-xl text-gray-400 hover:text-red-500 hover:border-red-200 hover:bg-red-50/10 transition-all text-xs font-bold mt-1"
+                  className="py-3 items-center justify-center flex gap-2 border border-dashed border-gray-200 rounded-xl text-gray-400 hover:text-orange-500 hover:border-orange-200 hover:bg-orange-50/30 transition-all text-xs font-bold mt-1"
                 >
                   <Plus size={14} /> Nuevo usuario
                 </button>
               )}
             </div>
           </Section>
-        </div>
-
-        {/* Right Column: Planes (The intensive part) */}
-        <div className="xl:col-span-7 flex flex-col gap-6 h-full">
           <Section
             icon={Tag}
             title="Categorías y Planes"
@@ -840,7 +838,7 @@ export default function AjustesPage() {
                   className={cn(
                     "flex flex-col gap-3 p-4 rounded-2xl border transition-all relative group",
                     plan.activo
-                      ? "bg-white border-gray-100 shadow-sm hover:shadow-md hover:border-red-100"
+                      ? "bg-white border-gray-100 shadow-sm hover:shadow-md hover:border-orange-100"
                       : "bg-gray-50/50 border-gray-100 opacity-60",
                   )}
                 >
@@ -884,7 +882,7 @@ export default function AjustesPage() {
                         </button>
                         <button
                           onClick={saveEdit}
-                          className="bg-[#DC2626] text-white text-xs font-bold px-4 py-2 rounded-lg"
+                          className="bg-[#111111] text-white text-xs font-bold px-4 py-2 rounded-lg"
                         >
                           <Save size={12} className="inline mr-1" /> Guardar
                         </button>
@@ -898,7 +896,7 @@ export default function AjustesPage() {
                             {plan.nombre}
                           </span>
                           <div className="flex items-center gap-2 mt-1">
-                            <span className="text-lg font-bold text-[#DC2626] tracking-tight">
+                            <span className="text-lg font-bold text-gray-900 tracking-tight">
                               ${plan.precio.toLocaleString("es-AR")}
                             </span>
                             <span className="text-[10px] uppercase tracking-widest font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
@@ -911,7 +909,7 @@ export default function AjustesPage() {
                           className="transition-transform active:scale-90"
                         >
                           {plan.activo ? (
-                            <ToggleRight size={24} className="text-[#DC2626]" />
+                            <ToggleRight size={24} className="text-orange-500" />
                           ) : (
                             <ToggleLeft size={24} className="text-gray-300" />
                           )}
@@ -940,13 +938,13 @@ export default function AjustesPage() {
               ))}
 
               {showNew ? (
-                <div className="p-5 border-2 border-dashed border-red-200 bg-red-50/20 rounded-2xl flex flex-col gap-4">
+                <div className="p-5 border-2 border-dashed border-orange-200 bg-orange-50/20 rounded-2xl flex flex-col gap-4">
                   <div className="space-y-3">
                     <input
                       value={newNombre}
                       onChange={(e) => setNewNombre(e.target.value)}
                       placeholder="Nombre del plan (Ej: Trimestral)"
-                      className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-bold shadow-sm outline-none focus:border-red-400"
+                      className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-bold shadow-sm outline-none focus:border-orange-400"
                     />
                     <div className="grid grid-cols-2 gap-3">
                       <div className="relative">
@@ -984,7 +982,7 @@ export default function AjustesPage() {
                     </button>
                     <button
                       onClick={addPlan}
-                      className="bg-[#DC2626] text-white px-6 py-2.5 rounded-xl text-xs font-black shadow-lg shadow-red-100 hover:scale-[1.02] transition-all flex items-center gap-2"
+                      className="bg-[#111111] text-white px-6 py-2.5 rounded-xl text-xs font-black hover:bg-gray-800 transition-all flex items-center gap-2"
                     >
                       <Plus size={16} /> CREAR PLAN
                     </button>
@@ -993,10 +991,10 @@ export default function AjustesPage() {
               ) : (
                 <button
                   onClick={() => setShowNew(true)}
-                  className="flex flex-col items-center justify-center p-8 rounded-2xl border-2 border-dashed border-gray-200 text-gray-400 hover:border-red-300 hover:text-red-500 hover:bg-red-50/10 transition-all gap-2 group min-h-[140px]"
+                  className="flex flex-col items-center justify-center p-8 rounded-2xl border-2 border-dashed border-gray-200 text-gray-400 hover:border-orange-300 hover:text-orange-500 hover:bg-orange-50/30 transition-all gap-2 group min-h-[140px]"
                 >
-                  <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center group-hover:bg-red-100 transition-all">
-                    <Plus size={20} className="group-hover:text-red-500" />
+                  <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center group-hover:bg-orange-100 transition-all">
+                    <Plus size={20} className="group-hover:text-orange-500" />
                   </div>
                   <span className="text-xs font-black uppercase tracking-widest">
                     Añadir Nuevo Plan

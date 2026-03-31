@@ -143,9 +143,9 @@ export default function TabAsistencias({ asistencias }: Props) {
                 key={dia}
                 className={`h-9 w-full flex items-center justify-center text-sm font-semibold rounded-lg transition-colors ${
                   tiene
-                    ? "bg-[#dc2626] text-white"
+                    ? "bg-orange-500 text-white"
                     : esHoy
-                    ? "ring-2 ring-[#dc2626] text-foreground"
+                    ? "ring-2 ring-orange-500 text-foreground"
                     : "text-muted-foreground hover:bg-muted"
                 }`}
               >
@@ -158,11 +158,11 @@ export default function TabAsistencias({ asistencias }: Props) {
         {/* Leyenda */}
         <div className="flex items-center gap-4 mt-4 pt-3 border-t border-border">
           <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-sm bg-[#dc2626]" />
+            <div className="w-3 h-3 rounded-sm bg-orange-500" />
             <span className="text-xs text-muted-foreground">Con asistencia</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-sm ring-2 ring-[#dc2626]" />
+            <div className="w-3 h-3 rounded-sm ring-2 ring-orange-500" />
             <span className="text-xs text-muted-foreground">Hoy</span>
           </div>
         </div>
@@ -204,7 +204,7 @@ function StatCard({
     <div
       className={`flex flex-col gap-1 rounded-xl border p-4 ${
         accent
-          ? "bg-[#dc2626] border-[#dc2626] text-white"
+          ? "bg-orange-500 border-orange-500 text-white"
           : "bg-card border-border text-foreground"
       } ${className}`}
     >
