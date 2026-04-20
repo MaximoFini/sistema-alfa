@@ -1,0 +1,11 @@
+Estadisticas Financieras:
+Ingresos del mes: se utiliza la tabla pagos, sumatoria de todos los pagos que se realizaron en el mes actual. Quiero que se vaya sumando y al final cuando el mes cambie se resetee a 0 ese numero guardando el anterior mes, para poder ver un historial de ingresos.
+
+Ticket Promedio: se toman los pagos que realizaron todos los alumnos activos durante el presente mes, entonces ticket promedio = ingresos del mes / alumnos activos.
+
+Deuda total acumulada: suma el saldo de todos los alumnos activos y lo muestra, se actualiza diariamente
+
+Ingresos mensuales: un historial guardo el valor de final de ingresos del mes todos los años
+
+Saca el card de resumen de cobros, y agrega uno para formas de pago, en el que se muestre un resumen mensual de como se pagaron las cuotas, sacando la información de la tabla pagos, la variable medio_pago
+Saca lo de composición financiera del mes.

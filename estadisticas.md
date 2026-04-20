@@ -1,0 +1,42 @@
+# Fase 1: Métricas Base, Conteos y Promedios Simples
+
+## Alumnos activos este mes: cantidad de alumnos que tienen la variable "activo" = TRUE. 
+Todos los días se va actualizando. Y en el historial se guarda el promedio de todos días del mes que paso. 
+Es decir, si el mes duro 30 días, todos los días la variable se va actualizando según la cantidad e usuarios activos que haya en base de datos y cuando cambia de mes se calcula el promedio de usuarios activos de todo el mes y se guarda ese numero. 
+
+Nuevos este mes: cantidad de alumnos que tengan fecha_registro en el presente mes, se va sumando todos los días del mes y se guarda el numero final cuando el mes pasa a ser otro. 
+
+Promedio de edad: usando la variable edad_actual de la base de datos, se calcula teniendo en cuenta únicamente los alumnos que esten en activo = TRUE.
+
+Distribución con genero: sobre todos los alumnos que tengan estado activo, se calcula que porcentaje son mujeres y que porcentaje son hombres. Ej: 1 julio de 2026, 200 alumnos activos, 150 hombres y 50 mujeres, entonces 75% hombre y 25% mujeres, si el 2 de julio se registraron 10 hombres mas, se acomoda el porcentaje. Y cuando cambie el mes se guardan en el historial de genero por mes los porcentajes del ultimo dia del mes, pero SIEMPRE sobre la base de alumnos activos 
+
+Aviso: necesito que se maneje de manera excelente los cambios de mes y la lógica de los mismos. 
+
+---
+
+# Fase 2: Retención, Churn, Ciclo de Vida y Antigüedad
+
+Tasa de retención: Alumnos que continuaron este mes respecto al mes pasado, se debe guardar un porcentaje mensual, formula: ((Numero de alumnos activos el ultimo dia del mes - Numero de alumnos nuevos que se escribieron durante el mes) / Numero de alumnos activos al inicio del mes) x 100. 
+Ejemplo: Empezaste el mes con 200 alumnos activos (S), Terminaste el mes con 210 alumnos activos (E), Durante el mes se registraron 30 personas nuevas (N). En este caso, tu tasa de retención es del 90%, lo que significa que perdiste al 10% de tu base inicial (tasa de deserción o Churn Rate).
+
+Tasa de churn = 100% - Tasa de retención(%). Se calcula mensualmente al igual que la tasa de retención. 
+Nota: La tasa de retencio y tasa de churn se calculan una vez terminado el mes, asi que mientras tanto en el front se muestran esas dos cifras pero del anterior mes. Aclarando al usuario eso. 
+
+Tasa de retención mensual: dejala como esta y que se renueve anualmente, dejando disponible el grafico de los otros años en un modal
+
+Vida útil del cliente: cantidad de meses promedio que los alumnos pagan la cuota, sacando la información de la tabla pagos, teniendo en cuenta alumno_id y fecha_cobro. 
+
+Nueva metrica
+Antigüedad: se toma apartir de los alumnos activos, y es el promedio de meses de todos los alumnos activos desde su registro hasta hoy en dia.
+
+---
+
+# Fase 3: Riesgo, Inactividad y Ajustes de Gráficos
+
+Alumnos en riesgo: aquellos alumnos que tienen la fecha_ultima_asistencia hace menos de 15 días (fecha_ultima_asistencia <= 15dias) obviamente partiendo desde el dia actual. 
+
+Clientes inactivos recuperables: se queda como esta ahora 
+
+Clientes perdidos: aquellos clientes que fecha_ultima_asistencia fue hace mas de 90 días
+
+Asistencia por horario: actualmente el grafico esta empezando en a las 8am, pero necesito que se tome desde las 7am
