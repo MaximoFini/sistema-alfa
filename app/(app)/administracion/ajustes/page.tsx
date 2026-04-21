@@ -189,9 +189,12 @@ export default function AjustesPage() {
   const [newUserEmail, setNewUserEmail] = useState("");
   const [newUserPassword, setNewUserPassword] = useState("");
   const [showNewUser, setShowNewUser] = useState(false);
-  const [generatingPassword, setGeneratingPassword] = useState<string | null>(null);
+  const [generatingPassword, setGeneratingPassword] = useState<string | null>(
+    null,
+  );
 
-  const loading = settingsLoading || planesLoading || metodosLoading || usuariosLoading;
+  const loading =
+    settingsLoading || planesLoading || metodosLoading || usuariosLoading;
 
   async function togglePlan(plan: any) {
     await togglePlanStore(plan.id);
@@ -256,7 +259,8 @@ export default function AjustesPage() {
   }
 
   async function deleteMetodo(id: string) {
-    if (!confirm("¿Estás seguro de que deseas eliminar este medio de pago?")) return;
+    if (!confirm("¿Estás seguro de que deseas eliminar este medio de pago?"))
+      return;
     await deleteMetodoStore(id);
   }
 
@@ -277,7 +281,7 @@ export default function AjustesPage() {
 
   async function saveEditUser() {
     if (!editingUserId || !editUserName.trim() || !editUserEmail.trim()) return;
-    
+
     try {
       const response = await fetch("/api/users", {
         method: "PUT",
@@ -307,8 +311,9 @@ export default function AjustesPage() {
   }
 
   async function addUser() {
-    if (!newUserName.trim() || !newUserEmail.trim() || !newUserPassword.trim()) return;
-    
+    if (!newUserName.trim() || !newUserEmail.trim() || !newUserPassword.trim())
+      return;
+
     try {
       const response = await fetch("/api/users", {
         method: "POST",
@@ -328,14 +333,14 @@ export default function AjustesPage() {
       }
 
       const data = await response.json();
-      
+
       if (data.canLogin === false) {
         alert(
           "⚠️ Usuario creado en la tabla de gestión, pero NO podrá hacer login.\n\n" +
-          "Para habilitar el login, configura SUPABASE_SERVICE_ROLE_KEY en las variables de entorno."
+            "Para habilitar el login, configura SUPABASE_SERVICE_ROLE_KEY en las variables de entorno.",
         );
       }
-      
+
       await addUserStore({
         username: newUserName.trim(),
         email: newUserEmail.trim(),
@@ -357,7 +362,8 @@ export default function AjustesPage() {
   }
 
   function generatePassword() {
-    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
+    const chars =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
     let password = "";
     for (let i = 0; i < 12; i++) {
       password += chars.charAt(Math.floor(Math.random() * chars.length));
@@ -393,7 +399,7 @@ export default function AjustesPage() {
       console.error(error);
       alert("Error al generar la contraseña");
     }
-    
+
     setGeneratingPassword(null);
   }
 
@@ -711,7 +717,10 @@ export default function AjustesPage() {
                           }
                         >
                           {usuario.is_admin ? (
-                            <CheckSquare size={14} className="text-orange-600" />
+                            <CheckSquare
+                              size={14}
+                              className="text-orange-600"
+                            />
                           ) : (
                             <Square size={14} className="text-gray-400" />
                           )}
@@ -909,7 +918,10 @@ export default function AjustesPage() {
                           className="transition-transform active:scale-90"
                         >
                           {plan.activo ? (
-                            <ToggleRight size={24} className="text-orange-500" />
+                            <ToggleRight
+                              size={24}
+                              className="text-orange-500"
+                            />
                           ) : (
                             <ToggleLeft size={24} className="text-gray-300" />
                           )}

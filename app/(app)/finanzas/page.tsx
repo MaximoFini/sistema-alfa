@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   BarChart,
   Bar,
@@ -16,22 +16,52 @@ import {
   AlertCircle,
   CreditCard,
   Info,
+  Wallet,
+  Receipt,
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
 } from "lucide-react";
+import { useMonthlyExpenses } from "@/hooks/use-monthly-expenses";
+import ExpensesModal from "@/components/ExpensesModal";
 
-// ── Mock data ─────────────────────────────────────────────────────────────────
+// ── Types ─────────────────────────────────────────────────────────────────────
 
-const ingresos = [
-  { mes: "Ago", monto: 38000 },
-  { mes: "Sep", monto: 41000 },
-  { mes: "Oct", monto: 37000 },
-  { mes: "Nov", monto: 44000 },
-  { mes: "Dic", monto: 31000 },
-  { mes: "Ene", monto: 52000 },
-  { mes: "Feb", monto: 48000 },
-  { mes: "Mar", monto: 67000 },
-];
+interface FinancialStats {
+  ingresosMes: number;
+  ticketPromedio: number;
+  deudaTotal: number;
+  alumnosActivos: number;
+  variacion: number;
+  ingresosMesAnterior: number;
+  alumnosConDeuda: number;
+  formasPago: Array<{
+    medio: string;
+    monto: number;
+    porcentaje: number;
+  }>;
+  ingresosHistorial: Array<{
+    mes: string;
+    monto: number;
+  }>;
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+const MONTH_NAMES = [
+  "Enero",
+  "Febrero",
+  "Marzo",
+  "Abril",
+  "Mayo",
+  "Junio",
+  "Julio",
+  "Agosto",
+  "Septiembre",
+  "Octubre",
+  "Noviembre",
+  "Diciembre",
+];
 
 function MonthBadge() {
   return (
@@ -44,8 +74,57 @@ function MonthBadge() {
       }}
     >
       <Info size={11} />
-      Datos del mes actual — Marzo 2026
+      Datos del mes actual
     </span>
+  );
+}
+
+function MonthSelector({
+  year,
+  month,
+  onPrev,
+  onNext,
+  isCurrentMonth,
+  seeding,
+}: {
+  year: number;
+  month: number;
+  onPrev: () => void;
+  onNext: () => void;
+  isCurrentMonth: boolean;
+  seeding: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <button
+        onClick={onPrev}
+        className="w-8 h-8 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 flex items-center justify-center transition-colors"
+        title="Mes anterior"
+      >
+        <ChevronLeft size={16} className="text-gray-600" />
+      </button>
+      <div className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-200 rounded-lg min-w-[160px] justify-center">
+        {seeding ? (
+          <Loader2 size={14} className="text-orange-500 animate-spin" />
+        ) : null}
+        <span className="text-sm font-semibold text-gray-800">
+          {MONTH_NAMES[month - 1]} {year}
+        </span>
+        {isCurrentMonth && (
+          <span className="text-[10px] font-semibold px-1.5 py-0.5 bg-orange-100 text-orange-600 rounded-full">
+            Actual
+          </span>
+        )}
+      </div>
+      <button
+        onClick={onNext}
+        disabled={isCurrentMonth}
+        className="w-8 h-8 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 flex items-center justify-center transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        title="Mes siguiente"
+      >
+        <ChevronRight size={16} className="text-gray-600" />
+      </button>
+    </div>
   );
 }
 
@@ -108,19 +187,146 @@ function KPICard({
 
 // ── Página ─────────────────────────────────────────────────────────────────────
 
+const PAYMENT_METHOD_COLORS: Record<string, string> = {
+  Efectivo: "#16a34a",
+  Transferencia: "#2563eb",
+  Débito: "#d97706",
+  Crédito: "#dc2626",
+  "Mercado Pago": "#0891b2",
+  "Sin especificar": "#6b7280",
+};
+
 export default function FinanzasPage() {
   const [mounted, setMounted] = useState(false);
-  if (typeof window !== "undefined" && !mounted) setMounted(true);
+  const [stats, setStats] = useState<FinancialStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [showExpensesModal, setShowExpensesModal] = useState(false);
 
-  const totalMes = 67000;
-  const mesAnterior = 48000;
-  const variacion = Math.round(((totalMes - mesAnterior) / mesAnterior) * 100);
+  // Month selector for expenses (default: current month)
+  const now = new Date();
+  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
 
-  // Métricas calculadas
-  const ticketPromedio = Math.round(totalMes / 10); // ingresos / total alumnos
-  const deudaTotal = 32400; // mock suma de deudas
-  const cobrosRealizados = 7;
-  const cobrosPendientes = 3;
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+  const isCurrentMonth =
+    selectedYear === currentYear && selectedMonth === currentMonth;
+
+  const handlePrevMonth = () => {
+    if (selectedMonth === 1) {
+      setSelectedYear((y) => y - 1);
+      setSelectedMonth(12);
+    } else {
+      setSelectedMonth((m) => m - 1);
+    }
+  };
+
+  const handleNextMonth = () => {
+    if (isCurrentMonth) return;
+    if (selectedMonth === 12) {
+      setSelectedYear((y) => y + 1);
+      setSelectedMonth(1);
+    } else {
+      setSelectedMonth((m) => m + 1);
+    }
+  };
+
+  // Monthly expenses hook
+  const {
+    expenses,
+    salaries,
+    loading: expensesLoading,
+    seeding,
+    toggleExpense,
+    updateExpense,
+    addExpense,
+    deleteExpense,
+    toggleSalary,
+    updateSalary,
+    addSalary,
+    deleteSalary,
+  } = useMonthlyExpenses(selectedYear, selectedMonth);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      console.log("FinanzasPage mounted");
+      setMounted(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    async function fetchStats() {
+      try {
+        const response = await fetch("/api/finanzas");
+        if (!response.ok) {
+          console.error("Error en API finanzas:", response.status);
+          throw new Error("Error fetching stats");
+        }
+        const data = await response.json();
+        console.log("Stats cargadas:", data);
+        setStats(data);
+      } catch (error) {
+        console.error("Error loading financial stats:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    if (mounted) {
+      fetchStats();
+    }
+  }, [mounted]);
+
+  if (!mounted || loading) {
+    return (
+      <div className="p-6 lg:p-8 w-full">
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 bg-gray-200 rounded w-1/4"></div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="h-32 bg-gray-200 rounded"></div>
+            <div className="h-32 bg-gray-200 rounded"></div>
+            <div className="h-32 bg-gray-200 rounded"></div>
+          </div>
+          <p className="text-xs text-gray-400 mt-4">
+            Cargando datos financieros... (mounted: {String(mounted)}, loading:{" "}
+            {String(loading)})
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Si no hay stats, mostrar mensaje de error
+  if (!stats) {
+    return (
+      <div className="p-6 lg:p-8 w-full space-y-4">
+        <h1 className="text-2xl font-bold text-gray-900">Finanzas</h1>
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6">
+          <h2 className="text-lg font-bold text-yellow-900 mb-2">
+            ⚠️ No se pudieron cargar los datos
+          </h2>
+          <p className="text-sm text-yellow-700 mb-4">
+            Las estadísticas financieras no están disponibles. Esto puede
+            deberse a:
+          </p>
+          <ul className="text-sm text-yellow-700 space-y-1 list-disc list-inside">
+            <li>Error en la API de finanzas</li>
+            <li>No hay datos disponibles en la base de datos</li>
+            <li>Problema de conexión con Supabase</li>
+          </ul>
+          <p className="text-sm text-yellow-700 mt-4">
+            Abre la consola del navegador (F12) para ver más detalles.
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-4 px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors font-medium text-sm"
+          >
+            Recargar página
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 lg:p-8 w-full space-y-6">
@@ -131,26 +337,32 @@ export default function FinanzasPage() {
       </div>
 
       {/* Fila 1 — KPIs principales */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <KPICard
           label="Ingresos del Mes"
-          value={`$${totalMes.toLocaleString("es")}`}
+          value={`$${stats.ingresosMes.toLocaleString("es")}`}
           accentBg="#fef2f2"
           accentText="#DC2626"
           icon={<DollarSign size={16} />}
-          trend={{ label: `+${variacion}% vs mes anterior`, up: true }}
+          trend={{
+            label:
+              stats.variacion >= 0
+                ? `+${stats.variacion}% vs mes anterior`
+                : `${stats.variacion}% vs mes anterior`,
+            up: stats.variacion >= 0,
+          }}
         />
         <KPICard
           label="Deuda Total Acumulada"
-          value={`$${deudaTotal.toLocaleString("es")}`}
-          sub={`${cobrosPendientes} alumnos con saldo pendiente`}
+          value={`$${stats.deudaTotal.toLocaleString("es")}`}
+          sub={`${stats.alumnosConDeuda} alumnos con saldo pendiente`}
           accentBg="#fffbeb"
           accentText="#d97706"
           icon={<AlertCircle size={16} />}
         />
         <KPICard
           label="Ticket Promedio"
-          value={`$${ticketPromedio.toLocaleString("es")}`}
+          value={`$${stats.ticketPromedio.toLocaleString("es")}`}
           sub="ingreso por alumno activo"
           accentBg="#eff6ff"
           accentText="#2563eb"
@@ -159,166 +371,229 @@ export default function FinanzasPage() {
         />
       </div>
 
-      {/* Fila 2 — Gráfico de ingresos + resumen de cobros */}
+      {/* Fila 2 — Gráfico de ingresos + formas de pago */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Bar chart */}
         <div className="bg-white rounded-xl border border-gray-100 p-6">
           <p className="font-semibold text-gray-900 mb-1">Ingresos Mensuales</p>
           <p className="text-xs text-gray-400 mb-4">
-            Evolución de los últimos 8 meses
+            Evolución de los últimos meses
           </p>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={ingresos} barSize={26}>
-              <CartesianGrid
-                strokeDasharray="3 3"
-                stroke="#f0f0f0"
-                vertical={false}
-              />
-              <XAxis
-                dataKey="mes"
-                tick={{ fontSize: 11, fill: "#9ca3af" }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                tick={{ fontSize: 11, fill: "#9ca3af" }}
-                axisLine={false}
-                tickLine={false}
-                tickFormatter={(v) => `$${v / 1000}k`}
-              />
-              <Tooltip
-                formatter={(v: number) => [
-                  `$${v.toLocaleString("es")}`,
-                  "Ingresos",
-                ]}
-                cursor={{ fill: "#f9fafb" }}
-              />
-              <Bar dataKey="monto" fill="#DC2626" radius={[6, 6, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          {stats.ingresosHistorial.length > 0 ? (
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={stats.ingresosHistorial} barSize={26}>
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="#f0f0f0"
+                  vertical={false}
+                />
+                <XAxis
+                  dataKey="mes"
+                  tick={{ fontSize: 11, fill: "#9ca3af" }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  tick={{ fontSize: 11, fill: "#9ca3af" }}
+                  axisLine={false}
+                  tickLine={false}
+                  tickFormatter={(v) => `$${v / 1000}k`}
+                />
+                <Tooltip
+                  formatter={(v: number) => [
+                    `$${v.toLocaleString("es")}`,
+                    "Ingresos",
+                  ]}
+                  cursor={{ fill: "#f9fafb" }}
+                />
+                <Bar dataKey="monto" fill="#DC2626" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[200px] flex items-center justify-center text-gray-400 text-sm">
+              No hay datos históricos disponibles
+            </div>
+          )}
         </div>
 
-        {/* Resumen de cobros */}
+        {/* Formas de Pago */}
         <div className="bg-white rounded-xl border border-gray-100 p-6 flex flex-col justify-between">
           <div>
-            <p className="font-semibold text-gray-900 mb-4">
-              Resumen de Cobros — Mes Actual
+            <p className="font-semibold text-gray-900 mb-1">
+              Formas de Pago — Mes Actual
             </p>
-            {[
-              {
-                label: "Pagados",
-                count: cobrosRealizados,
-                color: "#16a34a",
-                bg: "#f0fdf4",
-                total: 10,
-              },
-              {
-                label: "Pendientes",
-                count: 2,
-                color: "#d97706",
-                bg: "#fffbeb",
-                total: 10,
-              },
-              {
-                label: "Vencidos",
-                count: 1,
-                color: "#DC2626",
-                bg: "#fef2f2",
-                total: 10,
-              },
-            ].map((item) => (
-              <div key={item.label} className="flex items-center gap-3 mb-4">
-                <div
-                  className="w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold shrink-0"
-                  style={{ backgroundColor: item.bg, color: item.color }}
-                >
-                  {item.count}
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-medium text-gray-700">
-                      {item.label}
-                    </span>
-                    <span className="text-xs text-gray-400">
-                      {Math.round((item.count / item.total) * 100)}%
-                    </span>
-                  </div>
-                  <div className="h-2 w-full rounded-full bg-gray-100 overflow-hidden">
+            <p className="text-xs text-gray-400 mb-4">
+              Distribución de cobros por medio de pago
+            </p>
+            {stats.formasPago.length > 0 ? (
+              stats.formasPago.map((item) => {
+                const color = PAYMENT_METHOD_COLORS[item.medio] || "#6b7280";
+                const bgColor = `${color}20`;
+
+                return (
+                  <div
+                    key={item.medio}
+                    className="flex items-center gap-3 mb-4"
+                  >
                     <div
-                      className="h-full rounded-full transition-all"
-                      style={{
-                        width: `${(item.count / item.total) * 100}%`,
-                        backgroundColor: item.color,
-                      }}
-                    />
+                      className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
+                      style={{ backgroundColor: bgColor }}
+                    >
+                      <Wallet size={16} style={{ color }} />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm font-medium text-gray-700">
+                          {item.medio}
+                        </span>
+                        <span className="text-xs font-semibold text-gray-900">
+                          ${item.monto.toLocaleString("es")}
+                        </span>
+                      </div>
+                      <div className="h-2 w-full rounded-full bg-gray-100 overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{
+                            width: `${item.porcentaje}%`,
+                            backgroundColor: color,
+                          }}
+                        />
+                      </div>
+                      <span className="text-xs text-gray-400 mt-0.5">
+                        {item.porcentaje}% del total
+                      </span>
+                    </div>
                   </div>
-                </div>
+                );
+              })
+            ) : (
+              <div className="h-32 flex items-center justify-center text-gray-400 text-sm">
+                No hay datos de formas de pago este mes
               </div>
-            ))}
+            )}
           </div>
-          <button
-            className="w-full py-2.5 rounded-lg text-sm font-semibold text-white transition-all hover:brightness-110"
-            style={{ backgroundColor: "#DC2626" }}
-          >
-            Registrar Nuevo Cobro
-          </button>
         </div>
       </div>
 
-      {/* Fila 3 — Comparativa deuda vs ingresos */}
+      {/* Fila 3 — Egresos Configurables */}
       <div className="bg-white rounded-xl border border-gray-100 p-6">
-        <p className="font-semibold text-gray-900 mb-1">
-          Composición Financiera del Mes
-        </p>
-        <p className="text-xs text-gray-400 mb-5">
-          Relación entre ingresos cobrados y deuda acumulada
-        </p>
-        <div className="flex flex-col sm:flex-row gap-6">
-          {[
-            {
-              label: "Ingresos Cobrados",
-              value: totalMes,
-              total: totalMes + deudaTotal,
-              color: "#DC2626",
-            },
-            {
-              label: "Deuda Acumulada",
-              value: deudaTotal,
-              total: totalMes + deudaTotal,
-              color: "#d97706",
-            },
-          ].map((item) => {
-            const pct = Math.round((item.value / item.total) * 100);
-            return (
-              <div key={item.label} className="flex-1 flex flex-col gap-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="w-2.5 h-2.5 rounded-full shrink-0"
-                      style={{ backgroundColor: item.color }}
-                    />
-                    <span className="text-sm font-medium text-gray-700">
-                      {item.label}
-                    </span>
-                  </div>
-                  <span className="text-sm font-bold text-gray-900">
-                    ${item.value.toLocaleString("es")}
-                  </span>
-                </div>
-                <div className="h-3 w-full rounded-full bg-gray-100 overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all"
-                    style={{ width: `${pct}%`, backgroundColor: item.color }}
-                  />
-                </div>
-                <span className="text-xs text-gray-400">
-                  {pct}% del total facturado
-                </span>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <div>
+            <p className="font-semibold text-gray-900 mb-1">
+              Egresos Configurables
+            </p>
+            <p className="text-xs text-gray-400">
+              Gestión de gastos fijos y sueldos del negocio — por mes
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+            <MonthSelector
+              year={selectedYear}
+              month={selectedMonth}
+              onPrev={handlePrevMonth}
+              onNext={handleNextMonth}
+              isCurrentMonth={isCurrentMonth}
+              seeding={seeding}
+            />
+            <button
+              onClick={() => setShowExpensesModal(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700 transition-all shadow-md hover:shadow-lg font-semibold text-sm active:scale-[0.98]"
+            >
+              <Receipt size={16} />
+              Administrar Egresos
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-5 border border-orange-200">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-semibold text-orange-600 uppercase tracking-wider">
+                Total Gastos
+              </p>
+              <div className="w-8 h-8 rounded-lg bg-orange-200 flex items-center justify-center">
+                <Receipt size={14} className="text-orange-600" />
               </div>
-            );
-          })}
+            </div>
+            <p className="text-2xl font-bold text-orange-900">
+              $
+              {(
+                expenses
+                  ?.filter((e) => e.is_active)
+                  .reduce((sum, e) => sum + e.amount, 0) || 0
+              ).toLocaleString()}
+            </p>
+            <p className="text-xs text-orange-600 mt-1">
+              {expenses?.filter((e) => e.is_active).length || 0} gastos activos
+            </p>
+          </div>
+
+          <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-5 border border-blue-200">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-semibold text-blue-600 uppercase tracking-wider">
+                Total Sueldos
+              </p>
+              <div className="w-8 h-8 rounded-lg bg-blue-200 flex items-center justify-center">
+                <Wallet size={14} className="text-blue-600" />
+              </div>
+            </div>
+            <p className="text-2xl font-bold text-blue-900">
+              $
+              {(
+                salaries
+                  ?.filter((s) => s.is_active)
+                  .reduce((sum, s) => sum + s.amount, 0) || 0
+              ).toLocaleString()}
+            </p>
+            <p className="text-xs text-blue-600 mt-1">
+              {salaries?.filter((s) => s.is_active).length || 0} sueldos activos
+            </p>
+          </div>
+
+          <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl p-5 border border-gray-700">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-semibold text-gray-300 uppercase tracking-wider">
+                Total Egresos
+              </p>
+              <div className="w-8 h-8 rounded-lg bg-gray-700 flex items-center justify-center">
+                <DollarSign size={14} className="text-gray-300" />
+              </div>
+            </div>
+            <p className="text-2xl font-bold text-white">
+              $
+              {(
+                (expenses
+                  ?.filter((e) => e.is_active)
+                  .reduce((sum, e) => sum + e.amount, 0) || 0) +
+                (salaries
+                  ?.filter((s) => s.is_active)
+                  .reduce((sum, s) => sum + s.amount, 0) || 0)
+              ).toLocaleString()}
+            </p>
+            <p className="text-xs text-gray-400 mt-1">
+              egresos mensuales totales
+            </p>
+          </div>
         </div>
       </div>
+
+      {/* Expenses Modal */}
+      <ExpensesModal
+        isOpen={showExpensesModal}
+        onClose={() => setShowExpensesModal(false)}
+        year={selectedYear}
+        month={selectedMonth}
+        expenses={expenses || []}
+        salaries={salaries || []}
+        onToggleExpense={toggleExpense}
+        onUpdateExpense={updateExpense}
+        onAddExpense={addExpense}
+        onDeleteExpense={deleteExpense}
+        onToggleSalary={toggleSalary}
+        onUpdateSalary={updateSalary}
+        onAddSalary={addSalary}
+        onDeleteSalary={deleteSalary}
+      />
     </div>
   );
 }

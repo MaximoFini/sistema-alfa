@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { getUserProfile, UserProfile } from "@/lib/auth";
+import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/lib/supabase";
 import {
   Users,
@@ -43,18 +43,10 @@ export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const { user, role } = useAuth(); // Usar hook con caché
   const [planOpen, setPlanOpen] = useState(
     pathname.startsWith("/planificacion"),
   );
-
-  useEffect(() => {
-    async function loadProfile() {
-      const userProfile = await getUserProfile();
-      setProfile(userProfile);
-    }
-    loadProfile();
-  }, []);
 
   function handleLogout() {
     router.push("/");
@@ -128,9 +120,7 @@ export default function Sidebar() {
             <BookOpen size={18} className="shrink-0" />
             {!collapsed && (
               <>
-                <span className="text-sm flex-1 text-left">
-                  Planificacion
-                </span>
+                <span className="text-sm flex-1 text-left">Planificacion</span>
                 {planOpen ? (
                   <ChevronUp size={14} className="shrink-0 opacity-70" />
                 ) : (
@@ -176,9 +166,7 @@ export default function Sidebar() {
           title={collapsed ? "Productos y Ventas" : undefined}
         >
           <ShoppingBag size={18} className="shrink-0" />
-          {!collapsed && (
-            <span className="text-sm">Productos y Ventas</span>
-          )}
+          {!collapsed && <span className="text-sm">Productos y Ventas</span>}
         </Link>
 
         {/* Comunicacion */}
@@ -194,13 +182,11 @@ export default function Sidebar() {
           title={collapsed ? "Comunicacion" : undefined}
         >
           <MessageSquare size={18} className="shrink-0" />
-          {!collapsed && (
-            <span className="text-sm">Comunicacion</span>
-          )}
+          {!collapsed && <span className="text-sm">Comunicacion</span>}
         </Link>
 
         {/* Administracion */}
-        {profile?.role === "Administrador" && (
+        {role === "Administrador" && (
           <Link
             href="/administracion"
             className={cn(
@@ -213,9 +199,7 @@ export default function Sidebar() {
             title={collapsed ? "Administracion" : undefined}
           >
             <ShieldCheck size={18} className="shrink-0" />
-            {!collapsed && (
-              <span className="text-sm">Administracion</span>
-            )}
+            {!collapsed && <span className="text-sm">Administracion</span>}
           </Link>
         )}
       </nav>
@@ -236,9 +220,7 @@ export default function Sidebar() {
           title={collapsed ? "Ingreso Web" : undefined}
         >
           <MonitorCheck size={18} className="shrink-0" />
-          {!collapsed && (
-            <span className="text-sm">Ingreso Web</span>
-          )}
+          {!collapsed && <span className="text-sm">Ingreso Web</span>}
         </Link>
       </div>
 
@@ -268,10 +250,10 @@ export default function Sidebar() {
           {!collapsed && (
             <div className="flex flex-col min-w-0">
               <span className="text-[#111111] text-xs font-bold truncate">
-                {profile?.full_name || profile?.role || "Cargando..."}
+                {role || "Cargando..."}
               </span>
               <span className="text-[#111111]/70 text-xs truncate">
-                {profile?.email || ""}
+                {user?.email || ""}
               </span>
             </div>
           )}
@@ -286,9 +268,7 @@ export default function Sidebar() {
           title={collapsed ? "Cerrar Sesion" : undefined}
         >
           <LogOut size={16} className="shrink-0" />
-          {!collapsed && (
-            <span className="text-sm">Cerrar Sesion</span>
-          )}
+          {!collapsed && <span className="text-sm">Cerrar Sesion</span>}
         </button>
       </div>
     </aside>

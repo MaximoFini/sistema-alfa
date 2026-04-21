@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcrypt";
-import { supabase } from "@/lib/supabase";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { createClient } from "@supabase/supabase-js";
 
 const SALT_ROUNDS = 10;
@@ -29,6 +29,7 @@ const getAdminClient = () => {
 // POST - Crear nuevo usuario
 export async function POST(request: Request) {
   try {
+    const supabase = await createSupabaseServerClient();
     const { username, email, password, isAdmin } = await request.json();
 
     // Validaciones
@@ -187,6 +188,7 @@ export async function POST(request: Request) {
 // PATCH - Actualizar contraseña de usuario
 export async function PATCH(request: Request) {
   try {
+    const supabase = await createSupabaseServerClient();
     const { userId, newPassword } = await request.json();
 
     // Validaciones
@@ -237,6 +239,7 @@ export async function PATCH(request: Request) {
 // PUT - Actualizar datos de usuario (username, email)
 export async function PUT(request: Request) {
   try {
+    const supabase = await createSupabaseServerClient();
     const { userId, username, email } = await request.json();
 
     // Validaciones

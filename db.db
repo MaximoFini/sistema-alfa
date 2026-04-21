@@ -1,6 +1,14 @@
 -- WARNING: This schema is for context only and is not meant to be run.
 -- Table order and constraints may not be valid for execution.
 
+CREATE TABLE public.actividades_prueba (
+  id integer NOT NULL DEFAULT nextval('actividades_prueba_id_seq'::regclass),
+  nombre text NOT NULL UNIQUE,
+  activa boolean DEFAULT true,
+  orden integer DEFAULT 0,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT actividades_prueba_pkey PRIMARY KEY (id)
+);
 CREATE TABLE public.alumnos (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   nombre text,
@@ -21,6 +29,10 @@ CREATE TABLE public.alumnos (
   fecha_nacimiento date,
   saldo numeric DEFAULT 0,
   fecha_ultimo_inicio date,
+  clases_gracia_disponibles integer NOT NULL DEFAULT 0,
+  clases_gracia_usadas integer NOT NULL DEFAULT 0,
+  es_prueba boolean DEFAULT false,
+  actividad_interes text,
   CONSTRAINT alumnos_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.asistencias (
@@ -31,6 +43,53 @@ CREATE TABLE public.asistencias (
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT asistencias_pkey PRIMARY KEY (id),
   CONSTRAINT asistencias_alumno_id_fkey FOREIGN KEY (alumno_id) REFERENCES public.alumnos(id)
+);
+CREATE TABLE public.business_expenses (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  name character varying NOT NULL,
+  amount numeric NOT NULL DEFAULT 0,
+  is_active boolean NOT NULL DEFAULT true,
+  category character varying,
+  description text,
+  is_system boolean NOT NULL DEFAULT false,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT business_expenses_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.business_salaries (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  name character varying NOT NULL,
+  amount numeric NOT NULL DEFAULT 0,
+  is_active boolean NOT NULL DEFAULT true,
+  description text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT business_salaries_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.estadisticas_mensuales (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  year smallint NOT NULL,
+  month smallint NOT NULL CHECK (month >= 1 AND month <= 12),
+  alumnos_activos integer NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  clientes_inactivos integer,
+  clientes_perdidos integer,
+  ranking_top5 jsonb,
+  pct_hombres numeric,
+  pct_mujeres numeric,
+  tasa_retencion numeric,
+  asistencia_por_hora jsonb,
+  nuevos_este_mes integer,
+  promedio_edad numeric,
+  alumnos_activos_sum bigint DEFAULT 0,
+  dias_registrados integer DEFAULT 0,
+  alumnos_activos_avg integer,
+  alumnos_inicio_mes integer,
+  tasa_churn numeric,
+  antiguedad_promedio numeric,
+  ingresos_mes numeric DEFAULT 0,
+  deuda_total numeric DEFAULT 0,
+  CONSTRAINT estadisticas_mensuales_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.exercise_categories (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -81,6 +140,20 @@ CREATE TABLE public.payment_methods (
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT payment_methods_pkey PRIMARY KEY (id)
 );
+CREATE TABLE public.productos (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  nombre text NOT NULL,
+  precio_venta numeric NOT NULL CHECK (precio_venta >= 0::numeric),
+  precio_costo numeric NOT NULL DEFAULT 0 CHECK (precio_costo >= 0::numeric),
+  stock integer NOT NULL DEFAULT 0 CHECK (stock >= 0),
+  stock_minimo integer NOT NULL DEFAULT 0 CHECK (stock_minimo >= 0),
+  activo boolean NOT NULL DEFAULT true,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  categoria text NOT NULL DEFAULT 'General'::text,
+  talles jsonb,
+  CONSTRAINT productos_pkey PRIMARY KEY (id)
+);
 CREATE TABLE public.profiles (
   id uuid NOT NULL,
   role USER-DEFINED DEFAULT 'Alumno'::user_role,
@@ -111,6 +184,17 @@ CREATE TABLE public.system_settings (
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT system_settings_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.system_users (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  username character varying NOT NULL UNIQUE,
+  email character varying NOT NULL UNIQUE,
+  password_hash text,
+  is_admin boolean NOT NULL DEFAULT false,
+  is_active boolean NOT NULL DEFAULT true,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT system_users_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.training_plan_assignments (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -177,4 +261,19 @@ CREATE TABLE public.training_plans (
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT training_plans_pkey PRIMARY KEY (id),
   CONSTRAINT training_plans_coach_id_fkey FOREIGN KEY (coach_id) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.ventas (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  producto_id uuid NOT NULL,
+  cantidad integer NOT NULL CHECK (cantidad > 0),
+  precio_unitario numeric NOT NULL CHECK (precio_unitario >= 0::numeric),
+  precio_costo_unitario numeric NOT NULL DEFAULT 0,
+  total numeric DEFAULT ((cantidad)::numeric * precio_unitario),
+  ganancia numeric DEFAULT ((cantidad)::numeric * (precio_unitario - precio_costo_unitario)),
+  notas text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  talle_vendido text,
+  medio_pago text,
+  CONSTRAINT ventas_pkey PRIMARY KEY (id),
+  CONSTRAINT ventas_producto_id_fkey FOREIGN KEY (producto_id) REFERENCES public.productos(id)
 );

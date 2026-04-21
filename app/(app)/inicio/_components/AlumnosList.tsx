@@ -35,6 +35,7 @@ export interface AlumnoRow {
   dni: string | null;
   es_prueba?: boolean | null;
   actividad_interes?: string | null;
+  activo?: boolean | null;
   ultimaAsistencia: {
     fecha: string;
     hora: string | null;
@@ -719,11 +720,16 @@ function AlumnoCard({ alumno }: { alumno: AlumnoConUI }) {
 
   const esAsistenciaHoy = tieneAsistencia === fechaHoyStr;
   const esPrueba = alumno.es_prueba === true;
+  const esInactivo = alumno.activo === false;
 
   return (
     <Link
       href={`/inicio/${alumno.id}`}
-      className="block bg-white rounded-xl border border-gray-100 p-4 md:p-5 hover:shadow-md hover:border-gray-200 transition-all cursor-pointer touch-manipulation"
+      className={`block rounded-xl border p-4 md:p-5 hover:shadow-md transition-all cursor-pointer touch-manipulation ${
+        esInactivo
+          ? "bg-red-50 border-red-300 hover:bg-red-100 hover:border-red-400"
+          : "bg-white border-gray-100 hover:border-gray-200"
+      }`}
     >
       <div className="flex items-center gap-3 md:gap-4 group min-h-[76px]">
         <div
@@ -898,7 +904,18 @@ export default function AlumnosList({
   }
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto">
+    <div className="relative min-h-screen">
+      {/* Fondo Logo con opacidad baja, centrado en la pantalla */}
+      <div className="fixed inset-0 flex items-center justify-center top-16 md:top-0 pointer-events-none z-0 overflow-hidden">
+        <img 
+          src="/Mejor%20logo.png" 
+          alt="Sistema Alfa Background" 
+          className="w-[80vw] md:w-[450px] opacity-[0.5] object-contain ml-0 md:translate-x-[128px]"
+        />
+      </div>
+
+      {/* Contenedor principal con z-index para estar por encima del fondo */}
+      <div className="relative z-10 p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto">
       {/* Modal con soporte para botón "Atrás" */}
       <ModalWithHistory isOpen={showModal} onClose={() => setShowModal(false)}>
         <NuevoAlumnoModal
@@ -993,6 +1010,7 @@ export default function AlumnosList({
         totalRegistros={totalRegistros}
         porPagina={porPagina}
       />
+      </div>
     </div>
   );
 }

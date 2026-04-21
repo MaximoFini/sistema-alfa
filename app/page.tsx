@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Eye, EyeOff, Mail, Lock, ArrowRight, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { getUserRole } from "@/lib/auth";
+import { validateUserForLogin } from "@/lib/auth";
 import { triggerHapticFeedback, HapticPresets } from "@/lib/utils";
 
 export default function LoginPage() {
@@ -22,49 +22,66 @@ export default function LoginPage() {
     setLoading(true);
     setErrorMsg("");
 
-    triggerHapticFeedback(HapticPresets.light);
-
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (error) {
-      triggerHapticFeedback(HapticPresets.error);
-      setErrorMsg("Correo o contraseña incorrectos.");
+    // Timeout de seguridad para evitar loading infinito
+    const loadingTimeout = setTimeout(() => {
       setLoading(false);
-      return;
-    }
+      setErrorMsg("Tiempo de espera agotado. Intenta nuevamente.");
+    }, 10000); // 10 segundos
 
-    // Verificar si el usuario está activo en system_users
-    const userId = data.user?.id;
-    if (userId) {
-      const { data: systemUser } = await supabase
-        .from("system_users")
-        .select("is_active")
-        .eq("id", userId)
-        .maybeSingle();
+    try {
+      triggerHapticFeedback(HapticPresets.light);
 
-      if (systemUser && systemUser.is_active === false) {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        clearTimeout(loadingTimeout);
         triggerHapticFeedback(HapticPresets.error);
-        await supabase.auth.signOut();
-        setErrorMsg("Tu cuenta está desactivada. Contactá al administrador.");
+        console.error("Login error:", error);
+        setErrorMsg("Correo o contraseña incorrectos.");
         setLoading(false);
         return;
       }
-    }
 
-    // Verificamos el rol para ver si puede ingresar al sistema
-    const role = await getUserRole();
+      // Validación optimizada en una sola consulta
+      const userId = data.user?.id;
+      if (!userId) {
+        clearTimeout(loadingTimeout);
+        triggerHapticFeedback(HapticPresets.error);
+        setErrorMsg("Error al obtener datos del usuario.");
+        setLoading(false);
+        return;
+      }
 
-    if (role === "Administrador" || role === "Recepcionista") {
+      console.log("User ID:", userId);
+      const validation = await validateUserForLogin(userId);
+      console.log("Validation result:", validation);
+
+      if (!validation.isValid) {
+        clearTimeout(loadingTimeout);
+        triggerHapticFeedback(HapticPresets.error);
+        await supabase.auth.signOut();
+        setErrorMsg(validation.errorMessage || "Error de validación.");
+        setLoading(false);
+        return;
+      }
+
+      // Login exitoso
       triggerHapticFeedback(HapticPresets.success);
+      
+      // Esperar un momento para que las cookies se sincronicen
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      
+      clearTimeout(loadingTimeout);
+      
+      // Usar router.push que funciona mejor con las cookies
       router.push("/inicio");
-    } else {
-      // Si es Alumno o no tiene rol asignado, le cerramos sesión y mostramos error
-      triggerHapticFeedback(HapticPresets.error);
-      await supabase.auth.signOut();
-      setErrorMsg("No tienes permisos para acceder a este panel.");
+    } catch (error) {
+      clearTimeout(loadingTimeout);
+      console.error("Unexpected error during login:", error);
+      setErrorMsg("Error inesperado. Intenta nuevamente.");
       setLoading(false);
     }
   }

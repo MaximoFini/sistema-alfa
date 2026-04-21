@@ -874,7 +874,16 @@ export default function ProductosVentasPage() {
   const totalGanancias = ventas.reduce((acc, v) => acc + (v.ganancia || 0), 0);
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
+    <div className="relative min-h-screen">
+      <div className="fixed inset-0 flex items-center justify-center top-16 md:top-0 pointer-events-none z-0 overflow-hidden">
+        <img 
+          src="/Mejor%20logo.png" 
+          alt="Sistema Alfa Background" 
+          className="w-[80vw] md:w-[450px] opacity-[0.5] object-contain ml-0 md:translate-x-[128px]"
+        />
+      </div>
+
+      <div className="relative z-10 flex flex-col h-screen bg-transparent">
       {/* Header */}
       <div className="bg-white border-b border-gray-100 px-6 py-5">
         <div className="flex items-center justify-between">
@@ -1324,6 +1333,7 @@ export default function ProductosVentasPage() {
           onSaved={loadData}
         />
       )}
+    </div>
     </div>
   );
 }

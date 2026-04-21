@@ -19,8 +19,7 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getUserProfile, UserProfile } from "@/lib/auth";
-import { useEffect } from "react";
+import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/lib/supabase";
 import {
   SheetNavigation,
@@ -48,16 +47,8 @@ export default function MobileNav() {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const { user, role } = useAuth(); // Usar hook con caché
   const [planOpen, setPlanOpen] = useState(false);
-
-  useEffect(() => {
-    async function loadProfile() {
-      const userProfile = await getUserProfile();
-      setProfile(userProfile);
-    }
-    loadProfile();
-  }, []);
 
   async function handleLogout() {
     await supabase.auth.signOut();
@@ -226,7 +217,7 @@ export default function MobileNav() {
                 </Link>
 
                 {/* Administración */}
-                {profile?.role === "Administrador" && (
+                {role === "Administrador" && (
                   <Link
                     href="/administracion"
                     onClick={() => setOpen(false)}
@@ -254,10 +245,10 @@ export default function MobileNav() {
                   </div>
                   <div className="flex flex-col min-w-0">
                     <span className="text-white text-sm font-semibold truncate">
-                      {profile?.full_name || profile?.role || "Cargando..."}
+                      {role || "Cargando..."}
                     </span>
                     <span className="text-gray-400 text-xs truncate">
-                      {profile?.email || ""}
+                      {user?.email || ""}
                     </span>
                   </div>
                 </div>

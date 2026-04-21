@@ -4,8 +4,12 @@ import { cookies } from "next/headers";
 /**
  * Crea un cliente Supabase para uso en Server Components / Route Handlers.
  * Lee la sesión desde las cookies del request (solo lectura, sin mutación).
+ * Optimizado para minimizar overhead.
  */
-export async function createSupabaseServerClient() {
+export async function createSupabaseServerClient(options?: {
+  admin?: boolean;
+  skipAuth?: boolean;
+}) {
   const cookieStore = await cookies();
 
   return createServerClient(
@@ -16,8 +20,21 @@ export async function createSupabaseServerClient() {
         getAll() {
           return cookieStore.getAll();
         },
-        // En Server Components solo lectura; setAll es no-op
-        setAll() {},
+        setAll(cookiesToSet) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options),
+            );
+          } catch {
+            // En Server Components, setAll puede fallar, lo ignoramos
+          }
+        },
+      },
+      auth: {
+        // Optimizaciones para reducir latencia
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: false, // No necesario en el servidor
       },
     },
   );
