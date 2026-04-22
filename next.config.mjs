@@ -18,19 +18,12 @@ const nextConfig = {
     pagesBufferLength: 5,
   },
   // Optimizaciones para caché y performance
-  swcMinify: true,
   reactStrictMode: true,
   experimental: {
     optimizePackageImports: ["@radix-ui/react-*", "date-fns", "lucide-react"],
     staticGenerationRetryCount: 1,
     // Optimizar fonts
     optimizeCss: true,
-    // Mejorar tiempo de compilación
-    turbo: {
-      resolveAlias: {
-        "@/*": "./src/*",
-      },
-    },
   },
   webpack: (config, { dev }) => {
     if (!dev) {

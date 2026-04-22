@@ -31,7 +31,7 @@ function Section({
   title,
   subtitle,
   children,
-  defaultOpen = true,
+  defaultOpen = false,
 }: {
   icon: typeof DollarSign;
   title: string;
@@ -41,10 +41,13 @@ function Section({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center gap-3 px-6 py-4 hover:bg-gray-50 transition-colors"
+        className={cn(
+          "w-full flex items-center gap-3 px-6 py-4 hover:bg-gray-50 transition-colors overflow-hidden",
+          open ? "rounded-t-2xl" : "rounded-2xl",
+        )}
       >
         <div
           className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
@@ -111,6 +114,32 @@ function SettingRow({
             {suffix}
           </span>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Custom fast Tooltip ─────────────────────────────────────────────────────
+function Tooltip({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="relative group/tip inline-flex items-center justify-center">
+      {children}
+      <div
+        className={cn(
+          "pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50",
+          "px-2.5 py-1.5 bg-gray-900 text-white text-xs font-semibold rounded-lg whitespace-nowrap shadow-lg",
+          "opacity-0 group-hover/tip:opacity-100",
+          "transition-opacity duration-100 [transition-delay:0ms] group-hover/tip:[transition-delay:150ms]",
+        )}
+      >
+        {label}
+        <div className="absolute top-full left-1/2 -translate-x-1/2 border-[5px] border-transparent border-t-gray-900" />
       </div>
     </div>
   );
@@ -433,30 +462,6 @@ export default function AjustesPage() {
 
   return (
     <div className="p-4 lg:p-6 w-full mx-auto flex flex-col gap-6 bg-[#FAFAFA] min-h-screen">
-      {/* Header - Fixed to top feel */}
-      <div className="flex items-center justify-between bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-        <div>
-          <h1 className="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-3">
-            Ajustes de Negocio
-          </h1>
-          <p className="text-sm text-gray-500 mt-1 font-medium">
-            Control central de parámetros operativos y comerciales.
-          </p>
-        </div>
-        <button
-          onClick={handleSaveAll}
-          className={cn(
-            "flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all shadow-sm active:scale-95",
-            saved
-              ? "bg-green-600 text-white"
-              : "bg-[#111111] text-white hover:bg-gray-800",
-          )}
-        >
-          <Save size={16} />
-          {saved ? "¡Cambios Guardados!" : "Guardar cambios"}
-        </button>
-      </div>
-
       {/* Main Bento Grid Layout */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
         {/* Left Column: Alertas (The foundation) */}
@@ -510,6 +515,20 @@ export default function AjustesPage() {
                 suffix="días"
               />
             </div>
+            <div className="pt-4 flex justify-end">
+              <button
+                onClick={handleSaveAll}
+                className={cn(
+                  "flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all shadow-sm active:scale-95",
+                  saved
+                    ? "bg-green-600 text-white"
+                    : "bg-[#111111] text-white hover:bg-gray-800",
+                )}
+              >
+                <Save size={16} />
+                {saved ? "¡Cambios Guardados!" : "Guardar cambios"}
+              </button>
+            </div>
           </Section>
 
           {/* New Payment Methods Section integrated here for density */}
@@ -537,12 +556,14 @@ export default function AjustesPage() {
                         autoFocus
                         className="flex-1 bg-white border border-orange-200 rounded-lg px-2.5 py-1.5 text-sm outline-none focus:border-orange-400"
                       />
-                      <button
-                        onClick={saveEditMetodo}
-                        className="p-2 bg-[#111111] text-white rounded-lg hover:bg-gray-800 transition-all"
-                      >
-                        <Save size={14} />
-                      </button>
+                      <Tooltip label="Guardar cambios">
+                        <button
+                          onClick={saveEditMetodo}
+                          className="p-2 bg-[#111111] text-white rounded-lg hover:bg-gray-800 transition-all"
+                        >
+                          <Save size={14} />
+                        </button>
+                      </Tooltip>
                     </div>
                   ) : (
                     <>
@@ -552,29 +573,35 @@ export default function AjustesPage() {
                         </span>
                       </div>
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={() => startEditMetodo(metodo)}
-                          className="p-1.5 text-gray-400 hover:text-gray-900 transition-colors"
-                        >
-                          <Pencil size={14} />
-                        </button>
-                        <button
-                          onClick={() => deleteMetodo(metodo.id)}
-                          className="p-1.5 text-gray-400 hover:text-red-500 transition-colors"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                        <Tooltip label="Editar nombre">
+                          <button
+                            onClick={() => startEditMetodo(metodo)}
+                            className="p-1.5 text-gray-400 hover:text-gray-900 transition-colors"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                        </Tooltip>
+                        <Tooltip label="Eliminar medio de pago">
+                          <button
+                            onClick={() => deleteMetodo(metodo.id)}
+                            className="p-1.5 text-gray-400 hover:text-red-500 transition-colors"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </Tooltip>
                       </div>
-                      <button
-                        onClick={() => toggleMetodo(metodo)}
-                        className="shrink-0"
-                      >
-                        {metodo.activo ? (
-                          <ToggleRight size={24} className="text-orange-500" />
-                        ) : (
-                          <ToggleLeft size={24} className="text-gray-300" />
-                        )}
-                      </button>
+                      <Tooltip label={metodo.activo ? "Desactivar" : "Activar"}>
+                        <button
+                          onClick={() => toggleMetodo(metodo)}
+                          className="shrink-0"
+                        >
+                          {metodo.activo ? (
+                            <ToggleRight size={24} className="text-orange-500" />
+                          ) : (
+                            <ToggleLeft size={24} className="text-gray-300" />
+                          )}
+                        </button>
+                      </Tooltip>
                     </>
                   )}
                 </div>
@@ -691,30 +718,44 @@ export default function AjustesPage() {
                           </div>
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
-                          <button
-                            onClick={() => toggleUserActive(usuario)}
-                            className="transition-transform active:scale-90"
-                            title={usuario.is_active ? "Desactivar" : "Activar"}
+                          <Tooltip
+                            label={
+                              usuario.is_active
+                                ? "Desactivar usuario"
+                                : "Activar usuario"
+                            }
                           >
-                            {usuario.is_active ? (
-                              <ToggleRight
-                                size={20}
-                                className="text-green-500"
-                              />
-                            ) : (
-                              <ToggleLeft size={20} className="text-gray-300" />
-                            )}
-                          </button>
+                            <button
+                              onClick={() => toggleUserActive(usuario)}
+                              className="transition-transform active:scale-90"
+                            >
+                              {usuario.is_active ? (
+                                <ToggleRight
+                                  size={20}
+                                  className="text-green-500"
+                                />
+                              ) : (
+                                <ToggleLeft
+                                  size={20}
+                                  className="text-gray-300"
+                                />
+                              )}
+                            </button>
+                          </Tooltip>
                         </div>
                       </div>
 
                       <div className="flex items-center justify-between gap-2 pt-2 border-t border-gray-50">
+                        <Tooltip
+                          label={
+                            usuario.is_admin
+                              ? "Quitar permisos de administrador"
+                              : "Dar permisos de administrador"
+                          }
+                        >
                         <button
                           onClick={() => toggleUserAdmin(usuario)}
                           className="flex items-center gap-1.5 text-xs font-medium transition-colors hover:text-orange-600"
-                          title={
-                            usuario.is_admin ? "Quitar admin" : "Hacer admin"
-                          }
                         >
                           {usuario.is_admin ? (
                             <CheckSquare
@@ -734,30 +775,34 @@ export default function AjustesPage() {
                             Administrador
                           </span>
                         </button>
+                        </Tooltip>
 
                         <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => startEditUser(usuario)}
-                            className="p-1.5 text-gray-400 hover:text-gray-900 transition-colors"
-                            title="Editar"
-                          >
-                            <Pencil size={13} />
-                          </button>
-                          <button
-                            onClick={() => resetUserPassword(usuario)}
-                            disabled={generatingPassword === usuario.id}
-                            className="p-1.5 text-gray-400 hover:text-blue-500 transition-colors disabled:opacity-50"
-                            title="Generar contraseña"
-                          >
-                            <Key size={13} />
-                          </button>
-                          <button
-                            onClick={() => deleteUser(usuario.id)}
-                            className="p-1.5 text-gray-400 hover:text-red-500 transition-colors"
-                            title="Eliminar"
-                          >
-                            <Trash2 size={13} />
-                          </button>
+                          <Tooltip label="Editar datos del usuario">
+                            <button
+                              onClick={() => startEditUser(usuario)}
+                              className="p-1.5 text-gray-400 hover:text-gray-900 transition-colors"
+                            >
+                              <Pencil size={13} />
+                            </button>
+                          </Tooltip>
+                          <Tooltip label="Generar nueva contraseña">
+                            <button
+                              onClick={() => resetUserPassword(usuario)}
+                              disabled={generatingPassword === usuario.id}
+                              className="p-1.5 text-gray-400 hover:text-blue-500 transition-colors disabled:opacity-50"
+                            >
+                              <Key size={13} />
+                            </button>
+                          </Tooltip>
+                          <Tooltip label="Eliminar usuario">
+                            <button
+                              onClick={() => deleteUser(usuario.id)}
+                              className="p-1.5 text-gray-400 hover:text-red-500 transition-colors"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </Tooltip>
                         </div>
                       </div>
                     </>
@@ -796,13 +841,14 @@ export default function AjustesPage() {
                       type="password"
                       className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-orange-400"
                     />
-                    <button
-                      onClick={() => setNewUserPassword(generatePassword())}
-                      className="p-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg transition-all text-xs font-bold"
-                      title="Generar contraseña aleatoria"
-                    >
-                      <Key size={14} />
-                    </button>
+                    <Tooltip label="Generar contraseña aleatoria">
+                      <button
+                        onClick={() => setNewUserPassword(generatePassword())}
+                        className="p-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg transition-all text-xs font-bold"
+                      >
+                        <Key size={14} />
+                      </button>
+                    </Tooltip>
                   </div>
                   <div className="flex justify-end gap-2">
                     <button
@@ -838,7 +884,6 @@ export default function AjustesPage() {
             icon={Tag}
             title="Categorías y Planes"
             subtitle="Catálogo de servicios y suscripciones"
-            defaultOpen={true}
           >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
               {planes.map((plan) => (
@@ -913,36 +958,40 @@ export default function AjustesPage() {
                             </span>
                           </div>
                         </div>
-                        <button
-                          onClick={() => togglePlan(plan)}
-                          className="transition-transform active:scale-90"
-                        >
-                          {plan.activo ? (
-                            <ToggleRight
-                              size={24}
-                              className="text-orange-500"
-                            />
-                          ) : (
-                            <ToggleLeft size={24} className="text-gray-300" />
-                          )}
-                        </button>
+                        <Tooltip label={plan.activo ? "Desactivar plan" : "Activar plan"}>
+                          <button
+                            onClick={() => togglePlan(plan)}
+                            className="transition-transform active:scale-90"
+                          >
+                            {plan.activo ? (
+                              <ToggleRight
+                                size={24}
+                                className="text-orange-500"
+                              />
+                            ) : (
+                              <ToggleLeft size={24} className="text-gray-300" />
+                            )}
+                          </button>
+                        </Tooltip>
                       </div>
 
                       <div className="flex items-center justify-end gap-1 pt-2 border-t border-gray-50 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={() => startEdit(plan)}
-                          className="p-2 text-gray-400 hover:text-gray-900 transition-all hover:bg-gray-100 rounded-lg"
-                          title="Editar"
-                        >
-                          <Pencil size={14} />
-                        </button>
-                        <button
-                          onClick={() => deletePlan(plan.id)}
-                          className="p-2 text-gray-400 hover:text-red-500 transition-all hover:bg-red-50 rounded-lg"
-                          title="Eliminar"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                        <Tooltip label="Editar plan">
+                          <button
+                            onClick={() => startEdit(plan)}
+                            className="p-2 text-gray-400 hover:text-gray-900 transition-all hover:bg-gray-100 rounded-lg"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                        </Tooltip>
+                        <Tooltip label="Eliminar plan">
+                          <button
+                            onClick={() => deletePlan(plan.id)}
+                            className="p-2 text-gray-400 hover:text-red-500 transition-all hover:bg-red-50 rounded-lg"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </Tooltip>
                       </div>
                     </>
                   )}

@@ -12,12 +12,20 @@ if (!supabaseUrl || !supabaseAnonKey) {
 export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey, {
   cookies: {
     getAll() {
+      // Verificar que estamos en el cliente
+      if (typeof document === 'undefined') {
+        return [];
+      }
       return document.cookie.split(';').map(cookie => {
         const [name, ...rest] = cookie.trim().split('=');
         return { name, value: rest.join('=') };
       }).filter(c => c.name);
     },
     setAll(cookiesToSet) {
+      // Verificar que estamos en el cliente
+      if (typeof document === 'undefined') {
+        return;
+      }
       cookiesToSet.forEach(({ name, value, options }) => {
         let cookie = `${name}=${value}`;
         

@@ -15,6 +15,8 @@ import {
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/use-auth";
+import { useAdminStore } from "@/stores/admin-store";
+import { useAdminSettingsStore } from "@/hooks/use-admin-settings";
 import EstadisticasPage from "@/app/(app)/estadisticas/page";
 import FinanzasPage from "@/app/(app)/finanzas/page";
 import AjustesPage from "@/app/(app)/administracion/ajustes/page";
@@ -89,7 +91,7 @@ function PasswordGate({
         />
         <div className="flex flex-col items-center gap-1.5 text-center">
           <div className="flex items-center gap-2">
-            <ShieldCheck size={18} style={{ color: "#DC2626" }} />
+            <ShieldCheck size={18} style={{ color: "#f97316" }} />
             <span className="font-bold text-gray-900 text-base">
               Zona de Administración
             </span>
@@ -102,7 +104,7 @@ function PasswordGate({
         <form onSubmit={handleSubmit} className="w-full flex flex-col gap-4">
           <div className="flex flex-col gap-2">
             {error && (
-              <p className="text-sm text-red-600 font-medium mb-1">
+              <p className="text-sm text-orange-600 font-medium mb-1">
                 Contraseña incorrecta. Intentalo de nuevo.
               </p>
             )}
@@ -122,8 +124,8 @@ function PasswordGate({
                 className={cn(
                   "w-full border rounded-xl px-4 py-3 text-base min-h-[44px] outline-none transition-all pr-12",
                   error
-                    ? "border-red-400 bg-red-50"
-                    : "border-gray-200 bg-gray-50 focus:border-[#DC2626] focus:ring-2 focus:ring-red-100",
+                    ? "border-orange-400 bg-orange-50"
+                    : "border-gray-200 bg-gray-50 focus:border-[#f97316] focus:ring-2 focus:ring-orange-100",
                   loading && "opacity-50 cursor-not-allowed",
                 )}
               />
@@ -142,7 +144,7 @@ function PasswordGate({
             type="submit"
             disabled={loading}
             className="w-full flex justify-center items-center gap-2 min-h-[44px] py-3 rounded-xl text-white font-bold text-base hover:brightness-110 transition-all touch-manipulation select-none disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
-            style={{ backgroundColor: "#DC2626" }}
+            style={{ backgroundColor: "#f97316" }}
           >
             {loading ? (
               <Loader2 size={20} className="animate-spin" />
@@ -158,11 +160,13 @@ function PasswordGate({
 }
 
 export default function AdministracionPage() {
-  const { user, role, loading } = useAuth();
-  const [status, setStatus] = useState<"loading" | "authorized" | "denied">(
-    "loading",
-  );
-  const [authenticated, setAuthenticated] = useState(false);
+  const { user, role, loading, refreshAuth } = useAuth();
+  const [status, setStatus] = useState<
+    "loading" | "authorized" | "denied" | "timeout"
+  >("loading");
+  const { authenticated, setAuthenticated, fetchFinanzasStats } =
+    useAdminStore();
+  const { fetchSettings, fetchPlanes, fetchMetodos } = useAdminSettingsStore();
   const [activeTab, setActiveTab] = useState<Tab>("estadisticas");
 
   useEffect(() => {
@@ -176,10 +180,63 @@ export default function AdministracionPage() {
     setStatus("authorized");
   }, [user, role, loading]);
 
-  if (status === "loading" || loading) {
+  // Timeout de seguridad: si la carga no resuelve en 8s, mostrar reintentar
+  useEffect(() => {
+    if (status !== "loading") return;
+    const id = setTimeout(() => setStatus("timeout"), 8000);
+    return () => clearTimeout(id);
+  }, [status]);
+
+  // Cuando el usuario pasa el PasswordGate, iniciar carga en segundo plano
+  useEffect(() => {
+    if (!authenticated) return;
+    fetchFinanzasStats();
+    fetchSettings();
+    fetchPlanes();
+    fetchMetodos();
+  }, [
+    authenticated,
+    fetchFinanzasStats,
+    fetchSettings,
+    fetchPlanes,
+    fetchMetodos,
+  ]);
+
+  if (status === "loading") {
     return (
       <div className="min-h-full flex items-center justify-center bg-gray-50">
         <Loader2 size={28} className="animate-spin text-gray-400" />
+      </div>
+    );
+  }
+
+  if (status === "timeout") {
+    return (
+      <div className="min-h-full bg-gray-50 flex items-center justify-center px-4">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 w-full max-w-sm p-8 flex flex-col items-center gap-4 text-center">
+          <div className="w-14 h-14 rounded-full bg-orange-50 flex items-center justify-center">
+            <ShieldX size={28} className="text-orange-400" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-gray-900">
+              La verificación tardó demasiado
+            </h2>
+            <p className="text-sm text-gray-400 mt-1 leading-relaxed">
+              No se pudo confirmar el acceso. Revisá tu conexión e intentá de
+              nuevo.
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              refreshAuth();
+              setStatus("loading");
+            }}
+            className="w-full min-h-[44px] rounded-xl text-white font-bold text-sm transition-all hover:brightness-110 cursor-pointer"
+            style={{ backgroundColor: "#f97316" }}
+          >
+            Reintentar
+          </button>
+        </div>
       </div>
     );
   }
@@ -188,8 +245,8 @@ export default function AdministracionPage() {
     return (
       <div className="min-h-full bg-[#111111] flex items-center justify-center px-4">
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8 flex flex-col items-center gap-4 text-center">
-          <div className="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center">
-            <ShieldX size={28} className="text-red-500" />
+          <div className="w-14 h-14 rounded-full bg-orange-50 flex items-center justify-center">
+            <ShieldX size={28} className="text-orange-500" />
           </div>
           <div>
             <h2 className="text-lg font-bold text-gray-900">Acceso denegado</h2>
@@ -215,39 +272,62 @@ export default function AdministracionPage() {
   }
 
   return (
-    <div className="min-h-full bg-gray-50 flex flex-col relative">
-      {/* Fondo Logo con opacidad baja, centrado en la pantalla */}
-      <div className="fixed inset-0 flex items-center justify-center top-16 md:top-0 pointer-events-none z-0 overflow-hidden">
-        <img
-          src="/Mejor%20logo.png"
-          alt="Sistema Alfa Background"
-          className="w-[80vw] md:w-[450px] opacity-[0.5] object-contain ml-0 md:translate-x-[128px]"
-        />
-      </div>
-
+    <div className="min-h-full bg-gradient-to-br from-gray-50 via-gray-50 to-gray-100 flex flex-col relative">
       {/* Contenedor principal con z-index para estar por encima del fondo */}
       <div className="relative z-10 flex flex-col flex-1 w-full">
-        <div className="border-b border-gray-100 bg-white">
-          <div className="flex items-center gap-1 px-4 md:px-6 lg:px-8 pt-4 md:pt-6 pb-0 flex-wrap">
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={cn(
-                    "flex items-center gap-2 px-4 py-3 min-h-[44px] text-sm font-semibold border-b-2 transition-all -mb-px whitespace-nowrap touch-manipulation select-none",
-                    isActive
-                      ? "border-[#DC2626] text-[#DC2626]"
-                      : "border-transparent text-gray-400 hover:text-gray-700 hover:border-gray-200",
-                  )}
-                >
-                  <Icon size={16} className="shrink-0" />
-                  {tab.label}
-                </button>
-              );
-            })}
+        {/* Header mejorado con título y tabs */}
+        <div className="bg-white border-b border-gray-200 shadow-sm">
+          <div className="px-4 md:px-6 lg:px-8">
+            {/* Sección de título */}
+            <div className="pt-6 pb-4 border-b border-gray-100">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center shadow-md shadow-orange-500/20">
+                  <ShieldCheck size={20} className="text-white" />
+                </div>
+                <div>
+                  <h1 className="text-2xl md:text-3xl font-bold text-gray-900 tracking-tight">
+                    Panel de Administración
+                  </h1>
+                  <p className="text-sm text-gray-500 mt-0.5">
+                    Gestión completa del sistema y negocio
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Tabs mejorados */}
+            <div className="flex items-center gap-2 pt-3 pb-0 flex-wrap -mb-px">
+              {tabs.map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={cn(
+                      "relative flex items-center gap-2.5 px-5 py-3.5 min-h-[44px] text-sm font-semibold rounded-t-xl transition-all duration-200 whitespace-nowrap touch-manipulation select-none group",
+                      isActive
+                        ? "text-[#f97316] bg-gradient-to-b from-orange-50 to-white shadow-sm"
+                        : "text-gray-500 hover:text-gray-700 hover:bg-gray-50/80",
+                    )}
+                  >
+                    <Icon
+                      size={18}
+                      className={cn(
+                        "shrink-0 transition-transform duration-200",
+                        isActive && "scale-110",
+                        !isActive && "group-hover:scale-105",
+                      )}
+                    />
+                    <span>{tab.label}</span>
+                    {/* Indicador activo */}
+                    {isActive && (
+                      <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-orange-500 to-orange-600 rounded-full" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
         <div className="flex-1">

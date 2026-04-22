@@ -356,6 +356,7 @@ export const useAdminSettingsStore = create<AdminSettingsState>((set, get) => ({
       });
     } catch (error) {
       console.error("Error updating settings:", error);
+      throw error;
     }
   },
 
@@ -1047,6 +1048,8 @@ export function useAdminSettings() {
     // Fetch initial data
     store.fetchSettings();
     store.fetchPlanes();
+    store.fetchMetodos();
+    store.fetchUsuarios();
     store.fetchExpenses();
     store.fetchSalaries();
 

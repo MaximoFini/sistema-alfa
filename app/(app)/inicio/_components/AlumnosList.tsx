@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useStaticDataStore } from "@/stores/static-data-store";
+import { useDataCacheStore, AlumnoRow } from "@/stores/data-cache-store";
 import {
   ChevronRight,
   ChevronDown,
@@ -14,6 +15,7 @@ import {
   Search,
   Calendar,
   User as UserIcon,
+  Users,
   CreditCard,
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -24,23 +26,10 @@ import Paginacion from "./Paginacion";
 import Buscador from "./Buscador";
 
 // ─────────────────────────────────────────────
-// Tipos
+// Tipos — AlumnoRow viene del store (re-export para compatibilidad)
 // ─────────────────────────────────────────────
 
-export interface AlumnoRow {
-  id: string;
-  nombre: string | null;
-  edad_actual: number | null;
-  fecha_registro: string | null; // "YYYY-MM-DD"
-  dni: string | null;
-  es_prueba?: boolean | null;
-  actividad_interes?: string | null;
-  activo?: boolean | null;
-  ultimaAsistencia: {
-    fecha: string;
-    hora: string | null;
-  } | null;
-}
+export type { AlumnoRow } from "@/stores/data-cache-store";
 
 // Tipo enriquecido para la tarjeta (con initials y color derivados)
 interface AlumnoConUI extends AlumnoRow {
@@ -791,45 +780,53 @@ function AlumnoCard({ alumno }: { alumno: AlumnoConUI }) {
 // Componente principal exportado
 // ─────────────────────────────────────────────
 
-interface AlumnosListProps {
-  alumnos: AlumnoRow[];
-  totalRegistros: number;
-  paginaActual: number;
-  totalPaginas: number;
-  porPagina: number;
-  queryActual: string;
-}
+const POR_PAGINA = 20;
 
-export default function AlumnosList({
-  alumnos,
-  totalRegistros,
-  paginaActual,
-  totalPaginas,
-  porPagina,
-  queryActual,
-}: AlumnosListProps) {
+export default function AlumnosList() {
+  const searchParamsHook = useSearchParams();
+  const pageParam = searchParamsHook.get("page");
+  const queryParam = searchParamsHook.get("query") ?? "";
+
+  const paginaActual = Math.max(1, Number(pageParam ?? "1") || 1);
+  const queryActual = queryParam;
+
   const [showModal, setShowModal] = useState(false);
-  const router = useRouter();
-  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const { alumnosCache, alumnosLoadingKeys, fetchAlumnos, invalidateAlumnos } =
+    useDataCacheStore();
+
+  const safeQuery = queryActual.replace(
+    /[^a-zA-Z0-9áéíóúüñÁÉÍÓÚÜÑ\s]/g,
+    "",
+  );
+  const cacheKey = `${paginaActual}:${safeQuery}`;
+  const cached = alumnosCache[cacheKey];
+  const isLoading = alumnosLoadingKeys[cacheKey] ?? false;
+
+  const alumnos = cached?.alumnos ?? [];
+  const totalRegistros = cached?.totalRegistros ?? 0;
+  const totalPaginas = cached?.totalPaginas ?? 1;
+  const porPagina = POR_PAGINA;
+
+  // Fetch cuando cambia la página o el query
+  useEffect(() => {
+    fetchAlumnos(paginaActual, queryActual);
+  }, [paginaActual, queryActual, fetchAlumnos]);
+
+  function handleGuardado() {
+    invalidateAlumnos();
+    fetchAlumnos(paginaActual, queryActual);
+  }
 
   // ─── Realtime: escucha cambios en múltiples tablas ─────────────────────────
-  // Cuando se crea/actualiza un alumno, se registra una asistencia, o se crea un pago,
-  // actualizamos la lista automáticamente sin recargar la página completa.
   useEffect(() => {
     let refreshTimeout: NodeJS.Timeout;
 
     const handleRefresh = () => {
-      if (isRefreshing) return;
-
-      // Debounce: evita múltiples refreshes simultáneos
       clearTimeout(refreshTimeout);
       refreshTimeout = setTimeout(() => {
-        setIsRefreshing(true);
-        console.log("[Realtime] Ejecutando refresh...");
-        router.refresh();
-
-        // Reset después de 500ms
-        setTimeout(() => setIsRefreshing(false), 500);
+        invalidateAlumnos();
+        fetchAlumnos(paginaActual, queryActual);
       }, 100);
     };
 
@@ -837,85 +834,41 @@ export default function AlumnosList({
       .channel("inicio-realtime")
       .on(
         "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "alumnos",
-        },
-        (payload) => {
-          console.log(
-            "[Realtime] Cambio detectado en alumnos:",
-            payload.eventType,
-          );
-          handleRefresh();
-        },
+        { event: "*", schema: "public", table: "alumnos" },
+        () => handleRefresh(),
       )
       .on(
         "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "asistencias",
-        },
-        (payload) => {
-          console.log("[Realtime] Nueva asistencia registrada");
-          handleRefresh();
-        },
+        { event: "INSERT", schema: "public", table: "asistencias" },
+        () => handleRefresh(),
       )
       .on(
         "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "pagos",
-        },
-        (payload) => {
-          console.log("[Realtime] Nuevo pago registrado");
-          handleRefresh();
-        },
+        { event: "INSERT", schema: "public", table: "pagos" },
+        () => handleRefresh(),
       )
-      .subscribe((status) => {
-        console.log("[Realtime] Estado de suscripción:", status);
-        if (status === "SUBSCRIBED") {
-          console.log(
-            "[Realtime] ✅ Listo para recibir actualizaciones en tiempo real",
-          );
-        }
-        if (status === "CHANNEL_ERROR") {
-          console.error(
-            "[Realtime] ❌ Error en el canal. Verifica que Realtime esté habilitado en Supabase",
-          );
-        }
-      });
+      .subscribe();
 
     return () => {
-      console.log("[Realtime] Limpiando suscripción");
       clearTimeout(refreshTimeout);
       supabase.removeChannel(channel);
     };
-  }, [router, isRefreshing]);
+  }, [paginaActual, queryActual, fetchAlumnos, invalidateAlumnos]);
 
-  // El filtrado es 100% server-side (ilike en Supabase).
-  // Aquí solo enriquecemos los datos con UI derivada.
+  // Enriquecer datos con UI derivada
   const alumnosEnriquecidos = alumnos.map(enriquecerAlumno);
-
-  function handleGuardado() {
-    router.refresh(); // Refresca Server Component
-  }
 
   return (
     <div className="relative min-h-screen">
       {/* Fondo Logo con opacidad baja, centrado en la pantalla */}
       <div className="fixed inset-0 flex items-center justify-center top-16 md:top-0 pointer-events-none z-0 overflow-hidden">
-        <img 
-          src="/Mejor%20logo.png" 
-          alt="Sistema Alfa Background" 
-          className="w-[80vw] md:w-[450px] opacity-[0.5] object-contain ml-0 md:translate-x-[128px]"
+        <img
+          src="/Mejor%20logo.png"
+          alt="Sistema Alfa Background"
+          className="w-[80vw] md:w-[450px] opacity-[0.35] object-contain ml-0 md:translate-x-[128px]"
         />
       </div>
 
-      {/* Contenedor principal con z-index para estar por encima del fondo */}
-      <div className="relative z-10 p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto">
       {/* Modal con soporte para botón "Atrás" */}
       <ModalWithHistory isOpen={showModal} onClose={() => setShowModal(false)}>
         <NuevoAlumnoModal
@@ -924,92 +877,127 @@ export default function AlumnosList({
         />
       </ModalWithHistory>
 
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-xl md:text-2xl font-bold text-gray-900">
-            Alumnos
-          </h1>
-          <div className="flex flex-col gap-0.5 mt-0.5">
-            <p className="text-sm text-gray-400">
-              {totalRegistros} alumnos registrados
-            </p>
-            <p className="text-xs text-gray-400 font-medium">
-              Ordenados por orden de entrada
+      {/* Header estilo Administración */}
+      <div className="relative z-10 bg-white border-b border-gray-200 shadow-sm">
+        <div className="px-4 md:px-6 lg:px-8">
+          {/* Título + botón */}
+          <div className="pt-6 pb-4 border-b border-gray-100">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center shadow-md shadow-orange-500/20">
+                  <Users size={20} className="text-white" />
+                </div>
+                <div>
+                  <h1 className="text-2xl md:text-3xl font-bold text-gray-900 tracking-tight">
+                    Alumnos
+                  </h1>
+                  <p className="text-sm text-gray-500 mt-0.5">
+                    {totalRegistros} alumnos registrados · ordenados por orden
+                    de entrada
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowModal(true)}
+                className="inline-flex items-center justify-center gap-2 text-sm font-semibold text-white px-4 py-2.5 min-h-[40px] rounded-xl hover:brightness-110 transition-all touch-manipulation select-none shrink-0"
+                style={{ backgroundColor: "#f97316" }}
+              >
+                <Plus size={16} />
+                <span className="hidden sm:inline">Crear Alumno</span>
+                <span className="sm:hidden">Crear</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Búsqueda + paginación + conteo */}
+          <div className="py-3 flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <div className="flex-1">
+                <Buscador />
+              </div>
+              <div className="flex items-center gap-1.5 border border-gray-200 bg-gray-50 rounded-lg px-3 py-2.5 min-h-[44px] shrink-0">
+                <Filter size={15} className="text-gray-400" />
+                <span className="text-sm text-gray-500">
+                  Pág. {paginaActual}/{totalPaginas}
+                </span>
+              </div>
+            </div>
+            <p className="text-xs text-gray-400 select-none">
+              {queryActual ? (
+                <>
+                  <span className="text-gray-600 font-semibold">
+                    {totalRegistros}
+                  </span>{" "}
+                  resultado
+                  {totalRegistros !== 1 ? "s" : ""} para{" "}
+                  <span className="text-gray-600 font-semibold">
+                    &ldquo;{queryActual}&rdquo;
+                  </span>
+                </>
+              ) : (
+                <>
+                  {alumnos.length} de {totalRegistros} alumnos (página{" "}
+                  {paginaActual})
+                </>
+              )}
             </p>
           </div>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="inline-flex items-center justify-center gap-2 text-base md:text-sm font-semibold text-white px-5 py-3 md:px-4 md:py-2.5 min-h-[44px] rounded-lg hover:brightness-110 transition-all touch-manipulation select-none"
-          style={{ backgroundColor: "#DC2626" }}
-        >
-          <Plus size={18} className="md:w-4 md:h-4" />
-          Crear Alumno
-        </button>
       </div>
 
-      {/* Barra de búsqueda global (server-side, debounce 400ms) */}
-      <div className="flex items-center gap-3 mb-4">
-        <Buscador />
-        <div className="flex items-center gap-1.5 border border-gray-200 bg-white rounded-lg px-3 py-2.5 min-h-[44px] shrink-0">
-          <Filter size={15} className="text-gray-400" />
-          <span className="text-sm text-gray-500 hidden md:inline">
-            Pág. {paginaActual}/{totalPaginas}
-          </span>
-        </div>
-      </div>
-
-      {/* Conteo */}
-      <p className="text-xs text-gray-400 mb-3 font-medium select-none">
-        {queryActual ? (
-          <>
-            <span className="text-gray-600 font-semibold">
-              {totalRegistros}
-            </span>{" "}
-            resultado
-            {totalRegistros !== 1 ? "s" : ""} para{" "}
-            <span className="text-gray-600 font-semibold">
-              &ldquo;{queryActual}&rdquo;
-            </span>
-          </>
+      {/* Contenedor principal con z-index para estar por encima del fondo */}
+      <div className="relative z-10 p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto">
+        {/* Loading skeleton inline (cuando no hay datos en caché aún) */}
+        {isLoading && alumnos.length === 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+            {Array.from({ length: 10 }).map((_, i) => (
+              <div
+                key={i}
+                className="bg-white rounded-xl border border-gray-100 p-4 md:p-5"
+              >
+                <div className="flex items-center gap-3 md:gap-4 min-h-[76px]">
+                  <div className="w-12 h-12 md:w-11 md:h-11 rounded-full bg-gray-200 animate-pulse shrink-0" />
+                  <div className="flex-1 min-w-0 space-y-2">
+                    <div className="h-4 w-36 bg-gray-200 rounded animate-pulse" />
+                    <div className="flex gap-3">
+                      <div className="h-3 w-16 bg-gray-100 rounded animate-pulse" />
+                      <div className="h-3 w-24 bg-gray-100 rounded animate-pulse" />
+                    </div>
+                  </div>
+                  <div className="w-9 h-9 md:w-7 md:h-7 rounded-full bg-gray-100 animate-pulse shrink-0" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : alumnosEnriquecidos.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+            {alumnosEnriquecidos.map((alumno) => (
+              <AlumnoCard key={alumno.id} alumno={alumno} />
+            ))}
+          </div>
         ) : (
-          <>
-            {alumnos.length} de {totalRegistros} alumnos (página {paginaActual})
-          </>
-        )}
-      </p>
-
-      {/* Grid de tarjetas */}
-      {alumnosEnriquecidos.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-          {alumnosEnriquecidos.map((alumno) => (
-            <AlumnoCard key={alumno.id} alumno={alumno} />
-          ))}
-        </div>
-      ) : (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-3 select-none">
-            <Search size={24} className="text-gray-300" />
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-3 select-none">
+              <Search size={24} className="text-gray-300" />
+            </div>
+            <p className="text-gray-500 font-medium text-base">
+              No se encontraron alumnos
+            </p>
+            <p className="text-gray-400 text-sm mt-1">
+              {queryActual
+                ? `No hay resultados para "${queryActual}"`
+                : "No hay alumnos en esta página"}
+            </p>
           </div>
-          <p className="text-gray-500 font-medium text-base">
-            No se encontraron alumnos
-          </p>
-          <p className="text-gray-400 text-sm mt-1">
-            {queryActual
-              ? `No hay resultados para "${queryActual}"`
-              : "No hay alumnos en esta página"}
-          </p>
-        </div>
-      )}
+        )}
 
-      {/* Paginación siempre visible (el filtro es server-side) */}
-      <Paginacion
-        paginaActual={paginaActual}
-        totalPaginas={totalPaginas}
-        totalRegistros={totalRegistros}
-        porPagina={porPagina}
-      />
+        {/* Paginación siempre visible (el filtro es client-side via store) */}
+        <Paginacion
+          paginaActual={paginaActual}
+          totalPaginas={totalPaginas}
+          totalRegistros={totalRegistros}
+          porPagina={porPagina}
+        />
       </div>
     </div>
   );

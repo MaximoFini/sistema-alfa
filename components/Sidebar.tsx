@@ -6,6 +6,8 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/lib/supabase";
+import { useAdminStore } from "@/stores/admin-store";
+import { useAdminSettingsStore } from "@/hooks/use-admin-settings";
 import {
   Users,
   MessageSquare,
@@ -68,6 +70,8 @@ export default function Sidebar() {
       {/* Logo */}
       <Link
         href="/inicio"
+        prefetch={true}
+        onMouseEnter={() => router.prefetch("/inicio")}
         className={cn(
           "flex items-center border-b border-black/10 shrink-0 hover:bg-black/10 transition-colors cursor-pointer justify-center",
           collapsed ? "py-3 px-2" : "px-4 py-3",
@@ -88,6 +92,8 @@ export default function Sidebar() {
         {/* Alumnos */}
         <Link
           href="/inicio"
+          prefetch={true}
+          onMouseEnter={() => router.prefetch("/inicio")}
           className={cn(
             "flex items-center rounded-lg transition-all duration-150",
             collapsed ? "justify-center px-2 py-3" : "gap-3 px-3 py-2.5",
@@ -189,6 +195,14 @@ export default function Sidebar() {
         {role === "Administrador" && (
           <Link
             href="/administracion"
+            prefetch={true}
+            onMouseEnter={() => {
+              router.prefetch("/administracion");
+              useAdminStore.getState().fetchFinanzasStats();
+              useAdminSettingsStore.getState().fetchSettings();
+              useAdminSettingsStore.getState().fetchPlanes();
+              useAdminSettingsStore.getState().fetchMetodos();
+            }}
             className={cn(
               "flex items-center rounded-lg transition-all duration-150",
               collapsed ? "justify-center px-2 py-3" : "gap-3 px-3 py-2.5",
