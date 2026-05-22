@@ -314,7 +314,7 @@ function IngresoWebPageContent() {
             <div className="flex items-center gap-3 shrink-0">
               <div className="w-12 h-12 flex items-center justify-center shrink-0">
                 <Image
-                  src="/Mejor logo.png"
+                  src="/logo-sin-fondo-completo.webp"
                   alt="Alfa Club"
                   width={48}
                   height={48}
@@ -384,7 +384,7 @@ function IngresoWebPageContent() {
               <div className="flex-1 flex flex-col items-center justify-center gap-8 text-center select-none px-4 py-12">
                 <div className="w-[211px] h-[211px] relative flex items-center justify-center">
                   <Image
-                    src="/Mejor logo.png"
+                    src="/logo-sin-fondo-completo.webp"
                     alt="Alfa Club"
                     width={211}
                     height={211}
@@ -600,7 +600,7 @@ function IngresoWebPageContent() {
         <div className="flex items-center gap-3 shrink-0">
           <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center shrink-0 p-1.5">
             <Image
-              src="/Logo sin fondo - Alfa Club.png"
+              src="/logo-sin-fondo-alfaclub.webp"
               alt="Alfa Club"
               width={48}
               height={48}
@@ -694,7 +694,7 @@ function IngresoWebPageContent() {
               style={{ backgroundColor: "#f3f4f6" }}
             >
               <Image
-                src="/Logo sin fondo - Alfa Club.png"
+                src="/logo-sin-fondo-alfaclub.webp"
                 alt="Alfa Club"
                 width={80}
                 height={80}

@@ -14,7 +14,7 @@ export default function ClasePruebaPage() {
         <div className="text-center mb-8">
           <div className="flex justify-center mb-6">
             <Image
-              src="/Mejor logo.png"
+              src="/logo-sin-fondo-completo.webp"
               alt="Alfa Club Logo"
               width={200}
               height={200}

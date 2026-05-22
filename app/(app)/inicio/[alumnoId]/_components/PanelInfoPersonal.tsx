@@ -235,13 +235,9 @@ export default function PanelInfoPersonal({
     triggerHapticFeedback(HapticPresets.heavy);
     setEliminando(true);
 
-    // Primero eliminar las asistencias relacionadas
-    await supabase.from("asistencias").delete().eq("alumno_id", alumno.id);
-
-    // Luego eliminar los pagos relacionados
-    await supabase.from("pagos").delete().eq("alumno_id", alumno.id);
-
-    // Finalmente eliminar el alumno
+    // ⚡ OPTIMIZACIÓN: Se elimina directamente el alumno.
+    // Las claves foráneas en la base de datos ya están configuradas con ON DELETE CASCADE,
+    // por lo que las asistencias y los pagos asociados se eliminan de forma atómica en el servidor (1 RTT).
     const { error } = await supabase
       .from("alumnos")
       .delete()

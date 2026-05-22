@@ -233,47 +233,43 @@ function NuevoAlumnoModal({
     }
 
     triggerHapticFeedback(HapticPresets.medium);
-    setGuardando(true);
-    const edadCalculada = calcularEdad(form.fechaNacimiento);
 
-    const { data, error } = await supabase
-      .from("alumnos")
-      .insert({
-        nombre: form.nombre.trim(),
-        dni: form.dni.trim(),
-        domicilio: form.domicilio.trim(),
-        telefono: form.telefono.trim(),
-        fecha_nacimiento: form.fechaNacimiento,
-        fecha_registro: form.fechaRegistro,
-        genero: form.genero,
-        edad_actual: edadCalculada,
-      })
-      .select()
-      .single();
-
-    setGuardando(false);
-
-    if (error || !data) {
-      triggerHapticFeedback(HapticPresets.error);
-      alert(
-        "Error al guardar el alumno: " +
-          (error?.message || "Error desconocido"),
-      );
-      return;
-    }
-
-    triggerHapticFeedback(HapticPresets.success);
     if (goToStep2) {
-      setCreatedStudentId(data.id);
+      // Avanzar al paso 2 de inmediato en el cliente, sin tocar la base de datos aún (0 RTT)
       setStep(2);
     } else {
+      // Guardado tradicional sin cobro (1 RTT)
+      setGuardando(true);
+      const edadCalculada = calcularEdad(form.fechaNacimiento);
+
+      const { error } = await supabase
+        .from("alumnos")
+        .insert({
+          nombre: form.nombre.trim(),
+          dni: form.dni.trim(),
+          domicilio: form.domicilio.trim(),
+          telefono: form.telefono.trim(),
+          fecha_nacimiento: form.fechaNacimiento,
+          fecha_registro: form.fechaRegistro,
+          genero: form.genero,
+          edad_actual: edadCalculada,
+        });
+
+      setGuardando(false);
+
+      if (error) {
+        triggerHapticFeedback(HapticPresets.error);
+        alert("Error al guardar el alumno: " + error.message);
+        return;
+      }
+
+      triggerHapticFeedback(HapticPresets.success);
       onGuardado();
       onClose();
     }
   }
 
   async function handleGuardarPaso2() {
-    if (!createdStudentId) return;
     const errs = validatePaso2();
     if (Object.keys(errs).length > 0) {
       setErrors(errs);
@@ -298,38 +294,34 @@ function NuevoAlumnoModal({
       fechaProximoVencimiento = `${yyyy}-${mm}-${dd}`;
     }
 
-    const { error: errorPago } = await supabase.from("pagos").insert({
-      alumno_id: createdStudentId,
-      actividad: pagoForm.actividad,
-      precio: Number(pagoForm.precio),
-      fecha_cobro: pagoForm.fechaCobro,
-      medio_pago: pagoForm.medioPago,
-      fecha_inicio: pagoForm.fechaInicio,
-      fecha_vencimiento: fechaProximoVencimiento,
-    });
+    const edadCalculada = calcularEdad(form.fechaNacimiento);
 
-    if (errorPago) {
-      setGuardando(false);
-      triggerHapticFeedback(HapticPresets.error);
-      alert("Error al registrar cobro: " + errorPago.message);
-      return;
-    }
-
-    const { error: errorUpdate } = await supabase
-      .from("alumnos")
-      .update({
-        abono_ultima_inscripcion: pagoForm.actividad,
-        fecha_proximo_vencimiento: fechaProximoVencimiento,
-        actividad_proximo_vencimiento: pagoForm.actividad,
-        fecha_ultimo_inicio: pagoForm.fechaInicio,
-      })
-      .eq("id", createdStudentId);
+    // Guardado unificado de alumno + pago atómico mediante la RPC (1 RTT)
+    const { error: rpcError } = await supabase.rpc(
+      "crear_alumno_con_cobro",
+      {
+        p_nombre: form.nombre.trim(),
+        p_dni: form.dni.trim(),
+        p_domicilio: form.domicilio.trim(),
+        p_telefono: form.telefono.trim(),
+        p_fecha_nacimiento: form.fechaNacimiento,
+        p_fecha_registro: form.fechaRegistro,
+        p_genero: form.genero,
+        p_edad_actual: edadCalculada,
+        p_actividad: pagoForm.actividad,
+        p_precio: Number(pagoForm.precio),
+        p_fecha_cobro: pagoForm.fechaCobro,
+        p_medio_pago: pagoForm.medioPago,
+        p_fecha_inicio: pagoForm.fechaInicio,
+        p_fecha_vencimiento: fechaProximoVencimiento,
+      }
+    );
 
     setGuardando(false);
 
-    if (errorUpdate) {
+    if (rpcError) {
       triggerHapticFeedback(HapticPresets.error);
-      alert("Error al actualizar alumno: " + errorUpdate.message);
+      alert("Error al registrar alumno con cobro: " + rpcError.message);
       return;
     }
 
@@ -526,7 +518,7 @@ function NuevoAlumnoModal({
                 type="button"
                 disabled={guardando}
                 onClick={() => handleGuardarPaso1(true)}
-                className="w-full py-3 bg-[#DC2626] text-white text-base md:text-sm font-bold min-h-[44px] rounded-xl shadow-md hover:brightness-110 disabled:opacity-70 transition-all border border-transparent"
+                className="w-full py-3 bg-orange-600 text-white text-base md:text-sm font-bold min-h-[44px] rounded-xl shadow-md hover:brightness-110 disabled:opacity-70 transition-all border border-transparent"
               >
                 {guardando ? "Guardando..." : "Guardar y Registrar Cobro"}
               </button>
@@ -542,7 +534,7 @@ function NuevoAlumnoModal({
                   type="button"
                   disabled={guardando}
                   onClick={() => handleGuardarPaso1(false)}
-                  className="flex-1 py-2.5 text-red-600 bg-red-50 border border-red-100 text-base md:text-sm font-semibold min-h-[44px] rounded-lg hover:bg-red-100 disabled:opacity-70"
+                  className="flex-1 py-2.5 text-orange-600 bg-orange-50 border border-orange-100 text-base md:text-sm font-semibold min-h-[44px] rounded-lg hover:bg-orange-100 disabled:opacity-70"
                 >
                   Guardar
                 </button>
@@ -561,7 +553,7 @@ function NuevoAlumnoModal({
             className="px-4 md:px-6 py-5 flex flex-col gap-4"
           >
             <div className="p-4 bg-green-50 border border-green-100 text-green-800 rounded-xl text-sm font-medium mb-2 text-center">
-              Alumno creado exitosamente.
+              Datos personales validados. Completá el cobro para registrar.
             </div>
 
             <div className="flex flex-col gap-2">
@@ -863,7 +855,7 @@ export default function AlumnosList() {
       {/* Fondo Logo con opacidad baja, centrado en la pantalla */}
       <div className="fixed inset-0 flex items-center justify-center top-16 md:top-0 pointer-events-none z-0 overflow-hidden">
         <img
-          src="/Mejor%20logo.png"
+          src="/logo-sin-fondo-completo.webp"
           alt="Sistema Alfa Background"
           className="w-[80vw] md:w-[450px] opacity-[0.35] object-contain ml-0 md:translate-x-[128px]"
         />

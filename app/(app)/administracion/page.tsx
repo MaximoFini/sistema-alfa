@@ -83,7 +83,7 @@ function PasswordGate({
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo%20sin%20fondo%20-%20Alfa%20Club-wZgRj4RXWHpEBDZCGUmX2BQpTRkF2F.png"
+          src="/logo-sin-fondo-alfaclub.webp"
           alt="Alfa Club"
           width={64}
           style={{ height: "auto" }}

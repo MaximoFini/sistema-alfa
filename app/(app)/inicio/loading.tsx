@@ -7,7 +7,7 @@ export default function InicioLoading() {
       {/* Fondo logo — igual que AlumnosList */}
       <div className="fixed inset-0 flex items-center justify-center top-16 md:top-0 pointer-events-none z-0 overflow-hidden">
         <img
-          src="/Mejor%20logo.png"
+          src="/logo-sin-fondo-completo.webp"
           alt=""
           className="w-[80vw] md:w-[450px] opacity-[0.35] object-contain ml-0 md:translate-x-[128px]"
         />

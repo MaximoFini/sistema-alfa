@@ -69,7 +69,7 @@ export default function MobileNav() {
         {/* Logo */}
         <Link href="/inicio" className="flex items-center">
           <Image
-            src="/Mejor logo.png"
+            src="/logo-sin-fondo-completo.webp"
             alt="Mejor logo"
             width={44}
             height={44}
@@ -99,7 +99,7 @@ export default function MobileNav() {
               <SheetHeader className="px-4 py-4 border-b border-neutral-800">
                 <SheetTitle className="flex items-center justify-center">
                   <Image
-                    src="/Mejor logo.png"
+                    src="/logo-sin-fondo-completo.webp"
                     alt="Mejor logo"
                     width={40}
                     height={40}

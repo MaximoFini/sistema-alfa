@@ -113,7 +113,7 @@ const PlanPDFTemplate = React.forwardRef<HTMLDivElement, PlanPDFTemplateProps>(
               >
                 {/* Logo */}
                 <img
-                  src="/Mejor logo.png"
+                  src="/logo-sin-fondo-completo.webp"
                   alt="Alfa Club"
                   crossOrigin="anonymous"
                   style={{ height: "44px", width: "auto" }}

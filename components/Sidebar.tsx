@@ -78,7 +78,7 @@ export default function Sidebar() {
         )}
       >
         <Image
-          src="/Mejor logo.png"
+          src="/logo-sin-fondo-completo.webp"
           alt="Mejor logo"
           width={52}
           height={52}

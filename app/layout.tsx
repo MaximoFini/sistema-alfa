@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   title: "Alfa Club",
   description: "Sistema de gestión para Alfa Club",
   icons: {
-    icon: "/Mejor logo.png",
+    icon: "/logo-sin-fondo-completo.webp",
   },
 };
 

@@ -95,7 +95,7 @@ export default function LoginPage() {
         <div className="relative z-10 flex flex-col items-center gap-4">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/Mejor logo.png"
+            src="/logo-sin-fondo-completo.webp"
             alt="Alfa Club Logo"
             width={320}
             style={{ height: "auto" }}
@@ -111,7 +111,7 @@ export default function LoginPage() {
           <div className="flex justify-center mb-8 lg:hidden">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/Mejor logo.png"
+              src="/logo-sin-fondo-completo.webp"
               alt="Alfa Club Logo"
               width={120}
               style={{ height: "auto" }}
