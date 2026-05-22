@@ -30,6 +30,7 @@ interface Alumno {
   actividad_interes?: string | null;
   cuis_completado: boolean;
   cuis_clases_presentadas: number;
+  observaciones?: string | null;
 }
 
 interface Asistencia {
