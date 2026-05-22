@@ -25,6 +25,7 @@ import {
   ShieldCheck,
   ShieldAlert,
   Mail,
+  FileText,
 } from "lucide-react";
 
 interface Alumno {
@@ -48,6 +49,7 @@ interface Alumno {
   cuis_clases_presentadas: number;
   email: string | null;
   telefono_emergencia: string | null;
+  observaciones: string | null;
 }
 
 function formatFecha(dateStr: string | null): string {
@@ -165,6 +167,7 @@ export default function PanelInfoPersonal({
     genero: alumno.genero ?? "",
     email: alumno.email ?? "",
     telefonoEmergencia: alumno.telefono_emergencia ?? "",
+    observaciones: alumno.observaciones ?? "",
   });
 
   const hoy = new Date();
@@ -237,6 +240,7 @@ export default function PanelInfoPersonal({
         edad_actual: edadCalculada,
         email: formData.email.trim() || null,
         telefono_emergencia: formData.telefonoEmergencia.trim() || null,
+        observaciones: formData.observaciones.trim() || null,
       })
       .eq("id", alumno.id);
 
@@ -457,6 +461,7 @@ export default function PanelInfoPersonal({
                 genero: alumno.genero ?? "",
                 email: alumno.email ?? "",
                 telefonoEmergencia: alumno.telefono_emergencia ?? "",
+                observaciones: alumno.observaciones ?? "",
               });
               setErrors({});
               setShowEditModal(true);
@@ -780,6 +785,21 @@ export default function PanelInfoPersonal({
                 />
               </div>
 
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  Observaciones / Notas Médicas o de Lesiones (Opcional)
+                </label>
+                <textarea
+                  value={formData.observaciones}
+                  onChange={(e) => {
+                    setFormData({ ...formData, observaciones: e.target.value });
+                  }}
+                  rows={3}
+                  className="border border-border rounded-lg px-4 py-3 text-sm bg-background text-foreground outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/10 resize-y"
+                  placeholder="Ej: Alergia al polvo, lesión en rodilla derecha"
+                />
+              </div>
+
               <div className="flex gap-3 pt-4">
                 <button
                   onClick={() => setShowEditModal(false)}
@@ -891,6 +911,25 @@ export default function PanelInfoPersonal({
 
       {/* Divider */}
       <div className="h-px bg-border" />
+
+      {/* Sección: Observaciones / Notas */}
+      {alumno.observaciones && (
+        <>
+          <div className="mx-6 mt-5 p-4 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-900 dark:text-amber-100 flex gap-3 items-start">
+            <FileText size={18} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <div className="flex flex-col gap-1 min-w-0">
+              <h4 className="text-xs font-extrabold uppercase tracking-wider text-amber-800 dark:text-amber-300">
+                Observaciones / Notas Médicas
+              </h4>
+              <p className="text-sm font-medium leading-relaxed whitespace-pre-wrap break-words">
+                {alumno.observaciones}
+              </p>
+            </div>
+          </div>
+          {/* Divider */}
+          <div className="h-px bg-border mt-5" />
+        </>
+      )}
 
       {/* Sección: Datos personales */}
       <SectionTitle>Datos personales</SectionTitle>
