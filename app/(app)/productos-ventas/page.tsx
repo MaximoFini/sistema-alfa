@@ -17,6 +17,7 @@ import {
   ShoppingBag,
   Shirt,
   FlaskConical,
+  Tag,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -113,6 +114,33 @@ function ProductoModal({
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const [productCategories, setProductCategories] = useState<{ id: string; name: string; is_active: boolean }[]>([
+    { id: "1", name: "General", is_active: true },
+    { id: "2", name: "Indumentaria", is_active: true },
+    { id: "3", name: "Suplementacion", is_active: true },
+  ]);
+
+  useEffect(() => {
+    async function loadCategories() {
+      try {
+        const { data, error } = await supabase
+          .from("product_categories")
+          .select("*")
+          .order("name", { ascending: true });
+        if (error) throw error;
+        
+        if (data) {
+          // Filter to active, but keep the current product's category in the selection even if it's inactive
+          const filtered = data.filter(c => c.is_active || (producto && c.name === producto.categoria));
+          setProductCategories(filtered);
+        }
+      } catch (err) {
+        console.error("Error loading categories:", err);
+      }
+    }
+    loadCategories();
+  }, [producto]);
 
   const esIndumentaria = form.categoria === "Indumentaria";
 
@@ -261,36 +289,39 @@ function ProductoModal({
             <label className="block text-sm font-semibold text-gray-700 mb-2">
               Categoría *
             </label>
-            <div className="flex gap-2 flex-wrap">
-              {(["General", "Indumentaria", "Suplementacion"] as const).map(
-                (cat) => (
-                  <button
-                    key={cat}
-                    type="button"
-                    onClick={() =>
-                      setForm({
-                        ...form,
-                        categoria: cat,
-                        tallesStock:
-                          cat === "Indumentaria"
-                            ? [{ talle: "S", stock: "0" }]
-                            : form.tallesStock,
-                      })
-                    }
-                    className={cn(
-                      "flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border text-sm font-semibold transition-all min-w-[100px]",
-                      form.categoria === cat
-                        ? "border-red-500 bg-red-50 text-red-700"
-                        : "border-gray-200 text-gray-600 hover:border-gray-300",
-                    )}
-                  >
-                    {cat === "Indumentaria" && <Shirt size={15} />}
-                    {cat === "General" && <Package size={15} />}
-                    {cat === "Suplementacion" && <FlaskConical size={15} />}
-                    {cat}
-                  </button>
-                ),
-              )}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+              {productCategories.map((cat) => (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() =>
+                    setForm({
+                      ...form,
+                      categoria: cat.name,
+                      tallesStock:
+                        cat.name === "Indumentaria"
+                          ? [{ talle: "S", stock: "0" }]
+                          : form.tallesStock,
+                    })
+                  }
+                  className={cn(
+                    "flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border text-sm font-semibold transition-all min-w-0 w-full hover:scale-[1.01] active:scale-[0.99] transition-transform",
+                    form.categoria === cat.name
+                      ? "border-red-500 bg-red-50 text-red-700"
+                      : "border-gray-200 text-gray-600 hover:border-gray-300",
+                  )}
+                >
+                  <span className="shrink-0">
+                    {cat.name === "Indumentaria" && <Shirt size={14} />}
+                    {cat.name === "General" && <Package size={14} />}
+                    {cat.name === "Suplementacion" && <FlaskConical size={14} />}
+                    {cat.name !== "Indumentaria" && cat.name !== "General" && cat.name !== "Suplementacion" && <Tag size={14} />}
+                  </span>
+                  <span className="truncate" title={cat.name}>
+                    {cat.name}
+                  </span>
+                </button>
+              ))}
             </div>
           </div>
 
@@ -1064,8 +1095,10 @@ export default function ProductosVentasPage() {
                           const esIndumentaria =
                             producto.categoria === "Indumentaria";
                           const cardStyle =
-                            CATEGORIA_CARD_STYLES[producto.categoria] ??
-                            CATEGORIA_CARD_STYLES.General;
+                            CATEGORIA_CARD_STYLES[producto.categoria] ?? {
+                              bg: "bg-purple-50/50",
+                              border: "border-purple-100",
+                            };
                           return (
                             <div
                               key={producto.id}
@@ -1100,6 +1133,28 @@ export default function ProductosVentasPage() {
                                     {producto.nombre}
                                   </h4>
                                 </div>
+                                
+                                {/* Categoria badge */}
+                                <div className="mb-2">
+                                  {producto.categoria === "Indumentaria" ? (
+                                    <span className="text-xs font-semibold text-orange-700 bg-orange-100 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                                      <Shirt size={11} /> Indumentaria
+                                    </span>
+                                  ) : producto.categoria === "Suplementacion" ? (
+                                    <span className="text-xs font-semibold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                                      <FlaskConical size={11} /> Suplementacion
+                                    </span>
+                                  ) : producto.categoria === "General" ? (
+                                    <span className="text-xs font-semibold text-sky-700 bg-sky-100 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                                      <Package size={11} /> General
+                                    </span>
+                                  ) : (
+                                    <span className="text-xs font-semibold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full inline-flex items-center gap-1 border border-purple-100">
+                                      <Tag size={11} /> {producto.categoria}
+                                    </span>
+                                  )}
+                                </div>
+
                                 <div className="flex items-center gap-2">
                                   <span
                                     className="text-2xl font-bold"
@@ -1111,24 +1166,6 @@ export default function ProductosVentasPage() {
                               </div>
 
                               <div className="space-y-2 mb-4">
-                                {/* Categoria badge */}
-                                <div className="mb-2">
-                                  {producto.categoria === "Indumentaria" && (
-                                    <span className="text-xs font-semibold text-orange-700 bg-orange-100 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
-                                      <Shirt size={11} /> Indumentaria
-                                    </span>
-                                  )}
-                                  {producto.categoria === "Suplementacion" && (
-                                    <span className="text-xs font-semibold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
-                                      <FlaskConical size={11} /> Suplementacion
-                                    </span>
-                                  )}
-                                  {producto.categoria === "General" && (
-                                    <span className="text-xs font-semibold text-sky-700 bg-sky-100 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
-                                      <Package size={11} /> General
-                                    </span>
-                                  )}
-                                </div>
 
                                 <div className="flex justify-between text-sm">
                                   <span className="text-gray-600">

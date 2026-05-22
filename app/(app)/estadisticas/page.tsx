@@ -1384,6 +1384,370 @@ function NuevosHistorialModal({
   );
 }
 
+// ── Modal historial de asistencias por horario ──────────────────────────────
+
+type AsistenciaHorarioRow = {
+  year: number;
+  month: number;
+  asistencia_por_hora: { horario: string; alumnos: number }[] | null;
+};
+
+function AsistenciasHorarioHistorialModal({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
+  const [data, setData] = useState<AsistenciaHorarioRow[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [selectedMonthKey, setSelectedMonthKey] = useState<string>(""); // Format: "year-month"
+  const [vista, setVista] = useState<"individual" | "comparativo">("individual");
+
+  useEffect(() => {
+    if (!open) return;
+    setLoading(true);
+    import("@/lib/supabase").then(({ supabase }) => {
+      supabase
+        .from("estadisticas_mensuales")
+        .select("year, month, asistencia_por_hora")
+        .not("asistencia_por_hora", "is", null)
+        .order("year", { ascending: false })
+        .order("month", { ascending: false })
+        .then(({ data: rows }) => {
+          const typedRows = (rows ?? []) as AsistenciaHorarioRow[];
+          setData(typedRows);
+          if (typedRows.length > 0) {
+            setSelectedMonthKey(`${typedRows[0].year}-${typedRows[0].month}`);
+          }
+          setLoading(false);
+        });
+    });
+  }, [open]);
+
+  const currentMonthData = useMemo(() => {
+    if (!selectedMonthKey) return [];
+    const [y, m] = selectedMonthKey.split("-").map(Number);
+    const found = data.find((r) => r.year === y && r.month === m);
+    return found?.asistencia_por_hora ?? [];
+  }, [selectedMonthKey, data]);
+
+  // Para el gráfico comparativo multi-línea de los últimos 3 meses
+  const comparativoData = useMemo(() => {
+    if (data.length === 0) return [];
+    const ultimosTres = [...data.slice(0, 3)].reverse();
+    const franjas = Array.from({ length: 16 }, (_, i) => `${String(i + 7).padStart(2, "0")}:00`);
+    
+    return franjas.map((franja) => {
+      const point: Record<string, any> = { horario: franja };
+      ultimosTres.forEach((mes) => {
+        const mesLabel = `${MESES_ABREV[mes.month - 1]} ${mes.year}`;
+        const found = mes.asistencia_por_hora?.find((h) => h.horario === franja);
+        point[mesLabel] = found ? found.alumnos : 0;
+      });
+      return point;
+    });
+  }, [data]);
+
+  const ultimosTresLabels = useMemo(() => {
+    const ultimosTres = [...data.slice(0, 3)].reverse();
+    return ultimosTres.map((mes) => `${MESES_ABREV[mes.month - 1]} ${mes.year}`);
+  }, [data]);
+
+  const comparativoColors = ["#DC2626", "#2563eb", "#16a34a"];
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="w-[95vw] max-w-[900px] h-[85vh] max-h-[85vh] overflow-hidden flex flex-col p-0">
+        <div className="px-6 pt-6 pb-4 border-b border-gray-100 shrink-0 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <DialogHeader>
+              <DialogTitle className="text-xl font-bold text-gray-900">
+                Historial — Asistencias por Horario
+              </DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-gray-500 mt-1">
+              Análisis y comparación de distribución de ingresos a lo largo del día
+            </p>
+          </div>
+
+          <div className="flex bg-gray-100 rounded-lg p-1 gap-1">
+            <button
+              onClick={() => setVista("individual")}
+              className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${
+                vista === "individual"
+                  ? "bg-white text-gray-900 shadow-sm"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              Vista Mensual
+            </button>
+            <button
+              onClick={() => setVista("comparativo")}
+              className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${
+                vista === "comparativo"
+                  ? "bg-white text-gray-900 shadow-sm"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              Comparar Últimos 3 Meses
+            </button>
+          </div>
+        </div>
+
+        <div className="px-6 py-4 flex-1 overflow-y-auto flex flex-col">
+          {loading ? (
+            <div className="flex items-center justify-center flex-1 text-gray-400 text-base">
+              Cargando historial de asistencia horaria...
+            </div>
+          ) : data.length === 0 ? (
+            <div className="flex items-center justify-center flex-1 text-gray-400 text-base">
+              No hay datos históricos registrados de asistencia por hora.
+            </div>
+          ) : (
+            <div className="flex-1 flex flex-col gap-4">
+              {vista === "individual" ? (
+                <>
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                    <span className="text-sm font-semibold text-gray-700">Seleccionar Mes:</span>
+                    <select
+                      value={selectedMonthKey}
+                      onChange={(e) => setSelectedMonthKey(e.target.value)}
+                      className="bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-gray-900 font-semibold focus:outline-none focus:ring-2 focus:ring-red-500"
+                    >
+                      {data.map((r) => (
+                        <option key={`${r.year}-${r.month}`} value={`${r.year}-${r.month}`}>
+                          {MESES_ABREV[r.month - 1]} {r.year}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex-1 min-h-[300px] flex flex-col bg-white rounded-xl border border-gray-100 p-4 mt-2">
+                    <ResponsiveContainer width="100%" height={320}>
+                      <BarChart data={currentMonthData} barSize={32}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+                        <XAxis dataKey="horario" tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} allowDecimals={false} />
+                        <Tooltip formatter={(v: number) => [`${v} asistencias`, "Asistencia"]} cursor={{ fill: "#f9fafb" }} />
+                        <Bar dataKey="alumnos" fill="#DC2626" radius={[6, 6, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex flex-wrap gap-4 mb-2">
+                    {ultimosTresLabels.map((label, idx) => (
+                      <div key={label} className="flex items-center gap-2">
+                        <div
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: comparativoColors[idx] }}
+                        />
+                        <span className="text-xs font-semibold text-gray-600">{label}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex-1 min-h-[300px] flex flex-col bg-white rounded-xl border border-gray-100 p-4">
+                    <ResponsiveContainer width="100%" height={320}>
+                      <LineChart data={comparativoData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+                        <XAxis dataKey="horario" tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} allowDecimals={false} />
+                        <Tooltip formatter={(v: number) => [`${v} alumnos`]} />
+                        {ultimosTresLabels.map((label, idx) => (
+                          <Line
+                            key={label}
+                            type="monotone"
+                            dataKey={label}
+                            stroke={comparativoColors[idx]}
+                            strokeWidth={2.5}
+                            dot={{ r: 4, strokeWidth: 0 }}
+                            activeDot={{ r: 6 }}
+                          />
+                        ))}
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Modal historial de alumnos activos por género ───────────────────────────
+
+type GeneroHistorialRow = {
+  year: number;
+  month: number;
+  pct_hombres: number | null;
+  pct_mujeres: number | null;
+};
+
+function GeneroHistorialModal({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
+  const [data, setData] = useState<GeneroHistorialRow[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setLoading(true);
+    import("@/lib/supabase").then(({ supabase }) => {
+      supabase
+        .from("estadisticas_mensuales")
+        .select("year, month, pct_hombres, pct_mujeres")
+        .not("pct_hombres", "is", null)
+        .order("year", { ascending: true })
+        .order("month", { ascending: true })
+        .then(({ data: rows }) => {
+          setData((rows ?? []) as GeneroHistorialRow[]);
+          setLoading(false);
+        });
+    });
+  }, [open]);
+
+  const formattedChartData = useMemo(() => {
+    return data.map((r) => ({
+      mes: `${MESES_ABREV[r.month - 1]} ${r.year}`,
+      Hombres: r.pct_hombres,
+      Mujeres: r.pct_mujeres,
+    }));
+  }, [data]);
+
+  const kpis = useMemo(() => {
+    if (data.length === 0) return null;
+    const hombresValidos = data.filter((r) => r.pct_hombres !== null);
+    const mujeresValidos = data.filter((r) => r.pct_mujeres !== null);
+
+    const avgHombres = hombresValidos.length
+      ? Math.round(hombresValidos.reduce((sum, r) => sum + (r.pct_hombres ?? 0), 0) / hombresValidos.length)
+      : 0;
+    
+    const avgMujeres = mujeresValidos.length
+      ? Math.round(mujeresValidos.reduce((sum, r) => sum + (r.pct_mujeres ?? 0), 0) / mujeresValidos.length)
+      : 0;
+
+    const maxHombresRow = hombresValidos.reduce<GeneroHistorialRow | null>(
+      (max, r) => (!max || (r.pct_hombres ?? 0) > (max.pct_hombres ?? 0) ? r : max),
+      null
+    );
+
+    const maxMujeresRow = mujeresValidos.reduce<GeneroHistorialRow | null>(
+      (max, r) => (!max || (r.pct_mujeres ?? 0) > (max.pct_mujeres ?? 0) ? r : max),
+      null
+    );
+
+    return {
+      avgHombres,
+      avgMujeres,
+      maxHombres: maxHombresRow ? `${maxHombresRow.pct_hombres}% (${MESES_ABREV[maxHombresRow.month - 1]} ${maxHombresRow.year})` : "—",
+      maxMujeres: maxMujeresRow ? `${maxMujeresRow.pct_mujeres}% (${MESES_ABREV[maxMujeresRow.month - 1]} ${maxMujeresRow.year})` : "—",
+    };
+  }, [data]);
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="w-[95vw] max-w-[900px] h-[85vh] max-h-[85vh] overflow-hidden flex flex-col p-0">
+        <div className="px-6 pt-6 pb-4 border-b border-gray-100 shrink-0">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-gray-900">
+              Historial — Distribución por Género
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-500 mt-1">
+            Evolución histórica mensual de la participación masculina y femenina
+          </p>
+
+          {!loading && kpis && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4">
+              <div className="bg-gray-50 rounded-xl p-4 flex flex-col gap-1">
+                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                  Promedio Hombres
+                </span>
+                <span className="text-2xl font-bold text-gray-950">
+                  {kpis.avgHombres}%
+                </span>
+              </div>
+              <div className="bg-gray-50 rounded-xl p-4 flex flex-col gap-1">
+                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                  Promedio Mujeres
+                </span>
+                <span className="text-2xl font-bold text-gray-950">
+                  {kpis.avgMujeres}%
+                </span>
+              </div>
+              <div className="bg-gray-50 rounded-xl p-4 flex flex-col gap-1">
+                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                  Máx. Hombres
+                </span>
+                <span className="text-sm font-bold text-red-600 truncate">
+                  {kpis.maxHombres}
+                </span>
+              </div>
+              <div className="bg-gray-50 rounded-xl p-4 flex flex-col gap-1">
+                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                  Máx. Mujeres
+                </span>
+                <span className="text-sm font-bold text-gray-600 truncate">
+                  {kpis.maxMujeres}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="px-6 py-4 flex-1 overflow-y-auto flex flex-col">
+          {loading ? (
+            <div className="flex items-center justify-center flex-1 text-gray-400 text-base">
+              Cargando historial de distribución por género...
+            </div>
+          ) : data.length === 0 ? (
+            <div className="flex items-center justify-center flex-1 text-gray-400 text-base">
+              No hay suficientes datos históricos de género.
+            </div>
+          ) : (
+            <div className="flex-1 flex flex-col gap-4">
+              <div className="flex gap-4">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-[#DC2626]" />
+                  <span className="text-xs font-semibold text-gray-600">Hombres</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-[#6b7280]" />
+                  <span className="text-xs font-semibold text-gray-600">Mujeres</span>
+                </div>
+              </div>
+
+              <div className="flex-1 min-h-[300px] flex flex-col bg-white rounded-xl border border-gray-100 p-4">
+                <ResponsiveContainer width="100%" height={320}>
+                  <LineChart data={formattedChartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+                    <XAxis dataKey="mes" tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
+                    <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} />
+                    <Tooltip formatter={(v: number) => [`${v}%`]} />
+                    <Line type="monotone" dataKey="Hombres" stroke="#DC2626" strokeWidth={2.5} dot={{ r: 4, strokeWidth: 0 }} activeDot={{ r: 6 }} />
+                    <Line type="monotone" dataKey="Mujeres" stroke="#6b7280" strokeWidth={2.5} dot={{ r: 4, strokeWidth: 0 }} activeDot={{ r: 6 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function StatCard({
   label,
   value,
@@ -1541,8 +1905,15 @@ export default function EstadisticasPage() {
     { horario: string; alumnos: number }[]
   >(isCacheValid && snap ? snap.asistenciaHorarioReal : []);
   const [rankingTop5, setRankingTop5] = useState<
-    { pos: number; nombre: string; inicial: string; clases: number }[]
+    { pos: number; nombre: string; inicial: string; clases: number; genero?: string }[]
   >(isCacheValid && snap ? snap.rankingTop5 : []);
+  const [rankingTopMasc, setRankingTopMasc] = useState<
+    { pos: number; nombre: string; inicial: string; clases: number; genero?: string }[]
+  >([]);
+  const [rankingTopFem, setRankingTopFem] = useState<
+    { pos: number; nombre: string; inicial: string; clases: number; genero?: string }[]
+  >([]);
+  const [filtroGeneroRanking, setFiltroGeneroRanking] = useState<'todos' | 'Masculino' | 'Femenino'>('todos');
   // Historial de nuevos alumnos por mes (últimos 6 meses)
   const [mesesNuevosHistorial, setMesesNuevosHistorial] = useState<
     { mes: string; nuevos: number }[]
@@ -1551,6 +1922,8 @@ export default function EstadisticasPage() {
   const [nuevosHistorialOpen, setNuevosHistorialOpen] = useState(false);
   const [retencionHistorialOpen, setRetencionHistorialOpen] = useState(false);
   const [rankingHistorialOpen, setRankingHistorialOpen] = useState(false);
+  const [horarioHistorialOpen, setHorarioHistorialOpen] = useState(false);
+  const [generoHistorialOpen, setGeneroHistorialOpen] = useState(false);
   const [antiguedadMeses, setAntiguedadMeses] = useState<number | null>(
     isCacheValid && snap ? snap.antiguedadMeses : null,
   );
@@ -1569,12 +1942,12 @@ export default function EstadisticasPage() {
     import("@/lib/supabase").then(({ supabase }) => {
       supabase
         .from("asistencias")
-        .select("alumno_id, alumnos!inner(nombre)")
+        .select("alumno_id, alumnos!inner(nombre, genero)")
         .gte("fecha", primerDiaMesStr)
         .lte("fecha", hoyStr)
         .then(({ data: asistencias }) => {
           if (!asistencias) return;
-          const conteo = new Map<string, { nombre: string; count: number }>();
+          const conteo = new Map<string, { nombre: string; count: number; genero: string }>();
           for (const a of asistencias as any[]) {
             const id = a.alumno_id;
             if (!id) continue;
@@ -1582,19 +1955,54 @@ export default function EstadisticasPage() {
               a.alumnos?.nombre ||
               alumnoNombreMapRef.current.get(id) ||
               "Alumno";
+            const genero = a.alumnos?.genero || "Masculino";
             const prev = conteo.get(id);
-            conteo.set(id, { nombre, count: (prev?.count ?? 0) + 1 });
+            conteo.set(id, { nombre, count: (prev?.count ?? 0) + 1, genero });
           }
-          const top5 = [...conteo.entries()]
+
+          const allEntries = [...conteo.entries()];
+
+          // Top 10 General
+          const generalTop10 = allEntries
             .sort((a, b) => b[1].count - a[1].count)
-            .slice(0, 5)
-            .map(([, { nombre, count }], i) => ({
+            .slice(0, 10)
+            .map(([, { nombre, count, genero }], i) => ({
               pos: i + 1,
               nombre,
               inicial: nombre.charAt(0).toUpperCase(),
               clases: count,
+              genero,
             }));
-          setRankingTop5(top5);
+
+          // Top 10 Masculino
+          const mascTop10 = allEntries
+            .filter(([, val]) => val.genero === "Masculino")
+            .sort((a, b) => b[1].count - a[1].count)
+            .slice(0, 10)
+            .map(([, { nombre, count, genero }], i) => ({
+              pos: i + 1,
+              nombre,
+              inicial: nombre.charAt(0).toUpperCase(),
+              clases: count,
+              genero,
+            }));
+
+          // Top 10 Femenino
+          const femTop10 = allEntries
+            .filter(([, val]) => val.genero === "Femenino")
+            .sort((a, b) => b[1].count - a[1].count)
+            .slice(0, 10)
+            .map(([, { nombre, count, genero }], i) => ({
+              pos: i + 1,
+              nombre,
+              inicial: nombre.charAt(0).toUpperCase(),
+              clases: count,
+              genero,
+            }));
+
+          setRankingTop5(generalTop10);
+          setRankingTopMasc(mascTop10);
+          setRankingTopFem(femTop10);
         });
     });
   }, []);
@@ -2031,6 +2439,14 @@ export default function EstadisticasPage() {
           open={rankingHistorialOpen}
           onClose={() => setRankingHistorialOpen(false)}
         />
+        <AsistenciasHorarioHistorialModal
+          open={horarioHistorialOpen}
+          onClose={() => setHorarioHistorialOpen(false)}
+        />
+        <GeneroHistorialModal
+          open={generoHistorialOpen}
+          onClose={() => setGeneroHistorialOpen(false)}
+        />
 
         {/* Fila 1 — KPIs superiores */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -2226,7 +2642,7 @@ export default function EstadisticasPage() {
                 Ranking
               </span>
               <span className="text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
-                Top 5 por asistencia
+                Top 10 Asistencias
               </span>
             </div>
 
@@ -2248,57 +2664,101 @@ export default function EstadisticasPage() {
               Ver historial
             </button>
           </div>
+
+          {/* Segmented Control / Tabs para filtrar el ranking */}
+          <div className="flex bg-gray-100 rounded-lg p-1 gap-1 mb-5 max-w-xs">
+            <button
+              onClick={() => setFiltroGeneroRanking('todos')}
+              className={`flex-1 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                filtroGeneroRanking === 'todos'
+                  ? "bg-white text-gray-900 shadow-sm"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              General
+            </button>
+            <button
+              onClick={() => setFiltroGeneroRanking('Masculino')}
+              className={`flex-1 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                filtroGeneroRanking === 'Masculino'
+                  ? "bg-white text-[#DC2626] shadow-sm font-bold"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              Hombres
+            </button>
+            <button
+              onClick={() => setFiltroGeneroRanking('Femenino')}
+              className={`flex-1 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                filtroGeneroRanking === 'Femenino'
+                  ? "bg-white text-[#DC2626] shadow-sm font-bold"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              Mujeres
+            </button>
+          </div>
+
           <div className="flex flex-col gap-3">
-            {rankingTop5.length === 0 ? (
-              <p className="text-sm text-gray-400 text-center py-4">
-                Sin asistencias registradas este mes.
-              </p>
-            ) : null}
-            {rankingTop5.map(({ pos, nombre, inicial, clases }) => {
-              const medalColors: Record<
-                number,
-                { bg: string; text: string; label: string }
-              > = {
-                1: { bg: "#fffbeb", text: "#d97706", label: "🥇" },
-                2: { bg: "#f8fafc", text: "#64748b", label: "🥈" },
-                3: { bg: "#fff7ed", text: "#c2410c", label: "🥉" },
-              };
-              const medal = medalColors[pos];
-              return (
-                <div key={pos} className="flex items-center gap-3">
-                  {/* Posición / medalla */}
-                  <div
-                    className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold"
-                    style={
-                      medal
-                        ? { backgroundColor: medal.bg, color: medal.text }
-                        : { backgroundColor: "#f3f4f6", color: "#6b7280" }
-                    }
-                  >
-                    {medal ? medal.label : pos}
+            {(() => {
+              const rankingDataAMostrar = filtroGeneroRanking === 'todos'
+                ? rankingTop5
+                : filtroGeneroRanking === 'Masculino'
+                  ? rankingTopMasc
+                  : rankingTopFem;
+              if (rankingDataAMostrar.length === 0) {
+                return (
+                  <p className="text-sm text-gray-400 text-center py-4">
+                    Sin asistencias registradas este mes.
+                  </p>
+                );
+              }
+              return rankingDataAMostrar.map(({ pos, nombre, inicial, clases }) => {
+                const medalColors: Record<
+                  number,
+                  { bg: string; text: string; label: string }
+                > = {
+                  1: { bg: "#fffbeb", text: "#d97706", label: "🥇" },
+                  2: { bg: "#f8fafc", text: "#64748b", label: "🥈" },
+                  3: { bg: "#fff7ed", text: "#c2410c", label: "🥉" },
+                };
+                const medal = medalColors[pos];
+                return (
+                  <div key={pos} className="flex items-center gap-3">
+                    {/* Posición / medalla */}
+                    <div
+                      className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold"
+                      style={
+                        medal
+                          ? { backgroundColor: medal.bg, color: medal.text }
+                          : { backgroundColor: "#f3f4f6", color: "#6b7280" }
+                      }
+                    >
+                      {medal ? medal.label : pos}
+                    </div>
+                    {/* Avatar */}
+                    <div
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0"
+                      style={{
+                        backgroundColor: pos === 1 ? "#DC2626" : "#9ca3af",
+                      }}
+                    >
+                      {inicial}
+                    </div>
+                    {/* Nombre */}
+                    <span
+                      className={`flex-1 text-sm ${pos === 1 ? "font-semibold text-gray-900" : "text-gray-600"}`}
+                    >
+                      {nombre}
+                    </span>
+                    {/* Clases */}
+                    <span className="text-xs font-semibold text-gray-400">
+                      {clases} clases
+                    </span>
                   </div>
-                  {/* Avatar */}
-                  <div
-                    className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0"
-                    style={{
-                      backgroundColor: pos === 1 ? "#DC2626" : "#9ca3af",
-                    }}
-                  >
-                    {inicial}
-                  </div>
-                  {/* Nombre */}
-                  <span
-                    className={`flex-1 text-sm ${pos === 1 ? "font-semibold text-gray-900" : "text-gray-600"}`}
-                  >
-                    {nombre}
-                  </span>
-                  {/* Clases */}
-                  <span className="text-xs font-semibold text-gray-400">
-                    {clases} clases
-                  </span>
-                </div>
-              );
-            })}
+                );
+              });
+            })()}
           </div>
         </div>
 
@@ -2310,9 +2770,28 @@ export default function EstadisticasPage() {
               <p className="font-semibold text-gray-900">
                 Distribución por Género
               </p>
-              <span className="text-xs text-gray-400 bg-gray-50 px-2 py-0.5 rounded-full">
-                Solo activos
-              </span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => setGeneroHistorialOpen(true)}
+                  className="text-xs text-gray-400 hover:text-gray-700 font-semibold flex items-center gap-1.5 transition-colors"
+                >
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                    <path d="M3 3v5h5" />
+                  </svg>
+                  Ver histórico
+                </button>
+                <span className="text-xs text-gray-400 bg-gray-50 px-2 py-0.5 rounded-full">
+                  Solo activos
+                </span>
+              </div>
             </div>
             {(() => {
               const totalGenero = generoDataReal.reduce(
@@ -2471,12 +2950,33 @@ export default function EstadisticasPage() {
 
         {/* Fila 5 — Asistencia por horario (ancho completo) */}
         <div className="bg-white rounded-xl border border-gray-100 p-6">
-          <p className="font-semibold text-gray-900 mb-1">
-            Asistencia por Horario
-          </p>
-          <p className="text-xs text-gray-400 mb-4">
-            Total de asistencias por franja horaria — mes actual
-          </p>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <p className="font-semibold text-gray-900 mb-1">
+                Asistencia por Horario
+              </p>
+              <p className="text-xs text-gray-400">
+                Total de asistencias por franja horaria — mes actual
+              </p>
+            </div>
+            <button
+              onClick={() => setHorarioHistorialOpen(true)}
+              className="text-xs text-gray-400 hover:text-gray-700 font-semibold flex items-center gap-1.5 transition-colors"
+            >
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                <path d="M3 3v5h5" />
+              </svg>
+              Ver histórico de horarios
+            </button>
+          </div>
           {mounted && asistenciaHorarioReal.length > 0 ? (
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={asistenciaHorarioReal} barSize={32}>

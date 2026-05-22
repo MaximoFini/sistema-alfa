@@ -23,6 +23,7 @@ import {
   AlertTriangle,
   ShieldCheck,
   ShieldAlert,
+  Mail,
 } from "lucide-react";
 
 interface Alumno {
@@ -44,6 +45,7 @@ interface Alumno {
   clases_gracia_usadas: number;
   cuis_completado: boolean;
   cuis_clases_presentadas: number;
+  email: string | null;
 }
 
 function formatFecha(dateStr: string | null): string {
@@ -159,6 +161,7 @@ export default function PanelInfoPersonal({
     telefono: alumno.telefono ?? "",
     fecha_nacimiento: alumno.fecha_nacimiento ?? "",
     genero: alumno.genero ?? "",
+    email: alumno.email ?? "",
   });
 
   const hoy = new Date();
@@ -229,6 +232,7 @@ export default function PanelInfoPersonal({
         fecha_nacimiento: formData.fecha_nacimiento,
         genero: formData.genero,
         edad_actual: edadCalculada,
+        email: formData.email.trim() || null,
       })
       .eq("id", alumno.id);
 
@@ -447,6 +451,7 @@ export default function PanelInfoPersonal({
                 telefono: alumno.telefono ?? "",
                 fecha_nacimiento: alumno.fecha_nacimiento ?? "",
                 genero: alumno.genero ?? "",
+                email: alumno.email ?? "",
               });
               setErrors({});
               setShowEditModal(true);
@@ -741,6 +746,21 @@ export default function PanelInfoPersonal({
                 )}
               </div>
 
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  placeholder="Ej: juan@gmail.com"
+                  value={formData.email}
+                  onChange={(e) => {
+                    setFormData({ ...formData, email: e.target.value });
+                  }}
+                  className="border border-border rounded-lg px-4 py-3 text-sm bg-background text-foreground outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/10"
+                />
+              </div>
+
               <div className="flex gap-3 pt-4">
                 <button
                   onClick={() => setShowEditModal(false)}
@@ -910,6 +930,13 @@ export default function PanelInfoPersonal({
             icon={<Calendar size={14} />}
             label="Alumno desde"
             value={formatFecha(alumno.fecha_registro)}
+          />
+        )}
+        {alumno.email && (
+          <DataField
+            icon={<Mail size={14} />}
+            label="Email"
+            value={alumno.email}
           />
         )}
       </div>

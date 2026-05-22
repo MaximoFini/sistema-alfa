@@ -267,6 +267,13 @@ export default function TrialRegistrationForm() {
               className={errors.dni ? "border-red-500" : ""}
             />
             {errors.dni && <p className="text-sm text-red-600">{errors.dni}</p>}
+            <p className="flex items-start gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+              <span className="shrink-0 mt-px">⚠️</span>
+              <span>
+                Recordá presentarte con tu <strong>DNI físico</strong> el primer
+                día de clase para verificar tu registro.
+              </span>
+            </p>
           </div>
 
           {/* Fecha de Nacimiento */}

@@ -157,6 +157,10 @@ export default function AjustesPage() {
     metodosLoading,
     usuarios,
     usuariosLoading,
+    cards,
+    cardsLoading,
+    productCategories,
+    productCategoriesLoading,
     updateSettings,
     togglePlan: togglePlanStore,
     updatePlan: updatePlanStore,
@@ -171,6 +175,14 @@ export default function AjustesPage() {
     updateUser: updateUserStore,
     addUser: addUserStore,
     deleteUser: deleteUserStore,
+    toggleCard: toggleCardStore,
+    updateCard: updateCardStore,
+    addCard: addCardStore,
+    deleteCard: deleteCardStore,
+    toggleProductCategory: toggleProductCategoryStore,
+    updateProductCategory: updateProductCategoryStore,
+    addProductCategory: addProductCategoryStore,
+    deleteProductCategory: deleteProductCategoryStore,
   } = useAdminSettings();
 
   // Local state for alertas
@@ -210,6 +222,18 @@ export default function AjustesPage() {
   const [newMetodoNombre, setNewMetodoNombre] = useState("");
   const [showNewMetodo, setShowNewMetodo] = useState(false);
 
+  // Tarjetas UI state
+  const [editingCardId, setEditingCardId] = useState<string | null>(null);
+  const [editCardName, setEditCardName] = useState("");
+  const [newCardName, setNewCardName] = useState("");
+  const [showNewCard, setShowNewCard] = useState(false);
+
+  // Product Categories UI state
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
+  const [editCategoryName, setEditCategoryName] = useState("");
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [showNewCategory, setShowNewCategory] = useState(false);
+
   // Usuarios UI state
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [editUserName, setEditUserName] = useState("");
@@ -223,7 +247,7 @@ export default function AjustesPage() {
   );
 
   const loading =
-    settingsLoading || planesLoading || metodosLoading || usuariosLoading;
+    settingsLoading || planesLoading || metodosLoading || usuariosLoading || cardsLoading || productCategoriesLoading;
 
   async function togglePlan(plan: any) {
     await togglePlanStore(plan.id);
@@ -291,6 +315,64 @@ export default function AjustesPage() {
     if (!confirm("¿Estás seguro de que deseas eliminar este medio de pago?"))
       return;
     await deleteMetodoStore(id);
+  }
+
+  // ─── Cards Logic ─────────────────────────────────────────────────────────────
+  async function toggleCard(card: any) {
+    await toggleCardStore(card.id);
+  }
+
+  function startEditCard(card: any) {
+    setEditingCardId(card.id);
+    setEditCardName(card.name);
+  }
+
+  async function saveEditCard() {
+    if (!editingCardId || !editCardName.trim()) return;
+    await updateCardStore(editingCardId, editCardName.trim());
+    setEditingCardId(null);
+  }
+
+  async function addCard() {
+    if (!newCardName.trim()) return;
+    await addCardStore(newCardName.trim());
+    setNewCardName("");
+    setShowNewCard(false);
+  }
+
+  async function deleteCard(id: string) {
+    if (!confirm("¿Estás seguro de que deseas eliminar esta tarjeta?"))
+      return;
+    await deleteCardStore(id);
+  }
+
+  // ─── Product Categories Logic ────────────────────────────────────────────────
+  async function toggleProductCategory(category: any) {
+    await toggleProductCategoryStore(category.id);
+  }
+
+  function startEditCategory(category: any) {
+    setEditingCategoryId(category.id);
+    setEditCategoryName(category.name);
+  }
+
+  async function saveEditCategory() {
+    if (!editingCategoryId || !editCategoryName.trim()) return;
+    await updateProductCategoryStore(editingCategoryId, editCategoryName.trim());
+    setEditingCategoryId(null);
+  }
+
+  async function addProductCategory() {
+    if (!newCategoryName.trim()) return;
+    await addProductCategoryStore(newCategoryName.trim());
+    setNewCategoryName("");
+    setShowNewCategory(false);
+  }
+
+  async function deleteProductCategory(id: string) {
+    if (!confirm("¿Estás seguro de que deseas eliminar esta categoría?"))
+      return;
+    await deleteProductCategoryStore(id);
   }
 
   // ─── Users Logic ─────────────────────────────────────────────────────────────
@@ -636,6 +718,226 @@ export default function AjustesPage() {
                   className="py-3 items-center justify-center flex gap-2 border border-dashed border-gray-200 rounded-xl text-gray-400 hover:text-orange-500 hover:border-orange-200 hover:bg-orange-50/30 transition-all text-xs font-bold mt-1"
                 >
                   <Plus size={14} /> Nuevo medio de pago
+                </button>
+              )}
+            </div>
+          </Section>
+
+          {/* Tarjetas Aceptadas Section */}
+          <Section
+            icon={CreditCard}
+            title="Tarjetas de Pago"
+            subtitle="Configuración de tarjetas de débito/crédito aceptadas"
+          >
+            <div className="flex flex-col gap-2 mt-3 max-h-[400px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-200">
+              {cards.map((card) => (
+                <div
+                  key={card.id}
+                  className={cn(
+                    "flex items-center gap-3 px-4 py-3 rounded-xl border group transition-all",
+                    card.is_active
+                      ? "bg-white border-gray-100 shadow-sm"
+                      : "bg-gray-50/50 border-gray-100 opacity-60",
+                  )}
+                >
+                  {editingCardId === card.id ? (
+                    <div className="flex items-center gap-3 w-full">
+                      <input
+                        value={editCardName}
+                        onChange={(e) => setEditCardName(e.target.value)}
+                        autoFocus
+                        className="flex-1 bg-white border border-orange-200 rounded-lg px-2.5 py-1.5 text-sm outline-none focus:border-orange-400"
+                      />
+                      <Tooltip label="Guardar cambios">
+                        <button
+                          onClick={saveEditCard}
+                          className="p-2 bg-[#111111] text-white rounded-lg hover:bg-gray-800 transition-all"
+                        >
+                          <Save size={14} />
+                        </button>
+                      </Tooltip>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex-1 min-w-0">
+                        <span className="text-sm font-bold text-gray-800">
+                          {card.name}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Tooltip label="Editar nombre">
+                          <button
+                            onClick={() => startEditCard(card)}
+                            className="p-1.5 text-gray-400 hover:text-gray-900 transition-colors"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                        </Tooltip>
+                        <Tooltip label="Eliminar tarjeta">
+                          <button
+                            onClick={() => deleteCard(card.id)}
+                            className="p-1.5 text-gray-400 hover:text-red-500 transition-colors"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </Tooltip>
+                      </div>
+                      <Tooltip label={card.is_active ? "Desactivar" : "Activar"}>
+                        <button
+                          onClick={() => toggleCard(card)}
+                          className="shrink-0"
+                        >
+                          {card.is_active ? (
+                            <ToggleRight size={24} className="text-orange-500" />
+                          ) : (
+                            <ToggleLeft size={24} className="text-gray-300" />
+                          )}
+                        </button>
+                      </Tooltip>
+                    </>
+                  )}
+                </div>
+              ))}
+              {showNewCard ? (
+                <div className="p-3 bg-orange-50/30 border border-dashed border-orange-200 rounded-xl space-y-3">
+                  <input
+                    value={newCardName}
+                    onChange={(e) => setNewCardName(e.target.value)}
+                    placeholder="Nombre de la tarjeta (Ej: Visa Débito)..."
+                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-orange-400"
+                    autoFocus
+                  />
+                  <div className="flex justify-end gap-2">
+                    <button
+                      onClick={() => setShowNewCard(false)}
+                      className="text-xs font-bold text-gray-400 hover:text-gray-600 px-2"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={addCard}
+                      className="bg-[#111111] text-white text-xs font-bold px-4 py-1.5 rounded-lg hover:bg-gray-800 transition-all"
+                    >
+                      Agregar
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowNewCard(true)}
+                  className="py-3 items-center justify-center flex gap-2 border border-dashed border-gray-200 rounded-xl text-gray-400 hover:text-orange-500 hover:border-orange-200 hover:bg-orange-50/30 transition-all text-xs font-bold mt-1"
+                >
+                  <Plus size={14} /> Nueva tarjeta
+                </button>
+              )}
+            </div>
+          </Section>
+
+          {/* Categorías de Productos Section */}
+          <Section
+            icon={Tag}
+            title="Categorías de Productos"
+            subtitle="Configuración de las categorías de inventario"
+          >
+            <div className="flex flex-col gap-2 mt-3 max-h-[400px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-200">
+              {productCategories.map((category) => (
+                <div
+                  key={category.id}
+                  className={cn(
+                    "flex items-center gap-3 px-4 py-3 rounded-xl border group transition-all",
+                    category.is_active
+                      ? "bg-white border-gray-100 shadow-sm"
+                      : "bg-gray-50/50 border-gray-100 opacity-60",
+                  )}
+                >
+                  {editingCategoryId === category.id ? (
+                    <div className="flex items-center gap-3 w-full">
+                      <input
+                        value={editCategoryName}
+                        onChange={(e) => setEditCategoryName(e.target.value)}
+                        autoFocus
+                        className="flex-1 bg-white border border-orange-200 rounded-lg px-2.5 py-1.5 text-sm outline-none focus:border-orange-400"
+                      />
+                      <Tooltip label="Guardar cambios">
+                        <button
+                          onClick={saveEditCategory}
+                          className="p-2 bg-[#111111] text-white rounded-lg hover:bg-gray-800 transition-all"
+                        >
+                          <Save size={14} />
+                        </button>
+                      </Tooltip>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex-1 min-w-0 text-left">
+                        <span className="text-sm font-bold text-gray-800">
+                          {category.name}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Tooltip label="Editar nombre">
+                          <button
+                            onClick={() => startEditCategory(category)}
+                            className="p-1.5 text-gray-400 hover:text-gray-900 transition-colors"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                        </Tooltip>
+                        <Tooltip label="Eliminar categoría">
+                          <button
+                            onClick={() => deleteProductCategory(category.id)}
+                            className="p-1.5 text-gray-400 hover:text-red-500 transition-colors"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </Tooltip>
+                      </div>
+                      <Tooltip label={category.is_active ? "Desactivar" : "Activar"}>
+                        <button
+                          onClick={() => toggleProductCategory(category)}
+                          className="shrink-0"
+                        >
+                          {category.is_active ? (
+                            <ToggleRight size={24} className="text-orange-500" />
+                          ) : (
+                            <ToggleLeft size={24} className="text-gray-300" />
+                          )}
+                        </button>
+                      </Tooltip>
+                    </>
+                  )}
+                </div>
+              ))}
+              {showNewCategory ? (
+                <div className="p-3 bg-orange-50/30 border border-dashed border-orange-200 rounded-xl space-y-3">
+                  <input
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    placeholder="Nombre de la categoría..."
+                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-orange-400"
+                    autoFocus
+                  />
+                  <div className="flex justify-end gap-2">
+                    <button
+                      onClick={() => setShowNewCategory(false)}
+                      className="text-xs font-bold text-gray-400 hover:text-gray-600 px-2"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={addProductCategory}
+                      className="bg-[#111111] text-white text-xs font-bold px-4 py-1.5 rounded-lg hover:bg-gray-800 transition-all"
+                    >
+                      Agregar
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowNewCategory(true)}
+                  className="py-3 items-center justify-center flex gap-2 border border-dashed border-gray-200 rounded-xl text-gray-400 hover:text-orange-500 hover:border-orange-200 hover:bg-orange-50/30 transition-all text-xs font-bold mt-1"
+                >
+                  <Plus size={14} /> Nueva categoría
                 </button>
               )}
             </div>

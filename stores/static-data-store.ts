@@ -18,24 +18,35 @@ interface PaymentMethod {
   name: string;
 }
 
+export interface AcceptedCard {
+  id: string;
+  name: string;
+  is_active: boolean;
+}
+
 interface StaticDataState {
   // Datos
   subscriptionPlans: SubscriptionPlan[];
   paymentMethods: PaymentMethod[];
+  acceptedCards: AcceptedCard[];
 
   // Estados de carga
   isLoadingPlans: boolean;
   isLoadingMethods: boolean;
+  acceptedCardsLoading: boolean;
 
   // Timestamps de última actualización
   plansLastFetched: number | null;
   methodsLastFetched: number | null;
+  acceptedCardsLastFetched: number | null;
 
   // Acciones
   fetchSubscriptionPlans: (
     forceRefresh?: boolean,
   ) => Promise<SubscriptionPlan[]>;
   fetchPaymentMethods: (forceRefresh?: boolean) => Promise<PaymentMethod[]>;
+  fetchAcceptedCards: (forceRefresh?: boolean) => Promise<AcceptedCard[]>;
+  invalidateAcceptedCards: () => void;
   fetchAllStaticData: (forceRefresh?: boolean) => Promise<void>;
   clearCache: () => void;
 }
@@ -47,10 +58,13 @@ export const useStaticDataStore = create<StaticDataState>((set, get) => ({
   // Estado inicial
   subscriptionPlans: [],
   paymentMethods: [],
+  acceptedCards: [],
   isLoadingPlans: false,
   isLoadingMethods: false,
+  acceptedCardsLoading: false,
   plansLastFetched: null,
   methodsLastFetched: null,
+  acceptedCardsLastFetched: null,
 
   // Obtener planes de suscripción
   fetchSubscriptionPlans: async (forceRefresh = false) => {
@@ -147,12 +161,65 @@ export const useStaticDataStore = create<StaticDataState>((set, get) => ({
     }
   },
 
+  // Obtener tarjetas aceptadas
+  fetchAcceptedCards: async (forceRefresh = false) => {
+    const state = get();
+    const now = Date.now();
+
+    // Verificar si hay datos en caché y son válidos
+    if (
+      !forceRefresh &&
+      state.acceptedCards.length > 0 &&
+      state.acceptedCardsLastFetched &&
+      now - state.acceptedCardsLastFetched < CACHE_DURATION
+    ) {
+      return state.acceptedCards;
+    }
+
+    // Si ya se está cargando, esperar
+    if (state.acceptedCardsLoading) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      return get().acceptedCards;
+    }
+
+    set({ acceptedCardsLoading: true });
+
+    try {
+      const { data, error } = await supabase
+        .from("accepted_cards")
+        .select("id, name, is_active")
+        .eq("is_active", true)
+        .order("name", { ascending: true });
+
+      if (error) throw error;
+
+      const cards = data || [];
+      set({
+        acceptedCards: cards,
+        acceptedCardsLastFetched: Date.now(),
+        acceptedCardsLoading: false,
+      });
+
+      return cards;
+    } catch (error) {
+      console.error("Error fetching accepted cards:", error);
+      set({ acceptedCardsLoading: false });
+      return state.acceptedCards;
+    }
+  },
+
+  // Invalidar caché de tarjetas
+  invalidateAcceptedCards: () => {
+    set({ acceptedCardsLastFetched: null });
+  },
+
   // Obtener todos los datos estáticos en paralelo
   fetchAllStaticData: async (forceRefresh = false) => {
     const state = get();
     await Promise.all([
       state.fetchSubscriptionPlans(forceRefresh),
       state.fetchPaymentMethods(forceRefresh),
+      state.fetchAcceptedCards(forceRefresh),
     ]);
   },
 
@@ -161,8 +228,10 @@ export const useStaticDataStore = create<StaticDataState>((set, get) => ({
     set({
       subscriptionPlans: [],
       paymentMethods: [],
+      acceptedCards: [],
       plansLastFetched: null,
       methodsLastFetched: null,
+      acceptedCardsLastFetched: null,
     });
   },
 }));

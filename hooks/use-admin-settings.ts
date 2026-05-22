@@ -53,6 +53,19 @@ interface BusinessSalary {
   description: string | null;
 }
 
+interface AcceptedCard {
+  id: string;
+  name: string;
+  is_active: boolean;
+}
+
+interface ProductCategory {
+  id: string;
+  name: string;
+  is_active: boolean;
+  created_at: string;
+}
+
 // ─── Store ────────────────────────────────────────────────────────────────────
 interface AdminSettingsState {
   // System settings
@@ -84,6 +97,16 @@ interface AdminSettingsState {
   salaries: BusinessSalary[];
   salariesLoading: boolean;
   salariesLastFetched: number | null;
+
+  // Accepted Cards
+  cards: AcceptedCard[];
+  cardsLoading: boolean;
+  cardsLastFetched: number | null;
+
+  // Product Categories
+  productCategories: ProductCategory[];
+  productCategoriesLoading: boolean;
+  productCategoriesLastFetched: number | null;
 
   // Actions
   fetchSettings: () => Promise<void>;
@@ -149,6 +172,19 @@ interface AdminSettingsState {
   }) => Promise<void>;
   deleteUser: (userId: string) => Promise<void>;
   generatePassword: (userId: string) => Promise<string>;
+  
+  fetchCards: () => Promise<void>;
+  toggleCard: (cardId: string) => Promise<void>;
+  updateCard: (cardId: string, name: string) => Promise<void>;
+  addCard: (name: string) => Promise<void>;
+  deleteCard: (cardId: string) => Promise<void>;
+  
+  fetchProductCategories: () => Promise<void>;
+  toggleProductCategory: (categoryId: string) => Promise<void>;
+  updateProductCategory: (categoryId: string, name: string) => Promise<void>;
+  addProductCategory: (name: string) => Promise<void>;
+  deleteProductCategory: (categoryId: string) => Promise<void>;
+  
   invalidateAll: () => void;
 }
 
@@ -179,6 +215,14 @@ export const useAdminSettingsStore = create<AdminSettingsState>((set, get) => ({
   salaries: [],
   salariesLoading: false,
   salariesLastFetched: null,
+
+  cards: [],
+  cardsLoading: false,
+  cardsLastFetched: null,
+
+  productCategories: [],
+  productCategoriesLoading: false,
+  productCategoriesLastFetched: null,
 
   // Fetch Settings
   fetchSettings: async () => {
@@ -1027,6 +1071,264 @@ export const useAdminSettingsStore = create<AdminSettingsState>((set, get) => ({
     }
   },
 
+  // Fetch Cards
+  fetchCards: async () => {
+    const state = get();
+    const now = Date.now();
+
+    if (
+      state.cardsLastFetched &&
+      now - state.cardsLastFetched < CACHE_DURATION
+    ) {
+      return;
+    }
+
+    if (state.cardsLoading) return;
+
+    set({ cardsLoading: true });
+
+    try {
+      const { data, error } = await supabase
+        .from("accepted_cards")
+        .select("*")
+        .order("name", { ascending: true });
+
+      if (error) throw error;
+
+      set({
+        cards: (data || []).map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          is_active: c.is_active,
+        })),
+        cardsLastFetched: Date.now(),
+        cardsLoading: false,
+      });
+    } catch (error) {
+      console.error("Error fetching accepted cards:", error);
+      set({ cardsLoading: false });
+    }
+  },
+
+  // Toggle Card
+  toggleCard: async (cardId) => {
+    const state = get();
+    const card = state.cards.find((c) => c.id === cardId);
+    if (!card) return;
+
+    try {
+      const { error } = await supabase
+        .from("accepted_cards")
+        .update({ is_active: !card.is_active })
+        .eq("id", cardId);
+
+      if (error) throw error;
+
+      set({
+        cards: state.cards.map((c) =>
+          c.id === cardId ? { ...c, is_active: !c.is_active } : c,
+        ),
+      });
+    } catch (error) {
+      console.error("Error toggling accepted card:", error);
+    }
+  },
+
+  // Update Card
+  updateCard: async (cardId, name) => {
+    try {
+      const { error } = await supabase
+        .from("accepted_cards")
+        .update({ name })
+        .eq("id", cardId);
+
+      if (error) throw error;
+
+      const state = get();
+      set({
+        cards: state.cards.map((c) =>
+          c.id === cardId ? { ...c, name } : c,
+        ),
+      });
+    } catch (error) {
+      console.error("Error updating accepted card:", error);
+    }
+  },
+
+  // Add Card
+  addCard: async (name) => {
+    try {
+      const { data, error } = await supabase
+        .from("accepted_cards")
+        .insert({ name, is_active: true })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const state = get();
+      set({
+        cards: [
+          ...state.cards,
+          {
+            id: data.id,
+            name: data.name,
+            is_active: data.is_active,
+          },
+        ],
+      });
+    } catch (error) {
+      console.error("Error adding accepted card:", error);
+    }
+  },
+
+  // Delete Card
+  deleteCard: async (cardId) => {
+    try {
+      const { error } = await supabase
+        .from("accepted_cards")
+        .delete()
+        .eq("id", cardId);
+
+      if (error) throw error;
+
+      const state = get();
+      set({
+        cards: state.cards.filter((c) => c.id !== cardId),
+      });
+    } catch (error) {
+      console.error("Error deleting accepted card:", error);
+    }
+  },
+
+  // ─── Product Categories ────────────────────────────────────────────────────
+  fetchProductCategories: async () => {
+    const state = get();
+    const now = Date.now();
+
+    if (
+      state.productCategoriesLastFetched &&
+      now - state.productCategoriesLastFetched < CACHE_DURATION
+    ) {
+      return;
+    }
+
+    if (state.productCategoriesLoading) return;
+
+    set({ productCategoriesLoading: true });
+
+    try {
+      const { data, error } = await supabase
+        .from("product_categories")
+        .select("*")
+        .order("name", { ascending: true });
+
+      if (error) throw error;
+
+      set({
+        productCategories: (data || []).map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          is_active: c.is_active,
+          created_at: c.created_at,
+        })),
+        productCategoriesLastFetched: Date.now(),
+        productCategoriesLoading: false,
+      });
+    } catch (error) {
+      console.error("Error fetching product categories:", error);
+      set({ productCategoriesLoading: false });
+    }
+  },
+
+  toggleProductCategory: async (categoryId) => {
+    const state = get();
+    const category = state.productCategories.find((c) => c.id === categoryId);
+    if (!category) return;
+
+    try {
+      const { error } = await supabase
+        .from("product_categories")
+        .update({ is_active: !category.is_active })
+        .eq("id", categoryId);
+
+      if (error) throw error;
+
+      set({
+        productCategories: state.productCategories.map((c) =>
+          c.id === categoryId ? { ...c, is_active: !c.is_active } : c
+        ),
+      });
+    } catch (error) {
+      console.error("Error toggling product category:", error);
+    }
+  },
+
+  updateProductCategory: async (categoryId, name) => {
+    try {
+      const { error } = await supabase
+        .from("product_categories")
+        .update({ name })
+        .eq("id", categoryId);
+
+      if (error) throw error;
+
+      const state = get();
+      set({
+        productCategories: state.productCategories.map((c) =>
+          c.id === categoryId ? { ...c, name } : c
+        ),
+      });
+    } catch (error) {
+      console.error("Error updating product category:", error);
+    }
+  },
+
+  addProductCategory: async (name) => {
+    try {
+      const { data, error } = await supabase
+        .from("product_categories")
+        .insert({ name, is_active: true })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const state = get();
+      set({
+        productCategories: [
+          ...state.productCategories,
+          {
+            id: data.id,
+            name: data.name,
+            is_active: data.is_active,
+            created_at: data.created_at,
+          },
+        ],
+      });
+    } catch (error) {
+      console.error("Error adding product category:", error);
+    }
+  },
+
+  deleteProductCategory: async (categoryId) => {
+    try {
+      const { error } = await supabase
+        .from("product_categories")
+        .delete()
+        .eq("id", categoryId);
+
+      if (error) throw error;
+
+      const state = get();
+      set({
+        productCategories: state.productCategories.filter((c) => c.id !== categoryId),
+      });
+    } catch (error) {
+      console.error("Error deleting product category:", error);
+    }
+  },
+
   // Invalidate all cache
   invalidateAll: () => {
     set({
@@ -1036,6 +1338,8 @@ export const useAdminSettingsStore = create<AdminSettingsState>((set, get) => ({
       usuariosLastFetched: null,
       expensesLastFetched: null,
       salariesLastFetched: null,
+      cardsLastFetched: null,
+      productCategoriesLastFetched: null,
     });
   },
 }));
@@ -1052,6 +1356,8 @@ export function useAdminSettings() {
     store.fetchUsuarios();
     store.fetchExpenses();
     store.fetchSalaries();
+    store.fetchCards();
+    store.fetchProductCategories();
 
     // Subscribe to Realtime changes
     const settingsChannel = supabase
@@ -1127,10 +1433,21 @@ export function useAdminSettings() {
         {
           event: "*",
           schema: "public",
-          table: "system_users",
+          table: "accepted_cards",
         },
         () => {
-          store.fetchUsuarios();
+          store.fetchCards();
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "product_categories",
+        },
+        () => {
+          store.fetchProductCategories();
         },
       )
       .subscribe();

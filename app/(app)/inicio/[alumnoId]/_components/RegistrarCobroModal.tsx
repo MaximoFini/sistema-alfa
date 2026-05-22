@@ -52,9 +52,13 @@ export default function RegistrarCobroModal({
   const {
     subscriptionPlans,
     paymentMethods,
+    acceptedCards,
     fetchSubscriptionPlans,
     fetchPaymentMethods,
+    fetchAcceptedCards,
   } = useStaticDataStore();
+
+  const [tarjeta, setTarjeta] = useState("");
 
   const [pagoForm, setPagoForm] = useState<PagoForm>({
     actividad: "",
@@ -131,7 +135,8 @@ export default function RegistrarCobroModal({
   useEffect(() => {
     fetchSubscriptionPlans();
     fetchPaymentMethods();
-  }, [fetchSubscriptionPlans, fetchPaymentMethods]);
+    fetchAcceptedCards();
+  }, [fetchSubscriptionPlans, fetchPaymentMethods, fetchAcceptedCards]);
 
   function setPagoField(field: keyof PagoForm, value: string) {
     setPagoForm((f) => ({ ...f, [field]: value }));
@@ -214,6 +219,7 @@ export default function RegistrarCobroModal({
       medio_pago: pagoForm.medioPago,
       fecha_inicio: pagoForm.fechaInicio,
       fecha_vencimiento: fechaProximoVencimiento,
+      tarjeta: tarjeta || null,
     });
 
     if (errorPago) {
@@ -397,6 +403,33 @@ export default function RegistrarCobroModal({
               <span className="text-xs text-red-500">{errors.medioPago}</span>
             )}
           </div>
+
+          {/* Tarjeta — solo si el medio de pago contiene 'tarjeta' */}
+          {pagoForm.medioPago.toLowerCase().includes('tarjeta') && (
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                Tarjeta
+              </label>
+              <div className="relative">
+                <select
+                  value={tarjeta}
+                  onChange={(e) => setTarjeta(e.target.value)}
+                  className="w-full border border-gray-200 rounded-lg px-4 py-3 text-base md:text-sm outline-none min-h-[44px] focus:border-red-400 focus:ring-2 focus:ring-red-50 bg-white appearance-none"
+                >
+                  <option value="">Seleccionar tarjeta...</option>
+                  {acceptedCards.map((card) => (
+                    <option key={card.id} value={card.name}>
+                      {card.name}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown
+                  size={16}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                />
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="flex flex-col gap-2">
