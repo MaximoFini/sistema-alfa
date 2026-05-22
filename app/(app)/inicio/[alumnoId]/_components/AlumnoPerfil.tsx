@@ -28,6 +28,8 @@ interface Alumno {
   clases_gracia_usadas: number;
   es_prueba?: boolean | null;
   actividad_interes?: string | null;
+  cuis_completado: boolean;
+  cuis_clases_presentadas: number;
 }
 
 interface Asistencia {

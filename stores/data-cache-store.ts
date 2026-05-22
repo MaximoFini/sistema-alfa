@@ -50,6 +50,8 @@ export interface AlumnoRow {
   es_prueba?: boolean | null;
   actividad_interes?: string | null;
   activo?: boolean | null;
+  cuis_completado?: boolean | null;
+  cuis_clases_presentadas?: number | null;
   ultimaAsistencia: {
     fecha: string;
     hora: string | null;
@@ -320,7 +322,7 @@ export const useDataCacheStore = create<DataCacheState>((set, get) => ({
         let q = supabase
           .from("alumnos")
           .select(
-            "id, nombre, edad_actual, fecha_registro, dni, fecha_ultima_asistencia, es_prueba, actividad_interes, activo",
+            "id, nombre, edad_actual, fecha_registro, dni, fecha_ultima_asistencia, es_prueba, actividad_interes, activo, cuis_completado, cuis_clases_presentadas",
             { count: "exact" },
           )
           .order("fecha_ultima_asistencia", {
@@ -353,6 +355,8 @@ export const useDataCacheStore = create<DataCacheState>((set, get) => ({
           es_prueba: row.es_prueba,
           actividad_interes: row.actividad_interes,
           activo: row.activo,
+          cuis_completado: row.cuis_completado,
+          cuis_clases_presentadas: row.cuis_clases_presentadas,
           ultimaAsistencia: row.fecha_ultima_asistencia
             ? { fecha: row.fecha_ultima_asistencia, hora: null }
             : null,
@@ -386,6 +390,8 @@ export const useDataCacheStore = create<DataCacheState>((set, get) => ({
         es_prueba: row.es_prueba,
         actividad_interes: row.actividad_interes,
         activo: row.activo,
+        cuis_completado: row.cuis_completado,
+        cuis_clases_presentadas: row.cuis_clases_presentadas,
         ultimaAsistencia: row.ult_fecha
           ? { fecha: row.ult_fecha, hora: row.ult_hora ?? null }
           : null,

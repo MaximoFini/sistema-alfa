@@ -12,7 +12,8 @@ CREATE OR REPLACE FUNCTION crear_alumno_con_cobro(
   p_fecha_cobro date,
   p_medio_pago text,
   p_fecha_inicio date,
-  p_fecha_vencimiento date
+  p_fecha_vencimiento date,
+  p_cuis_completado boolean DEFAULT false
 ) RETURNS json AS $$
 DECLARE
   v_alumno_id uuid;
@@ -32,7 +33,9 @@ BEGIN
     fecha_proximo_vencimiento,
     actividad_proximo_vencimiento,
     fecha_ultimo_inicio,
-    activo
+    activo,
+    cuis_completado,
+    cuis_clases_presentadas
   ) VALUES (
     p_nombre,
     p_dni,
@@ -46,7 +49,9 @@ BEGIN
     p_fecha_vencimiento,
     p_actividad,
     p_fecha_inicio,
-    TRUE -- Queda activo inmediatamente al registrar cobro inicial
+    TRUE, -- Queda activo inmediatamente al registrar cobro inicial
+    p_cuis_completado,
+    0
   ) RETURNING id INTO v_alumno_id;
 
   -- 2. Insertar el registro de pago correspondiente

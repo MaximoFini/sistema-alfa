@@ -20,6 +20,9 @@ import {
   ChevronDown,
   Gift,
   RotateCcw,
+  AlertTriangle,
+  ShieldCheck,
+  ShieldAlert,
 } from "lucide-react";
 
 interface Alumno {
@@ -39,6 +42,8 @@ interface Alumno {
   fecha_nacimiento: string | null;
   clases_gracia_disponibles: number;
   clases_gracia_usadas: number;
+  cuis_completado: boolean;
+  cuis_clases_presentadas: number;
 }
 
 function formatFecha(dateStr: string | null): string {
@@ -129,10 +134,19 @@ export default function PanelInfoPersonal({
     alumno.clases_gracia_usadas,
   );
 
+  // CUS state
+  const [cuisCompletado, setCuisCompletado] = useState(alumno.cuis_completado);
+  const [cuisClasesPresentadas, setCuisClasesPresentadas] = useState(
+    alumno.cuis_clases_presentadas,
+  );
+  const [marcandoCuis, setMarcandoCuis] = useState(false);
+
   // Sync state when alumno prop updates (e.g. from server fetch)
   useEffect(() => {
     setClasesGraciaDisponibles(alumno.clases_gracia_disponibles);
     setClasesGraciaUsadas(alumno.clases_gracia_usadas);
+    setCuisCompletado(alumno.cuis_completado);
+    setCuisClasesPresentadas(alumno.cuis_clases_presentadas);
   }, [alumno]);
 
   const deleteTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -309,6 +323,27 @@ export default function PanelInfoPersonal({
     router.refresh();
   }
 
+  async function handleMarcarCuisCompletado() {
+    triggerHapticFeedback(HapticPresets.medium);
+    setMarcandoCuis(true);
+    const { error } = await supabase
+      .from("alumnos")
+      .update({ cuis_completado: true })
+      .eq("id", alumno.id);
+
+    if (error) {
+      setMarcandoCuis(false);
+      triggerHapticFeedback(HapticPresets.error);
+      alert("Error al actualizar CUS: " + error.message);
+      return;
+    }
+
+    triggerHapticFeedback(HapticPresets.success);
+    setCuisCompletado(true);
+    setMarcandoCuis(false);
+    router.refresh();
+  }
+
   const LONG_PRESS_DURATION = 3000; // 3 segundos
 
   function handleDeleteMouseDown() {
@@ -477,6 +512,75 @@ export default function PanelInfoPersonal({
                   ? "Otorgando..."
                   : "Otorgar 2 clases de gracia"}
               </button>
+            )}
+          </div>
+        )}
+
+        {/* Panel CUS — solo visible para menores de edad */}
+        {alumno.edad_actual != null && alumno.edad_actual < 18 && (
+          <div
+            className={`w-full mt-2 p-4 rounded-2xl border flex flex-col gap-3 transition-all ${
+              cuisCompletado
+                ? "bg-green-50/50 border-green-200"
+                : "bg-orange-50/50 border-orange-200 shadow-sm"
+            }`}
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-1.5">
+                  <ShieldAlert className={cuisCompletado ? "hidden" : "text-orange-500"} size={16} />
+                  <ShieldCheck className={cuisCompletado ? "text-green-600" : "hidden"} size={16} />
+                  <h4 className={`text-sm font-bold ${cuisCompletado ? 'text-green-700' : 'text-orange-700'}`}>
+                    Certificado Médico
+                  </h4>
+                </div>
+                <p className="text-xs text-muted-foreground leading-tight">
+                  {cuisCompletado 
+                    ? "Presentado correctamente." 
+                    : "Requerido para menores de edad."}
+                </p>
+              </div>
+              
+              <span className={`shrink-0 inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-bold px-2.5 py-1 rounded-full ${
+                cuisCompletado 
+                  ? "bg-green-100 text-green-700" 
+                  : "bg-orange-100 text-orange-700"
+              }`}>
+                {cuisCompletado ? "Entregado" : "Pendiente"}
+              </span>
+            </div>
+
+            {!cuisCompletado && (
+              <>
+                <div className="flex flex-col gap-1.5 mt-1">
+                  <div className="flex items-center justify-between text-xs font-medium">
+                    <span className="text-orange-800/80">Clases de margen usadas</span>
+                    <span className={cuisClasesPresentadas >= 3 ? "text-red-600 font-bold" : "text-orange-700 font-bold"}>
+                      {cuisClasesPresentadas} / 3
+                    </span>
+                  </div>
+                  <div className="h-2 w-full bg-orange-200/50 rounded-full overflow-hidden">
+                    <div 
+                      className={`h-full rounded-full transition-all duration-500 ${cuisClasesPresentadas >= 3 ? 'bg-red-500' : 'bg-orange-500'}`}
+                      style={{ width: `${Math.min((cuisClasesPresentadas / 3) * 100, 100)}%` }}
+                    />
+                  </div>
+                  <p className={`text-[10px] text-right font-semibold ${cuisClasesPresentadas >= 3 ? 'text-red-500' : 'text-orange-600/80'}`}>
+                    {3 - cuisClasesPresentadas > 0 
+                      ? `Quedan ${3 - cuisClasesPresentadas} clases` 
+                      : "Plazo vencido"}
+                  </p>
+                </div>
+                
+                <button
+                  onClick={handleMarcarCuisCompletado}
+                  disabled={marcandoCuis}
+                  className="mt-1 flex items-center justify-center gap-2 w-full py-2.5 bg-orange-500 text-white text-sm font-bold rounded-xl hover:bg-orange-600 hover:shadow-md transition-all disabled:opacity-60 disabled:hover:shadow-none"
+                >
+                  <ShieldCheck size={16} />
+                  {marcandoCuis ? "Registrando..." : "Marcar como entregado"}
+                </button>
+              </>
             )}
           </div>
         )}

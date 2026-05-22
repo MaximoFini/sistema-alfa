@@ -17,6 +17,8 @@ import {
   User as UserIcon,
   Users,
   CreditCard,
+  AlertTriangle,
+  ShieldCheck,
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { BottomSheet, BottomSheetContent } from "@/components/ui/bottom-sheet";
@@ -95,6 +97,7 @@ interface FormData {
   telefono: string;
   dni: string;
   genero: string;
+  cuisCompletado: boolean;
 }
 
 interface PagoForm {
@@ -132,7 +135,13 @@ function NuevoAlumnoModal({
     telefono: "",
     dni: "",
     genero: "",
+    cuisCompletado: false,
   });
+
+  // Calcular si es menor de edad dinámicamente
+  const esMenorDeEdad = form.fechaNacimiento
+    ? calcularEdad(form.fechaNacimiento) < 18
+    : false;
 
   const [pagoForm, setPagoForm] = useState<PagoForm>({
     actividad: "",
@@ -213,6 +222,7 @@ function NuevoAlumnoModal({
   function calcularEdad(fechaNacimiento: string): number {
     if (!fechaNacimiento) return 0;
     const [y, m, d] = fechaNacimiento.split("-").map(Number);
+    if (!y || !m || !d) return 0;
     const hoy = new Date();
     let edad = hoy.getFullYear() - y;
     const mesActual = hoy.getMonth() + 1;
@@ -253,6 +263,8 @@ function NuevoAlumnoModal({
           fecha_registro: form.fechaRegistro,
           genero: form.genero,
           edad_actual: edadCalculada,
+          cuis_completado: esMenorDeEdad ? form.cuisCompletado : false,
+          cuis_clases_presentadas: 0,
         });
 
       setGuardando(false);
@@ -314,6 +326,7 @@ function NuevoAlumnoModal({
         p_medio_pago: pagoForm.medioPago,
         p_fecha_inicio: pagoForm.fechaInicio,
         p_fecha_vencimiento: fechaProximoVencimiento,
+        p_cuis_completado: esMenorDeEdad ? form.cuisCompletado : false,
       }
     );
 
@@ -427,7 +440,13 @@ function NuevoAlumnoModal({
                 <input
                   type="date"
                   value={form.fechaNacimiento}
-                  onChange={(e) => setField("fechaNacimiento", e.target.value)}
+                  onChange={(e) => {
+                    setField("fechaNacimiento", e.target.value);
+                    // Reset CUS si deja de ser menor
+                    if (calcularEdad(e.target.value) >= 18) {
+                      setForm((f) => ({ ...f, cuisCompletado: false }));
+                    }
+                  }}
                   className="border border-gray-200 rounded-lg px-4 py-3 text-base md:text-sm outline-none min-h-[44px] focus:border-red-400 focus:ring-2 focus:ring-red-50"
                 />
                 {errors.fechaNacimiento && (
@@ -512,6 +531,75 @@ function NuevoAlumnoModal({
                 <span className="text-xs text-red-500">{errors.domicilio}</span>
               )}
             </div>
+
+            {/* CUS — solo visible si es menor de edad */}
+            {esMenorDeEdad && (
+              <div className="flex flex-col gap-2">
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex flex-col gap-2.5">
+                  {/* Encabezado */}
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle size={14} className="text-amber-600 shrink-0" />
+                    <p className="text-xs font-bold text-amber-800 uppercase tracking-wide">
+                      Menor de edad — CUS requerido
+                    </p>
+                  </div>
+
+                  {/* Estado actual */}
+                  <div
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold ${
+                      form.cuisCompletado
+                        ? "bg-green-100 text-green-800"
+                        : "bg-amber-100 text-amber-800"
+                    }`}
+                  >
+                    {form.cuisCompletado ? (
+                      <>
+                        <ShieldCheck size={13} className="text-green-600 shrink-0" />
+                        CUS entregado — no hay clases pendientes
+                      </>
+                    ) : (
+                      <>
+                        <AlertTriangle size={13} className="text-amber-600 shrink-0" />
+                        CUS pendiente — tiene 3 clases para presentarlo
+                      </>
+                    )}
+                  </div>
+
+                  {/* Descripción */}
+                  <p className="text-xs text-amber-700 leading-relaxed">
+                    Tiene {calcularEdad(form.fechaNacimiento)} años. El CUS (Certificado Único de Salud) es obligatorio para menores.
+                  </p>
+
+                  {/* Checkbox siempre afirmativo */}
+                  <label className="flex items-center gap-3 cursor-pointer group">
+                    <div className="relative shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={form.cuisCompletado}
+                        onChange={(e) =>
+                          setForm((f) => ({ ...f, cuisCompletado: e.target.checked }))
+                        }
+                        className="sr-only"
+                      />
+                      <div
+                        className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${
+                          form.cuisCompletado
+                            ? "bg-green-500 border-green-500"
+                            : "bg-white border-amber-300 group-hover:border-amber-400"
+                        }`}
+                      >
+                        {form.cuisCompletado && (
+                          <ShieldCheck size={12} className="text-white" strokeWidth={3} />
+                        )}
+                      </div>
+                    </div>
+                    <span className="text-sm text-gray-700">
+                      El CUS ya fue entregado al momento del registro
+                    </span>
+                  </label>
+                </div>
+              </div>
+            )}
 
             <div className="flex flex-col gap-3 pt-3 mt-auto">
               <button
@@ -720,7 +808,7 @@ function AlumnoCard({ alumno }: { alumno: AlumnoConUI }) {
           {alumno.initials}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <p className="font-semibold text-gray-900 text-base md:text-sm truncate">
               {alumno.nombre ?? "Sin nombre"}
             </p>
@@ -729,6 +817,15 @@ function AlumnoCard({ alumno }: { alumno: AlumnoConUI }) {
                 PRUEBA
               </span>
             )}
+            {/* Badge CUS Pendiente — solo para menores sin CUS */}
+            {alumno.edad_actual != null &&
+              alumno.edad_actual < 18 &&
+              alumno.cuis_completado === false && (
+                <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-800 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-full shrink-0 animate-pulse">
+                  <AlertTriangle size={10} className="text-amber-600" />
+                  CUS Pendiente
+                </span>
+              )}
           </div>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
             <span className="inline-flex items-center gap-1 text-xs text-gray-500">
