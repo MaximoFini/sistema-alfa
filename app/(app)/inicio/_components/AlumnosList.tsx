@@ -26,6 +26,7 @@ import { ModalWithHistory } from "@/components/ModalWithHistory";
 import { triggerHapticFeedback, HapticPresets } from "@/lib/utils";
 import Paginacion from "./Paginacion";
 import Buscador from "./Buscador";
+import { Switch } from "@/components/ui/switch";
 
 // ─────────────────────────────────────────────
 // Tipos — AlumnoRow viene del store (re-export para compatibilidad)
@@ -880,6 +881,13 @@ export default function AlumnosList() {
   const queryActual = queryParam;
 
   const [showModal, setShowModal] = useState(false);
+  const [verHoy, setVerHoy] = useState(true); // Activo por defecto
+
+  // Obtener la fecha de hoy en formato 'YYYY-MM-DD' considerando la zona horaria local de Argentina (GMT-3)
+  const localDate = new Date();
+  const offset = localDate.getTimezoneOffset();
+  const adjustedDate = new Date(localDate.getTime() - (offset * 60 * 1000));
+  const todayStr = adjustedDate.toISOString().split("T")[0];
 
   const { alumnosCache, alumnosLoadingKeys, fetchAlumnos, invalidateAlumnos } =
     useDataCacheStore();
@@ -947,6 +955,13 @@ export default function AlumnosList() {
   // Enriquecer datos con UI derivada
   const alumnosEnriquecidos = alumnos.map(enriquecerAlumno);
 
+  // Filtrar localmente si el switch de ingresos de hoy está activo
+  const alumnosMostrados = verHoy
+    ? alumnosEnriquecidos.filter(
+        (alumno) => alumno.ultimaAsistencia?.fecha === todayStr,
+      )
+    : alumnosEnriquecidos;
+
   return (
     <div className="relative min-h-screen">
       {/* Fondo Logo con opacidad baja, centrado en la pantalla */}
@@ -981,8 +996,13 @@ export default function AlumnosList() {
                     Alumnos
                   </h1>
                   <p className="text-sm text-gray-500 mt-0.5">
-                    {totalRegistros} alumnos registrados · ordenados por orden
-                    de entrada
+                    {verHoy ? (
+                      <span className="inline-flex items-center gap-1.5 text-orange-600 font-semibold bg-orange-50 px-2.5 py-0.5 rounded-full text-xs border border-orange-100/50">
+                        {alumnosMostrados.length} ingreso{alumnosMostrados.length !== 1 ? "s" : ""} hoy
+                      </span>
+                    ) : (
+                      <>{totalRegistros} alumnos registrados · ordenados por orden de entrada</>
+                    )}
                   </p>
                 </div>
               </div>
@@ -999,34 +1019,65 @@ export default function AlumnosList() {
           </div>
 
           {/* Búsqueda + paginación + conteo */}
-          <div className="py-3 flex flex-col gap-2">
-            <div className="flex items-center gap-2">
+          <div className="py-3 flex flex-col gap-3">
+            <div className="flex flex-col md:flex-row md:items-center gap-3">
               <div className="flex-1">
                 <Buscador />
               </div>
-              <div className="flex items-center gap-1.5 border border-gray-200 bg-gray-50 rounded-lg px-3 py-2.5 min-h-[44px] shrink-0">
-                <Filter size={15} className="text-gray-400" />
-                <span className="text-sm text-gray-500">
-                  Pág. {paginaActual}/{totalPaginas}
-                </span>
+              
+              {/* Premium Switch/Toggle */}
+              <div className="flex items-center justify-between gap-3 bg-gradient-to-r from-orange-50/80 to-amber-50/80 border border-orange-100/60 rounded-xl px-4 py-2 shadow-xs shrink-0 md:min-h-[44px] select-none">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-600 shrink-0">
+                    <Calendar size={14} />
+                  </div>
+                  <span className="text-sm font-semibold text-gray-800 whitespace-nowrap">
+                    Ver ingresos de hoy
+                  </span>
+                </div>
+                <Switch
+                  checked={verHoy}
+                  onCheckedChange={(checked) => {
+                    triggerHapticFeedback(HapticPresets.medium);
+                    setVerHoy(checked);
+                  }}
+                  className="data-[state=checked]:bg-orange-500"
+                />
               </div>
+
+              {!verHoy && (
+                <div className="flex items-center gap-1.5 border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 min-h-[44px] shrink-0">
+                  <Filter size={15} className="text-gray-400" />
+                  <span className="text-sm text-gray-500 whitespace-nowrap">
+                    Pág. {paginaActual}/{totalPaginas}
+                  </span>
+                </div>
+              )}
             </div>
+            
             <p className="text-xs text-gray-400 select-none">
               {queryActual ? (
                 <>
                   <span className="text-gray-600 font-semibold">
-                    {totalRegistros}
+                    {verHoy ? alumnosMostrados.length : totalRegistros}
                   </span>{" "}
                   resultado
-                  {totalRegistros !== 1 ? "s" : ""} para{" "}
+                  {(verHoy ? alumnosMostrados.length : totalRegistros) !== 1 ? "s" : ""} para{" "}
                   <span className="text-gray-600 font-semibold">
                     &ldquo;{queryActual}&rdquo;
                   </span>
+                  {verHoy && " (filtrado hoy)"}
                 </>
               ) : (
                 <>
-                  {alumnos.length} de {totalRegistros} alumnos (página{" "}
-                  {paginaActual})
+                  {verHoy ? (
+                    <>Mostrando {alumnosMostrados.length} ingreso{alumnosMostrados.length !== 1 ? "s" : ""} de hoy</>
+                  ) : (
+                    <>
+                      {alumnos.length} de {totalRegistros} alumnos (página{" "}
+                      {paginaActual})
+                    </>
+                  )}
                 </>
               )}
             </p>
@@ -1058,35 +1109,55 @@ export default function AlumnosList() {
               </div>
             ))}
           </div>
-        ) : alumnosEnriquecidos.length > 0 ? (
+        ) : alumnosMostrados.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-            {alumnosEnriquecidos.map((alumno) => (
+            {alumnosMostrados.map((alumno) => (
               <AlumnoCard key={alumno.id} alumno={alumno} />
             ))}
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-3 select-none">
-              <Search size={24} className="text-gray-300" />
-            </div>
-            <p className="text-gray-500 font-medium text-base">
-              No se encontraron alumnos
-            </p>
-            <p className="text-gray-400 text-sm mt-1">
-              {queryActual
-                ? `No hay resultados para "${queryActual}"`
-                : "No hay alumnos en esta página"}
-            </p>
+            {verHoy ? (
+              <>
+                <div className="w-14 h-14 rounded-full bg-orange-50 flex items-center justify-center mb-3 select-none text-orange-500">
+                  <Calendar size={24} />
+                </div>
+                <p className="text-gray-500 font-medium text-base">
+                  No se registraron ingresos hoy
+                </p>
+                <p className="text-gray-400 text-sm mt-1 max-w-sm">
+                  {queryActual
+                    ? `Ningún ingreso de hoy coincide con "${queryActual}".`
+                    : "Desactiva el switch 'Ver ingresos de hoy' para ver toda la base de datos."}
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-3 select-none">
+                  <Search size={24} className="text-gray-300" />
+                </div>
+                <p className="text-gray-500 font-medium text-base">
+                  No se encontraron alumnos
+                </p>
+                <p className="text-gray-400 text-sm mt-1">
+                  {queryActual
+                    ? `No hay resultados para "${queryActual}"`
+                    : "No hay alumnos en esta página"}
+                </p>
+              </>
+            )}
           </div>
         )}
 
-        {/* Paginación siempre visible (el filtro es client-side via store) */}
-        <Paginacion
-          paginaActual={paginaActual}
-          totalPaginas={totalPaginas}
-          totalRegistros={totalRegistros}
-          porPagina={porPagina}
-        />
+        {/* Paginación (visible cuando el switch está inactivo) */}
+        {!verHoy && (
+          <Paginacion
+            paginaActual={paginaActual}
+            totalPaginas={totalPaginas}
+            totalRegistros={totalRegistros}
+            porPagina={porPagina}
+          />
+        )}
       </div>
     </div>
   );
