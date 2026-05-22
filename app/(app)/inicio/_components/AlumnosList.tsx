@@ -99,6 +99,7 @@ interface FormData {
   genero: string;
   email: string;
   cuisCompletado: boolean;
+  telefonoEmergencia: string;
 }
 
 interface PagoForm {
@@ -142,6 +143,7 @@ function NuevoAlumnoModal({
     genero: "",
     email: "",
     cuisCompletado: false,
+    telefonoEmergencia: "",
   });
 
   // Calcular si es menor de edad dinámicamente
@@ -275,6 +277,7 @@ function NuevoAlumnoModal({
           cuis_completado: esMenorDeEdad ? form.cuisCompletado : false,
           cuis_clases_presentadas: 0,
           email: form.email.trim() || null,
+          telefono_emergencia: form.telefonoEmergencia.trim() || null,
         });
 
       setGuardando(false);
@@ -340,6 +343,7 @@ function NuevoAlumnoModal({
         p_email: form.email.trim() || null,
         p_tarjeta: pagoForm.tarjeta || null,
         p_alias_transferencia: pagoForm.aliasTransferencia.trim() || null,
+        p_telefono_emergencia: form.telefonoEmergencia.trim() || null,
       }
     );
 
@@ -545,8 +549,6 @@ function NuevoAlumnoModal({
               )}
             </div>
 
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
                 Email
               </label>
               <input
@@ -554,6 +556,19 @@ function NuevoAlumnoModal({
                 placeholder="Ej: juan@gmail.com"
                 value={form.email}
                 onChange={(e) => setField("email", e.target.value)}
+                className="border border-gray-200 rounded-lg px-4 py-3 text-base md:text-sm outline-none min-h-[44px] focus:border-red-400 focus:ring-2 focus:ring-red-50"
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                Contacto de Emergencia (Opcional)
+              </label>
+              <input
+                type="text"
+                placeholder="Ej: 11-4521-0012 (Mamá)"
+                value={form.telefonoEmergencia}
+                onChange={(e) => setField("telefonoEmergencia", e.target.value)}
                 className="border border-gray-200 rounded-lg px-4 py-3 text-base md:text-sm outline-none min-h-[44px] focus:border-red-400 focus:ring-2 focus:ring-red-50"
               />
             </div>
