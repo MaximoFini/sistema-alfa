@@ -106,6 +106,7 @@ interface PagoForm {
   fechaCobro: string;
   fechaInicio: string;
   medioPago: string;
+  aliasTransferencia: string;
 }
 
 function NuevoAlumnoModal({
@@ -149,6 +150,7 @@ function NuevoAlumnoModal({
     fechaCobro: "",
     fechaInicio: "",
     medioPago: "",
+    aliasTransferencia: "",
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -327,6 +329,7 @@ function NuevoAlumnoModal({
         p_fecha_inicio: pagoForm.fechaInicio,
         p_fecha_vencimiento: fechaProximoVencimiento,
         p_cuis_completado: esMenorDeEdad ? form.cuisCompletado : false,
+        p_alias_transferencia: pagoForm.aliasTransferencia.trim() || null,
       }
     );
 
@@ -719,6 +722,21 @@ function NuevoAlumnoModal({
                 <span className="text-xs text-red-500">{errors.medioPago}</span>
               )}
             </div>
+
+            {pagoForm.medioPago.toLowerCase().includes("transferencia") && (
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                  Alias / CBU de destino
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ej: gimnasio.alfa.mp"
+                  value={pagoForm.aliasTransferencia}
+                  onChange={(e) => setPagoField("aliasTransferencia", e.target.value)}
+                  className="border border-gray-200 rounded-lg px-4 py-3 text-base md:text-sm outline-none min-h-[44px] focus:border-red-400 focus:ring-2 focus:ring-red-50"
+                />
+              </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="flex flex-col gap-2">
