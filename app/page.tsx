@@ -55,9 +55,7 @@ export default function LoginPage() {
         return;
       }
 
-      console.log("User ID:", userId);
       const validation = await validateUserForLogin(userId);
-      console.log("Validation result:", validation);
 
       if (!validation.isValid) {
         clearTimeout(loadingTimeout);

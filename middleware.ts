@@ -65,14 +65,12 @@ export async function middleware(request: NextRequest) {
 
   // Si no hay sesión y está intentando acceder a rutas protegidas, redirigir a login
   if (!session && isAppRoute) {
-    console.log('[Middleware] Redirecting to login - no session');
     const redirectUrl = new URL("/", request.url);
     return NextResponse.redirect(redirectUrl);
   }
 
   // Si hay sesión y está en la página de login, redirigir a inicio
   if (session && isAuthPage) {
-    console.log('[Middleware] Redirecting to /inicio - has session');
     const redirectUrl = new URL("/inicio", request.url);
     return NextResponse.redirect(redirectUrl);
   }

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { createClient } from "@supabase/supabase-js";
 
@@ -26,10 +26,31 @@ const getAdminClient = () => {
   });
 };
 
+// Helper para verificar que el llamador es admin autenticado
+async function requireAdminSession(supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>) {
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) return null;
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  if (profile?.role !== "Administrador") return null;
+  return user;
+}
+
 // POST - Crear nuevo usuario
 export async function POST(request: Request) {
   try {
     const supabase = await createSupabaseServerClient();
+
+    const caller = await requireAdminSession(supabase);
+    if (!caller) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+
     const { username, email, password, isAdmin } = await request.json();
 
     // Validaciones
@@ -189,6 +210,12 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   try {
     const supabase = await createSupabaseServerClient();
+
+    const caller = await requireAdminSession(supabase);
+    if (!caller) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+
     const { userId, newPassword } = await request.json();
 
     // Validaciones
@@ -240,6 +267,12 @@ export async function PATCH(request: Request) {
 export async function PUT(request: Request) {
   try {
     const supabase = await createSupabaseServerClient();
+
+    const caller = await requireAdminSession(supabase);
+    if (!caller) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+
     const { userId, username, email } = await request.json();
 
     // Validaciones
