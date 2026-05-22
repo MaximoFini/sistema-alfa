@@ -70,6 +70,7 @@ export default function RegistrarCobroModal({
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [guardando, setGuardando] = useState(false);
+  const [aliasTransferencia, setAliasTransferencia] = useState("");
 
   // Encontrar plan vigente (memoizado para evitar recálculos)
   const planVigente = useMemo(() => {
@@ -141,6 +142,11 @@ export default function RegistrarCobroModal({
   function setPagoField(field: keyof PagoForm, value: string) {
     setPagoForm((f) => ({ ...f, [field]: value }));
     setErrors((e) => ({ ...e, [field]: "" }));
+  }
+
+  function handleClose() {
+    setAliasTransferencia("");
+    onClose();
   }
 
   function handleActividadChange(e: React.ChangeEvent<HTMLSelectElement>) {
@@ -220,6 +226,7 @@ export default function RegistrarCobroModal({
       fecha_inicio: pagoForm.fechaInicio,
       fecha_vencimiento: fechaProximoVencimiento,
       tarjeta: tarjeta || null,
+      alias_transferencia: aliasTransferencia.trim() || null,
     });
 
     if (errorPago) {
@@ -253,6 +260,7 @@ export default function RegistrarCobroModal({
 
     triggerHapticFeedback(HapticPresets.success);
 
+    setAliasTransferencia("");
     onGuardado();
     onClose();
   }
@@ -262,7 +270,7 @@ export default function RegistrarCobroModal({
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/60 z-[100] transition-opacity duration-200"
-        onClick={onClose}
+        onClick={handleClose}
       />
 
       {/* Contenedor adaptativo */}
@@ -294,7 +302,7 @@ export default function RegistrarCobroModal({
             </p>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-colors shrink-0"
             aria-label="Cerrar"
           >
@@ -428,6 +436,21 @@ export default function RegistrarCobroModal({
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
                 />
               </div>
+            </div>
+          )}
+
+          {pagoForm.medioPago.toLowerCase().includes("transferencia") && (
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                Alias / CBU de destino
+              </label>
+              <input
+                type="text"
+                placeholder="Ej: gimnasio.alfa.mp"
+                value={aliasTransferencia}
+                onChange={(e) => setAliasTransferencia(e.target.value)}
+                className="border border-gray-200 rounded-lg px-4 py-3 text-base md:text-sm outline-none min-h-[44px] focus:border-red-400 focus:ring-2 focus:ring-red-50"
+              />
             </div>
           )}
 

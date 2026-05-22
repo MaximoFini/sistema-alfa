@@ -108,6 +108,7 @@ interface PagoForm {
   fechaInicio: string;
   medioPago: string;
   tarjeta: string;
+  aliasTransferencia: string;
 }
 
 function NuevoAlumnoModal({
@@ -155,6 +156,7 @@ function NuevoAlumnoModal({
     fechaInicio: "",
     medioPago: "",
     tarjeta: "",
+    aliasTransferencia: "",
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -337,6 +339,7 @@ function NuevoAlumnoModal({
         p_cuis_completado: esMenorDeEdad ? form.cuisCompletado : false,
         p_email: form.email.trim() || null,
         p_tarjeta: pagoForm.tarjeta || null,
+        p_alias_transferencia: pagoForm.aliasTransferencia.trim() || null,
       }
     );
 
@@ -767,6 +770,21 @@ function NuevoAlumnoModal({
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
                   />
                 </div>
+              </div>
+            )}
+
+            {pagoForm.medioPago.toLowerCase().includes("transferencia") && (
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                  Alias / CBU de destino
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ej: gimnasio.alfa.mp"
+                  value={pagoForm.aliasTransferencia}
+                  onChange={(e) => setPagoField("aliasTransferencia", e.target.value)}
+                  className="border border-gray-200 rounded-lg px-4 py-3 text-base md:text-sm outline-none min-h-[44px] focus:border-red-400 focus:ring-2 focus:ring-red-50"
+                />
               </div>
             )}
 
