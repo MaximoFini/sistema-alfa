@@ -7,6 +7,7 @@ import { triggerHapticFeedback, HapticPresets } from "@/lib/utils";
 import {
   User,
   Phone,
+  PhoneCall,
   MapPin,
   CreditCard,
   Calendar,
@@ -44,6 +45,7 @@ interface Alumno {
   clases_gracia_usadas: number;
   cuis_completado: boolean;
   cuis_clases_presentadas: number;
+  telefono_emergencia: string | null;
 }
 
 function formatFecha(dateStr: string | null): string {
@@ -159,6 +161,7 @@ export default function PanelInfoPersonal({
     telefono: alumno.telefono ?? "",
     fecha_nacimiento: alumno.fecha_nacimiento ?? "",
     genero: alumno.genero ?? "",
+    telefonoEmergencia: alumno.telefono_emergencia ?? "",
   });
 
   const hoy = new Date();
@@ -229,6 +232,7 @@ export default function PanelInfoPersonal({
         fecha_nacimiento: formData.fecha_nacimiento,
         genero: formData.genero,
         edad_actual: edadCalculada,
+        telefono_emergencia: formData.telefonoEmergencia.trim() || null,
       })
       .eq("id", alumno.id);
 
@@ -447,6 +451,7 @@ export default function PanelInfoPersonal({
                 telefono: alumno.telefono ?? "",
                 fecha_nacimiento: alumno.fecha_nacimiento ?? "",
                 genero: alumno.genero ?? "",
+                telefonoEmergencia: alumno.telefono_emergencia ?? "",
               });
               setErrors({});
               setShowEditModal(true);
@@ -723,6 +728,20 @@ export default function PanelInfoPersonal({
 
               <div className="flex flex-col gap-2">
                 <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  Contacto de Emergencia (Opcional)
+                </label>
+                <input
+                  type="text"
+                  value={formData.telefonoEmergencia}
+                  onChange={(e) => {
+                    setFormData({ ...formData, telefonoEmergencia: e.target.value });
+                  }}
+                  className="border border-border rounded-lg px-4 py-3 text-sm bg-background text-foreground outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/10"
+                />
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                   Dirección *
                 </label>
                 <input
@@ -855,6 +874,23 @@ export default function PanelInfoPersonal({
 
       {/* Sección: Datos personales */}
       <SectionTitle>Datos personales</SectionTitle>
+      
+      {alumno.telefono_emergencia && (
+        <div className="mx-6 my-2 p-3 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-3 animate-pulse">
+          <div className="w-9 h-9 rounded-lg bg-red-500/20 flex items-center justify-center shrink-0">
+            <PhoneCall size={16} className="text-red-500" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-[9px] font-black uppercase tracking-widest text-red-500 mb-0.5">
+              Contacto de Emergencia
+            </p>
+            <p className="text-sm font-bold text-foreground break-words">
+              {alumno.telefono_emergencia}
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="px-6 divide-y divide-border">
         {alumno.dni && (
           <DataField

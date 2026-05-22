@@ -98,6 +98,7 @@ interface FormData {
   dni: string;
   genero: string;
   cuisCompletado: boolean;
+  telefonoEmergencia: string;
 }
 
 interface PagoForm {
@@ -136,6 +137,7 @@ function NuevoAlumnoModal({
     dni: "",
     genero: "",
     cuisCompletado: false,
+    telefonoEmergencia: "",
   });
 
   // Calcular si es menor de edad dinámicamente
@@ -265,6 +267,7 @@ function NuevoAlumnoModal({
           edad_actual: edadCalculada,
           cuis_completado: esMenorDeEdad ? form.cuisCompletado : false,
           cuis_clases_presentadas: 0,
+          telefono_emergencia: form.telefonoEmergencia.trim() || null,
         });
 
       setGuardando(false);
@@ -327,6 +330,7 @@ function NuevoAlumnoModal({
         p_fecha_inicio: pagoForm.fechaInicio,
         p_fecha_vencimiento: fechaProximoVencimiento,
         p_cuis_completado: esMenorDeEdad ? form.cuisCompletado : false,
+        p_telefono_emergencia: form.telefonoEmergencia.trim() || null,
       }
     );
 
@@ -530,6 +534,19 @@ function NuevoAlumnoModal({
               {errors.domicilio && (
                 <span className="text-xs text-red-500">{errors.domicilio}</span>
               )}
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                Contacto de Emergencia (Opcional)
+              </label>
+              <input
+                type="text"
+                placeholder="Ej: 11-4521-0012 (Mamá)"
+                value={form.telefonoEmergencia}
+                onChange={(e) => setField("telefonoEmergencia", e.target.value)}
+                className="border border-gray-200 rounded-lg px-4 py-3 text-base md:text-sm outline-none min-h-[44px] focus:border-red-400 focus:ring-2 focus:ring-red-50"
+              />
             </div>
 
             {/* CUS — solo visible si es menor de edad */}
