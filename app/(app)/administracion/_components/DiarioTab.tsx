@@ -18,6 +18,7 @@ import {
   Clock,
   ArrowRight,
   ClipboardList,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -88,6 +89,9 @@ interface AsistenciaDetalle {
 export default function DiarioTab() {
   const [selectedDate, setSelectedDate] = useState<string>(getFechaLocal());
   const [loading, setLoading] = useState(true);
+  const [isPagosModalOpen, setIsPagosModalOpen] = useState(false);
+  const [isVentasModalOpen, setIsVentasModalOpen] = useState(false);
+  const [isAltasModalOpen, setIsAltasModalOpen] = useState(false);
 
   // Estados de datos
   const [altas, setAltas] = useState<AlumnoAlta[]>([]);
@@ -342,7 +346,7 @@ export default function DiarioTab() {
 
           {/* Tarjetas de Resumen Financiero y KPIs */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <div className="col-span-2 md:col-span-1 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl p-5 text-white shadow-md relative overflow-hidden flex flex-col justify-between min-h-[120px]">
+            <div className="col-span-2 md:col-span-1 bg-gradient-to-br from-orange-400 to-orange-500 rounded-2xl p-5 text-white shadow-md relative overflow-hidden flex flex-col justify-between min-h-[120px]">
               <div className="absolute right-[-10px] top-[-10px] w-24 h-24 bg-white/10 rounded-full blur-xl" />
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold uppercase tracking-wider text-white/80">Ingreso Total</span>
@@ -523,194 +527,339 @@ export default function DiarioTab() {
           </div>
 
           {/* Grilla Principal de Actividades */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             
-            {/* Columna Izquierda: Altas */}
-            <div className="flex flex-col gap-6">
-              
-              {/* Altas de alumnos */}
-              <div className="bg-white rounded-2xl border border-gray-150 shadow-sm p-6">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center">
-                    <UserPlus size={16} className="text-amber-600" />
+            {/* Detalle de altas de alumnos simplificado */}
+            <div 
+              onClick={() => setIsAltasModalOpen(true)}
+              className="bg-white rounded-2xl border border-gray-150 shadow-sm p-6 flex flex-col justify-between hover:border-amber-300 hover:shadow-md transition-all cursor-pointer group"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center border border-amber-100 group-hover:bg-amber-100 transition-colors">
+                    <UserPlus size={18} className="text-amber-600" />
                   </div>
-                  <h3 className="text-sm font-extrabold text-gray-900">Altas de Alumnos ({altas.length})</h3>
+                  <div>
+                    <h3 className="text-sm font-extrabold text-gray-900 group-hover:text-amber-700 transition-colors">Altas de Alumnos</h3>
+                    <p className="text-xs text-gray-400 font-semibold">{altas.length} registros hoy</p>
+                  </div>
                 </div>
-
-                {altas.length > 0 ? (
-                  <div className="divide-y divide-gray-100 max-h-[280px] overflow-y-auto pr-1">
-                    {altas.map((alta) => (
-                      <div key={alta.id} className="py-3 flex items-center justify-between group hover:bg-gray-50/50 px-2 rounded-xl transition-all">
-                        <div className="min-w-0">
-                          <p className="text-sm font-bold text-gray-900 truncate">{alta.nombre}</p>
-                          <p className="text-xs text-gray-400 mt-0.5">DNI: {alta.dni}</p>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <span className="text-[10px] text-gray-400 font-bold bg-gray-50 border border-gray-200 px-2 py-0.5 rounded-lg">
-                            {new Date(alta.created_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })} hs
-                          </span>
-                          <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-100">
-                            Registrado
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 bg-gray-50/50 rounded-xl border border-dashed border-gray-200">
-                    <UserPlus size={28} className="text-gray-300 mx-auto mb-2" />
-                    <p className="text-xs text-gray-400 font-semibold">Sin nuevos alumnos registrados hoy</p>
-                  </div>
-                )}
+                <span className="text-sm font-black text-amber-600 bg-amber-50 px-3 py-1 rounded-xl border border-amber-100 shadow-sm">
+                  {altas.length} nuevos
+                </span>
               </div>
-
+              <button className="w-full py-2.5 px-4 bg-amber-50 group-hover:bg-amber-600 group-hover:text-white text-amber-700 font-extrabold text-xs rounded-xl border border-amber-150 group-hover:border-amber-600 transition-all flex items-center justify-center gap-2 shadow-sm">
+                Ver todos los nuevos alumnos
+                <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+              </button>
             </div>
 
-            {/* Columna Derecha: Pagos y Ventas */}
-            <div className="flex flex-col gap-6">
-              
-              {/* Detalle de pagos */}
-              <div className="bg-white rounded-2xl border border-gray-150 shadow-sm p-6 flex flex-col flex-1">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
-                      <DollarSign size={16} className="text-blue-600" />
-                    </div>
-                    <h3 className="text-sm font-extrabold text-gray-900">Cobros de Membresías y Planes ({pagos.length})</h3>
+            {/* Detalle de pagos simplificado */}
+            <div 
+              onClick={() => setIsPagosModalOpen(true)}
+              className="bg-white rounded-2xl border border-gray-150 shadow-sm p-6 flex flex-col justify-between hover:border-blue-300 hover:shadow-md transition-all cursor-pointer group"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center border border-blue-100 group-hover:bg-blue-100 transition-colors">
+                    <DollarSign size={18} className="text-blue-600" />
                   </div>
-                  <span className="text-sm font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-xl border border-blue-100">
-                    ${totalPagos.toLocaleString()}
-                  </span>
-                </div>
-
-                <div className="flex-1">
-                  {pagos.length > 0 ? (
-                    <div className="space-y-3 max-h-[360px] overflow-y-auto pr-1">
-                      {pagos.map((pago) => {
-                        const isEfectivo = pago.medio_pago?.toLowerCase().includes("efectivo");
-                        const isTarjeta = pago.medio_pago?.toLowerCase().includes("tarjeta");
-                        return (
-                          <div
-                            key={pago.id}
-                            className="p-3.5 rounded-xl border border-gray-150 hover:border-gray-300 hover:shadow-sm hover:scale-[1.005] bg-white transition-all flex items-center justify-between gap-4"
-                          >
-                            <div className="min-w-0">
-                              <p className="text-sm font-bold text-gray-900 truncate">
-                                {pago.alumnos?.nombre || "Alumno Eliminado"}
-                              </p>
-                              <div className="flex items-center gap-2 mt-1">
-                                <span className="text-[11px] text-gray-500 font-bold bg-gray-100 px-2 py-0.5 rounded">
-                                  {pago.actividad}
-                                </span>
-                                <span className="text-[10px] text-gray-400">
-                                  {pago.medio_pago}
-                                  {pago.tarjeta && ` (${pago.tarjeta})`}
-                                  {pago.alias_transferencia && ` (Destino: ${pago.alias_transferencia})`}
-                                </span>
-                              </div>
-                            </div>
-
-                            <div className="text-right shrink-0">
-                              <p className="text-base font-extrabold text-gray-900">${(pago.precio || 0).toLocaleString()}</p>
-                              <span className={cn(
-                                "text-[9px] font-extrabold px-1.5 py-0.5 rounded border uppercase mt-1 inline-block",
-                                isEfectivo ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
-                                isTarjeta ? "bg-blue-50 text-blue-700 border-blue-200" :
-                                "bg-purple-50 text-purple-700 border-purple-200"
-                              )}>
-                                Recibido
-                              </span>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center py-16 text-center">
-                      <DollarSign size={32} className="text-gray-300 mb-2" />
-                      <p className="text-sm text-gray-400 font-semibold">Sin cobros de abonos registrados</p>
-                      <p className="text-xs text-gray-400 mt-1 max-w-[250px]">Los ingresos de caja aparecerán al realizar inscripciones o cobros.</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Detalle de ventas */}
-              <div className="bg-white rounded-2xl border border-gray-150 shadow-sm p-6 flex flex-col flex-1">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center">
-                      <Package size={16} className="text-emerald-600" />
-                    </div>
-                    <h3 className="text-sm font-extrabold text-gray-900">Ventas de Productos ({ventas.length})</h3>
+                  <div>
+                    <h3 className="text-sm font-extrabold text-gray-900 group-hover:text-blue-700 transition-colors">Cobros de Membresías</h3>
+                    <p className="text-xs text-gray-400 font-semibold">{pagos.length} transacciones registradas hoy</p>
                   </div>
-                  <span className="text-sm font-black text-emerald-600 bg-emerald-50 px-3 py-1 rounded-xl border border-emerald-100">
-                    ${totalVentas.toLocaleString()}
-                  </span>
                 </div>
-
-                <div className="flex-1">
-                  {ventas.length > 0 ? (
-                    <div className="space-y-3 max-h-[360px] overflow-y-auto pr-1">
-                      {ventas.map((venta) => {
-                        const isEfectivo = venta.medio_pago?.toLowerCase().includes("efectivo");
-                        const isTarjeta = venta.medio_pago?.toLowerCase().includes("tarjeta");
-                        const subTotal = (venta.precio_unitario || 0) * (venta.cantidad || 0);
-                        return (
-                          <div
-                            key={venta.id}
-                            className="p-3.5 rounded-xl border border-gray-150 hover:border-gray-300 hover:shadow-sm hover:scale-[1.005] bg-white transition-all flex items-center justify-between gap-4"
-                          >
-                            <div className="min-w-0">
-                              <p className="text-sm font-bold text-gray-900 truncate">
-                                {venta.productos?.nombre || "Producto Eliminado"}
-                              </p>
-                              <div className="flex items-center gap-2 mt-1">
-                                {venta.talle_vendido && (
-                                  <span className="text-[10px] font-extrabold bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded-full">
-                                    Talle: {venta.talle_vendido}
-                                  </span>
-                                )}
-                                <span className="text-[11px] text-gray-500 font-bold bg-gray-100 px-2 py-0.5 rounded">
-                                  Cant: {venta.cantidad}
-                                </span>
-                                <span className="text-[10px] text-gray-400">
-                                  {venta.medio_pago}
-                                  {venta.tarjeta && ` (${venta.tarjeta})`}
-                                  {venta.alias_transferencia && ` (Destino: ${venta.alias_transferencia})`}
-                                </span>
-                              </div>
-                            </div>
-
-                            <div className="text-right shrink-0">
-                              <p className="text-base font-extrabold text-gray-900">${subTotal.toLocaleString()}</p>
-                              <span className={cn(
-                                "text-[9px] font-extrabold px-1.5 py-0.5 rounded border uppercase mt-1 inline-block",
-                                isEfectivo ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
-                                isTarjeta ? "bg-blue-50 text-blue-700 border-blue-200" :
-                                "bg-purple-50 text-purple-700 border-purple-200"
-                              )}>
-                                Vendido
-                              </span>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center py-16 text-center">
-                      <Package size={32} className="text-gray-300 mb-2" />
-                      <p className="text-sm text-gray-400 font-semibold">Sin ventas de productos hoy</p>
-                      <p className="text-xs text-gray-400 mt-1 max-w-[250px]">Los ingresos de tienda aparecerán al vender desde la sección de Productos.</p>
-                    </div>
-                  )}
-                </div>
+                <span className="text-sm font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-xl border border-blue-100 shadow-sm">
+                  ${totalPagos.toLocaleString()}
+                </span>
               </div>
+              <button className="w-full py-2.5 px-4 bg-blue-50 group-hover:bg-blue-600 group-hover:text-white text-blue-700 font-extrabold text-xs rounded-xl border border-blue-150 group-hover:border-blue-600 transition-all flex items-center justify-center gap-2 shadow-sm">
+                Ver todas las membresías y planes
+                <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+              </button>
+            </div>
 
+            {/* Detalle de ventas simplificado */}
+            <div 
+              onClick={() => setIsVentasModalOpen(true)}
+              className="bg-white rounded-2xl border border-gray-150 shadow-sm p-6 flex flex-col justify-between hover:border-emerald-300 hover:shadow-md transition-all cursor-pointer group"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center border border-emerald-100 group-hover:bg-emerald-100 transition-colors">
+                    <Package size={18} className="text-emerald-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-extrabold text-gray-900 group-hover:text-emerald-700 transition-colors">Ventas de Productos</h3>
+                    <p className="text-xs text-gray-400 font-semibold">{ventas.length} artículos vendidos hoy</p>
+                  </div>
+                </div>
+                <span className="text-sm font-black text-emerald-600 bg-emerald-50 px-3 py-1 rounded-xl border border-emerald-100 shadow-sm">
+                  ${totalVentas.toLocaleString()}
+                </span>
+              </div>
+              <button className="w-full py-2.5 px-4 bg-emerald-50 group-hover:bg-emerald-600 group-hover:text-white text-emerald-700 font-extrabold text-xs rounded-xl border border-emerald-150 group-hover:border-emerald-600 transition-all flex items-center justify-center gap-2 shadow-sm">
+                Ver todas las ventas de productos
+                <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+              </button>
             </div>
 
           </div>
         </>
+      )}
+
+      {/* Modal de Cobros de Membresías */}
+      {isPagosModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl border border-gray-150 animate-in zoom-in-95 duration-200 overflow-hidden">
+            {/* Header */}
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center border border-blue-100">
+                  <DollarSign size={20} className="text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">Cobros de Membresías y Planes</h3>
+                  <p className="text-xs text-gray-400 font-semibold">{pagos.length} transacciones registradas hoy</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                <span className="text-base font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-xl border border-blue-100">
+                  ${totalPagos.toLocaleString()}
+                </span>
+                <button
+                  onClick={() => setIsPagosModalOpen(false)}
+                  className="w-8 h-8 rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-all active:scale-95"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            {/* List Content */}
+            <div className="p-6 overflow-y-auto flex-1 space-y-3 bg-gray-50/50">
+              {pagos.length > 0 ? (
+                pagos.map((pago) => {
+                  const isEfectivo = pago.medio_pago?.toLowerCase().includes("efectivo");
+                  const isTarjeta = pago.medio_pago?.toLowerCase().includes("tarjeta");
+                  return (
+                    <div
+                      key={pago.id}
+                      className="p-4 rounded-xl border border-gray-200 hover:border-gray-300 hover:shadow-sm bg-white transition-all flex items-center justify-between gap-4"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-gray-900 truncate">
+                          {pago.alumnos?.nombre || "Alumno Eliminado"}
+                        </p>
+                        <div className="flex flex-wrap items-center gap-2 mt-1">
+                          <span className="text-[11px] text-gray-500 font-bold bg-gray-100 px-2 py-0.5 rounded">
+                            {pago.actividad}
+                          </span>
+                          <span className="text-[10px] text-gray-400">
+                            {pago.medio_pago}
+                            {pago.tarjeta && ` (${pago.tarjeta})`}
+                            {pago.alias_transferencia && ` (Destino: ${pago.alias_transferencia})`}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="text-right shrink-0">
+                        <p className="text-base font-extrabold text-gray-900">${(pago.precio || 0).toLocaleString()}</p>
+                        <span className={cn(
+                          "text-[9px] font-extrabold px-1.5 py-0.5 rounded border uppercase mt-1 inline-block",
+                          isEfectivo ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
+                          isTarjeta ? "bg-blue-50 text-blue-700 border-blue-200" :
+                          "bg-purple-50 text-purple-700 border-purple-200"
+                        )}>
+                          Recibido
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="flex flex-col items-center justify-center py-16 text-center bg-white rounded-xl border border-dashed border-gray-200">
+                  <DollarSign size={32} className="text-gray-300 mb-2" />
+                  <p className="text-sm text-gray-400 font-semibold">Sin cobros de abonos registrados hoy</p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-gray-100 flex justify-end bg-white">
+              <button
+                onClick={() => setIsPagosModalOpen(false)}
+                className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white font-bold text-xs rounded-xl transition-all active:scale-95"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Ventas de Productos */}
+      {isVentasModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl border border-gray-150 animate-in zoom-in-95 duration-200 overflow-hidden">
+            {/* Header */}
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center border border-emerald-100">
+                  <Package size={20} className="text-emerald-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">Ventas de Productos</h3>
+                  <p className="text-xs text-gray-400 font-semibold">{ventas.length} artículos vendidos hoy</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                <span className="text-base font-black text-emerald-600 bg-emerald-50 px-3 py-1 rounded-xl border border-emerald-100">
+                  ${totalVentas.toLocaleString()}
+                </span>
+                <button
+                  onClick={() => setIsVentasModalOpen(false)}
+                  className="w-8 h-8 rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-all active:scale-95"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            {/* List Content */}
+            <div className="p-6 overflow-y-auto flex-1 space-y-3 bg-gray-50/50">
+              {ventas.length > 0 ? (
+                ventas.map((venta) => {
+                  const isEfectivo = venta.medio_pago?.toLowerCase().includes("efectivo");
+                  const isTarjeta = venta.medio_pago?.toLowerCase().includes("tarjeta");
+                  const subTotal = (venta.precio_unitario || 0) * (venta.cantidad || 0);
+                  return (
+                    <div
+                      key={venta.id}
+                      className="p-4 rounded-xl border border-gray-200 hover:border-gray-300 hover:shadow-sm bg-white transition-all flex items-center justify-between gap-4"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-gray-900 truncate">
+                          {venta.productos?.nombre || "Producto Eliminado"}
+                        </p>
+                        <div className="flex flex-wrap items-center gap-2 mt-1">
+                          {venta.talle_vendido && (
+                            <span className="text-[10px] font-extrabold bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded-full">
+                              Talle: {venta.talle_vendido}
+                            </span>
+                          )}
+                          <span className="text-[11px] text-gray-500 font-bold bg-gray-100 px-2 py-0.5 rounded">
+                            Cant: {venta.cantidad}
+                          </span>
+                          <span className="text-[10px] text-gray-400">
+                            {venta.medio_pago}
+                            {venta.tarjeta && ` (${venta.tarjeta})`}
+                            {venta.alias_transferencia && ` (Destino: ${venta.alias_transferencia})`}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="text-right shrink-0">
+                        <p className="text-base font-extrabold text-gray-900">${subTotal.toLocaleString()}</p>
+                        <span className={cn(
+                          "text-[9px] font-extrabold px-1.5 py-0.5 rounded border uppercase mt-1 inline-block",
+                          isEfectivo ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
+                          isTarjeta ? "bg-blue-50 text-blue-700 border-blue-200" :
+                          "bg-purple-50 text-purple-700 border-purple-200"
+                        )}>
+                          Vendido
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="flex flex-col items-center justify-center py-16 text-center bg-white rounded-xl border border-dashed border-gray-200">
+                  <Package size={32} className="text-gray-300 mb-2" />
+                  <p className="text-sm text-gray-400 font-semibold">Sin ventas de productos hoy</p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-gray-100 flex justify-end bg-white">
+              <button
+                onClick={() => setIsVentasModalOpen(false)}
+                className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white font-bold text-xs rounded-xl transition-all active:scale-95"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Altas de Alumnos */}
+      {isAltasModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl border border-gray-150 animate-in zoom-in-95 duration-200 overflow-hidden">
+            {/* Header */}
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center border border-amber-100">
+                  <UserPlus size={20} className="text-amber-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">Altas de Alumnos</h3>
+                  <p className="text-xs text-gray-400 font-semibold">{altas.length} nuevos alumnos registrados hoy</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                <span className="text-base font-black text-amber-600 bg-amber-50 px-3 py-1 rounded-xl border border-amber-100">
+                  {altas.length} registrados
+                </span>
+                <button
+                  onClick={() => setIsAltasModalOpen(false)}
+                  className="w-8 h-8 rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-all active:scale-95"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            {/* List Content */}
+            <div className="p-6 overflow-y-auto flex-1 space-y-3 bg-gray-50/50">
+              {altas.length > 0 ? (
+                altas.map((alta) => (
+                  <div key={alta.id} className="p-4 rounded-xl border border-gray-200 hover:border-gray-300 hover:shadow-sm bg-white transition-all flex items-center justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-gray-900 truncate">{alta.nombre}</p>
+                      <p className="text-xs text-gray-400 mt-1 font-semibold">DNI: {alta.dni}</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-[10px] text-gray-400 font-bold bg-gray-50 border border-gray-200 px-2 py-1 rounded-lg">
+                        {new Date(alta.created_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })} hs
+                      </span>
+                      <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-100">
+                        Registrado
+                      </span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="flex flex-col items-center justify-center py-16 text-center bg-white rounded-xl border border-dashed border-gray-200">
+                  <UserPlus size={32} className="text-gray-300 mb-2" />
+                  <p className="text-sm text-gray-400 font-semibold">Sin nuevos alumnos registrados hoy</p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-gray-100 flex justify-end bg-white">
+              <button
+                onClick={() => setIsAltasModalOpen(false)}
+                className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white font-bold text-xs rounded-xl transition-all active:scale-95"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

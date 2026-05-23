@@ -34,8 +34,9 @@ export function useAuth() {
       try {
         // Obtener usuario de la sesión local (no hace request al servidor)
         const {
-          data: { user },
-        } = await supabase.auth.getUser();
+          data: { session },
+        } = await supabase.auth.getSession();
+        const user = session?.user || null;
 
         if (!user) {
           const newState = { user: null, role: null, loading: false };

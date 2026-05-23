@@ -164,31 +164,23 @@ function PasswordGate({
 
 export default function AdministracionPage() {
   const { user, role, loading, refreshAuth } = useAuth();
-  const [status, setStatus] = useState<
-    "loading" | "authorized" | "denied" | "timeout"
-  >("loading");
   const { authenticated, setAuthenticated, fetchFinanzasStats } =
     useAdminStore();
   const { fetchSettings, fetchPlanes, fetchMetodos } = useAdminSettingsStore();
   const [activeTab, setActiveTab] = useState<Tab>("diario");
 
+  const status = loading
+    ? "loading"
+    : !user || role !== "Administrador"
+      ? "denied"
+      : "authorized";
+
+  // Limpiar autenticación al salir de la página de administración para mayor seguridad
   useEffect(() => {
-    if (loading) return;
-
-    if (!user || role !== "Administrador") {
-      setStatus("denied");
-      return;
-    }
-
-    setStatus("authorized");
-  }, [user, role, loading]);
-
-  // Timeout de seguridad: si la carga no resuelve en 8s, mostrar reintentar
-  useEffect(() => {
-    if (status !== "loading") return;
-    const id = setTimeout(() => setStatus("timeout"), 8000);
-    return () => clearTimeout(id);
-  }, [status]);
+    return () => {
+      setAuthenticated(false);
+    };
+  }, [setAuthenticated]);
 
   // Cuando el usuario pasa el PasswordGate, iniciar carga en segundo plano
   useEffect(() => {
@@ -212,37 +204,6 @@ export default function AdministracionPage() {
     return (
       <div className="min-h-full flex items-center justify-center bg-gray-50">
         <Loader2 size={28} className="animate-spin text-gray-400" />
-      </div>
-    );
-  }
-
-  if (status === "timeout") {
-    return (
-      <div className="min-h-full bg-gray-50 flex items-center justify-center px-4">
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 w-full max-w-sm p-8 flex flex-col items-center gap-4 text-center">
-          <div className="w-14 h-14 rounded-full bg-orange-50 flex items-center justify-center">
-            <ShieldX size={28} className="text-orange-400" />
-          </div>
-          <div>
-            <h2 className="text-lg font-bold text-gray-900">
-              La verificación tardó demasiado
-            </h2>
-            <p className="text-sm text-gray-400 mt-1 leading-relaxed">
-              No se pudo confirmar el acceso. Revisá tu conexión e intentá de
-              nuevo.
-            </p>
-          </div>
-          <button
-            onClick={() => {
-              refreshAuth();
-              setStatus("loading");
-            }}
-            className="w-full min-h-[44px] rounded-xl text-white font-bold text-sm transition-all hover:brightness-110 cursor-pointer"
-            style={{ backgroundColor: "#f97316" }}
-          >
-            Reintentar
-          </button>
-        </div>
       </div>
     );
   }
