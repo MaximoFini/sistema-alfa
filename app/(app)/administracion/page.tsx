@@ -12,6 +12,8 @@ import {
   Settings,
   Loader2,
   ClipboardList,
+  Package,
+  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
@@ -28,12 +30,8 @@ type Tab = "diario" | "estadisticas" | "estadisticas-productos" | "finanzas" | "
 
 const tabs: { id: Tab; label: string; icon: typeof BarChart2 }[] = [
   { id: "diario", label: "Diario de Actividad", icon: ClipboardList },
-  { id: "estadisticas", label: "Clientes", icon: BarChart2 },
-  {
-    id: "estadisticas-productos",
-    label: "Productos",
-    icon: BarChart2,
-  },
+  { id: "estadisticas", label: "Clientes", icon: Users },
+  { id: "estadisticas-productos", label: "Productos", icon: Package },
   { id: "finanzas", label: "Finanzas", icon: DollarSign },
   { id: "ajustes", label: "Ajustes de Negocio", icon: Settings },
 ];

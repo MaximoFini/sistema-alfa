@@ -254,11 +254,16 @@ export default function EstadisticasProductos() {
       <div className="space-y-6">
         {/* Encabezado Superior con Selector de Mes */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Estadísticas de Productos</h1>
-            <p className="text-xs text-gray-400 mt-1">
-              Visualiza ventas totales, ganancias, distribución de pago y el ranking de artículos del mes.
-            </p>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center border border-orange-100 shrink-0">
+              <Package size={20} className="text-orange-600" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-gray-900 leading-tight">Estadísticas de Productos</h1>
+              <p className="text-xs text-gray-400 mt-0.5">
+                Ventas totales, ganancias, distribución de pago y ranking de artículos del mes.
+              </p>
+            </div>
           </div>
           <div className="flex items-center gap-3">
             <MonthSelector
@@ -272,19 +277,16 @@ export default function EstadisticasProductos() {
           </div>
         </div>
 
-        {/* Fila de Tarjetas KPI */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {/* Fila de Tarjetas KPI */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* KPI Ventas Totales */}
           <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm flex flex-col justify-between min-h-[140px]">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
                 Ventas del Mes
               </span>
-              <div
-                className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-                style={{ backgroundColor: "#FEF2F2" }}
-              >
-                <DollarSign size={16} style={{ color: "#DC2626" }} />
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-orange-50">
+                <DollarSign size={16} className="text-orange-600" />
               </div>
             </div>
             <div className="mt-4">
@@ -311,16 +313,13 @@ export default function EstadisticasProductos() {
                 >
                   <Maximize2 size={14} />
                 </button>
-                <div
-                  className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-                  style={{ backgroundColor: "#F0FDF4" }}
-                >
-                  <TrendingUp size={16} style={{ color: "#16A34A" }} />
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-green-50">
+                  <TrendingUp size={16} className="text-green-600" />
                 </div>
               </div>
             </div>
             <div className="mt-4">
-              <p className="text-3xl font-extrabold text-gray-900 leading-none">
+              <p className="text-3xl font-extrabold text-green-700 leading-none">
                 ${totalGanancias.toFixed(2)}
               </p>
               <div className="flex items-center justify-between mt-1.5">
@@ -333,7 +332,7 @@ export default function EstadisticasProductos() {
                 </p>
                 <button
                   onClick={() => setShowHistorialModal(true)}
-                  className="text-[10px] text-red-500 font-bold hover:underline flex items-center gap-0.5"
+                  className="text-[10px] text-orange-500 font-bold hover:underline flex items-center gap-0.5"
                 >
                   Ver historial
                 </button>
@@ -347,11 +346,8 @@ export default function EstadisticasProductos() {
               <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
                 Productos Vendidos
               </span>
-              <div
-                className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-                style={{ backgroundColor: "#FEF3C7" }}
-              >
-                <Package size={16} style={{ color: "#D97706" }} />
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-orange-50">
+                <Package size={16} className="text-orange-600" />
               </div>
             </div>
             <div className="mt-4">
@@ -370,11 +366,8 @@ export default function EstadisticasProductos() {
               <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
                 Productos Activos
               </span>
-              <div
-                className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-                style={{ backgroundColor: "#EFF6FF" }}
-              >
-                <Package size={16} style={{ color: "#2563EB" }} />
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-orange-50">
+                <Package size={16} className="text-orange-600" />
               </div>
             </div>
             <div className="mt-4">
@@ -397,8 +390,8 @@ export default function EstadisticasProductos() {
           {/* Ventas por Forma de Pago */}
           <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm flex flex-col">
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-purple-50 shrink-0">
-                <CreditCard size={20} className="text-purple-600" />
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-orange-50 border border-orange-100 shrink-0">
+                <CreditCard size={20} className="text-orange-600" />
               </div>
               <div>
                 <h3 className="text-base font-extrabold text-gray-900">
@@ -490,11 +483,8 @@ export default function EstadisticasProductos() {
           {/* Ranking de los 3 Productos Más Vendidos */}
           <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm flex flex-col">
             <div className="flex items-center gap-3 mb-6">
-              <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                style={{ backgroundColor: "#FEF3C7" }}
-              >
-                <TrendingUp size={20} className="text-yellow-600" />
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-orange-50 border border-orange-100">
+                <TrendingUp size={20} className="text-orange-600" />
               </div>
               <div>
                 <h3 className="text-base font-extrabold text-gray-900">
@@ -649,16 +639,16 @@ function ProductosGananciasHistorialModal({
         {/* Header */}
         <div className="p-6 border-b border-gray-100 flex items-center justify-between shrink-0 bg-white">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center border border-green-100 shrink-0">
-              <TrendingUp size={20} className="text-green-600" />
+            <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center border border-orange-100 shrink-0">
+              <TrendingUp size={20} className="text-orange-600" />
             </div>
             <div>
               <DialogHeader>
-                <DialogTitle className="text-lg font-bold text-gray-900 leading-none">
-                  Historial de Ganancias (Productos)
+                <DialogTitle className="text-base font-bold text-gray-900 leading-none">
+                  Historial de Ganancias — Productos
                 </DialogTitle>
               </DialogHeader>
-              <p className="text-xs text-gray-400 font-semibold mt-1">
+              <p className="text-xs text-gray-400 font-medium mt-1">
                 Evolución de ganancias netas mensuales por ventas de productos
               </p>
             </div>
@@ -674,35 +664,33 @@ function ProductosGananciasHistorialModal({
         {/* Body */}
         <div className="p-6 overflow-y-auto flex-1 flex flex-col bg-gray-50/50">
           {/* Selector de Vista */}
-          <div className="flex justify-end mb-4 shrink-0">
-            <div className="bg-white border border-gray-200/75 p-0.5 rounded-lg flex shadow-sm">
-              <button
-                onClick={() => setVista("tabla")}
-                className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
-                  vista === "tabla"
-                    ? "bg-red-50 text-red-600 shadow-sm"
-                    : "text-gray-500 hover:text-gray-800"
-                }`}
-              >
-                Vista de Tabla
-              </button>
-              <button
-                onClick={() => setVista("grafico")}
-                className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
-                  vista === "grafico"
-                    ? "bg-red-50 text-red-600 shadow-sm"
-                    : "text-gray-500 hover:text-gray-800"
-                }`}
-              >
-                Vista de Gráfico
-              </button>
-            </div>
+          <div className="flex gap-2 mb-4 shrink-0">
+            <button
+              onClick={() => setVista("tabla")}
+              className={`text-sm px-5 py-2 rounded-lg font-semibold transition-colors ${
+                vista === "tabla"
+                  ? "bg-gray-900 text-white"
+                  : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+              }`}
+            >
+              Tabla
+            </button>
+            <button
+              onClick={() => setVista("grafico")}
+              className={`text-sm px-5 py-2 rounded-lg font-semibold transition-colors ${
+                vista === "grafico"
+                  ? "bg-gray-900 text-white"
+                  : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+              }`}
+            >
+              Gráfico
+            </button>
           </div>
 
           {loading ? (
             <div className="flex-1 flex items-center justify-center py-12">
               <div className="text-center">
-                <Loader2 size={36} className="text-red-500 animate-spin mx-auto mb-2" />
+                <Loader2 size={36} className="text-orange-500 animate-spin mx-auto mb-2" />
                 <p className="text-sm text-gray-500 font-medium">Cargando historial...</p>
               </div>
             </div>
