@@ -20,6 +20,10 @@ DECLARE
   total_deuda NUMERIC;
   total_alumnos_activos INTEGER;
   registro_existe BOOLEAN;
+  sum_pagos NUMERIC;
+  sum_ventas NUMERIC;
+  sum_gastos NUMERIC;
+  sum_sueldos NUMERIC;
 BEGIN
   -- Calcular el mes anterior
   mes_anterior := EXTRACT(MONTH FROM CURRENT_DATE - INTERVAL '1 month')::INTEGER;
@@ -37,12 +41,38 @@ BEGIN
   
   -- Si no existe, crear el registro con las estadísticas
   IF NOT registro_existe THEN
-    -- Calcular ingresos del mes anterior
+    -- Calcular pagos del mes anterior
     SELECT COALESCE(SUM(precio), 0)
-    INTO total_ingresos
+    INTO sum_pagos
     FROM pagos
     WHERE fecha_cobro >= primer_dia
       AND fecha_cobro <= ultimo_dia;
+      
+    -- Calcular ventas del mes anterior
+    SELECT COALESCE(SUM(total), 0)
+    INTO sum_ventas
+    FROM ventas
+    WHERE created_at >= primer_dia::timestamp
+      AND created_at < (ultimo_dia + INTERVAL '1 day')::timestamp;
+      
+    -- Calcular gastos activos del mes anterior
+    SELECT COALESCE(SUM(amount), 0)
+    INTO sum_gastos
+    FROM monthly_expenses_config
+    WHERE year = anio_anterior
+      AND month = mes_anterior
+      AND is_active = true;
+      
+    -- Calcular sueldos activos del mes anterior
+    SELECT COALESCE(SUM(amount), 0)
+    INTO sum_sueldos
+    FROM monthly_salaries_config
+    WHERE year = anio_anterior
+      AND month = mes_anterior
+      AND is_active = true;
+      
+    -- Calcular ingresos netos
+    total_ingresos := (sum_pagos + sum_ventas) - (sum_gastos + sum_sueldos);
     
     -- Calcular deuda total al final del mes (usando el último día)
     SELECT COALESCE(SUM(saldo), 0)

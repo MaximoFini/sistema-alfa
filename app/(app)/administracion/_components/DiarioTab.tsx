@@ -346,7 +346,7 @@ export default function DiarioTab() {
 
           {/* Tarjetas de Resumen Financiero y KPIs */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <div className="col-span-2 md:col-span-1 bg-gradient-to-br from-orange-400 to-orange-500 rounded-2xl p-5 text-white shadow-md relative overflow-hidden flex flex-col justify-between min-h-[120px]">
+            <div className="col-span-2 md:col-span-1 bg-gradient-to-br from-orange-400 to-orange-500 rounded-2xl p-6 text-white shadow-md relative overflow-hidden flex flex-col justify-between min-h-[120px]">
               <div className="absolute right-[-10px] top-[-10px] w-24 h-24 bg-white/10 rounded-full blur-xl" />
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold uppercase tracking-wider text-white/80">Ingreso Total</span>
@@ -358,7 +358,7 @@ export default function DiarioTab() {
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl p-5 border border-gray-150 shadow-sm flex flex-col justify-between min-h-[120px]">
+            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex flex-col justify-between min-h-[120px]">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Ingreso Cuotas</span>
                 <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center">
@@ -371,7 +371,7 @@ export default function DiarioTab() {
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl p-5 border border-gray-150 shadow-sm flex flex-col justify-between min-h-[120px]">
+            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex flex-col justify-between min-h-[120px]">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Ingreso Ventas</span>
                 <div className="w-7 h-7 rounded-lg bg-emerald-50 flex items-center justify-center">
@@ -384,7 +384,7 @@ export default function DiarioTab() {
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl p-5 border border-gray-150 shadow-sm flex flex-col justify-between min-h-[120px]">
+            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex flex-col justify-between min-h-[120px]">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Asistencias</span>
                 <div className="w-7 h-7 rounded-lg bg-purple-50 flex items-center justify-center">
@@ -397,7 +397,7 @@ export default function DiarioTab() {
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl p-5 border border-gray-150 shadow-sm flex flex-col justify-between min-h-[120px]">
+            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex flex-col justify-between min-h-[120px]">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Alumnos Nuevos</span>
                 <div className="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center">
@@ -412,7 +412,7 @@ export default function DiarioTab() {
           </div>
 
           {/* Arqueo / Cierre de Caja */}
-          <div className="bg-white rounded-2xl border border-gray-150 shadow-sm p-6">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center">
                 <Coins size={18} className="text-orange-600" />
@@ -424,7 +424,7 @@ export default function DiarioTab() {
             </div>
 
             {arqueoBreakdown.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {arqueoBreakdown.map((item, idx) => {
                   const isEfectivo = item.name.toLowerCase().includes("efectivo");
                   const isTarjeta = item.name.toLowerCase().includes("tarjeta");
@@ -473,7 +473,7 @@ export default function DiarioTab() {
           </div>
 
           {/* Asistencias por Horario (Gráfico de Barras) */}
-          <div className="bg-white rounded-2xl border border-gray-150 shadow-sm p-6">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center">
@@ -532,7 +532,7 @@ export default function DiarioTab() {
             {/* Detalle de altas de alumnos simplificado */}
             <div 
               onClick={() => setIsAltasModalOpen(true)}
-              className="bg-white rounded-2xl border border-gray-150 shadow-sm p-6 flex flex-col justify-between hover:border-amber-300 hover:shadow-md transition-all cursor-pointer group"
+              className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex flex-col justify-between hover:border-orange-200 hover:shadow-md transition-all cursor-pointer group"
             >
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
@@ -540,7 +540,7 @@ export default function DiarioTab() {
                     <UserPlus size={18} className="text-amber-600" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-extrabold text-gray-900 group-hover:text-amber-700 transition-colors">Altas de Alumnos</h3>
+                    <h3 className="text-sm font-extrabold text-gray-900 group-hover:text-orange-600 transition-colors">Altas de Alumnos</h3>
                     <p className="text-xs text-gray-400 font-semibold">{altas.length} registros hoy</p>
                   </div>
                 </div>
@@ -548,7 +548,7 @@ export default function DiarioTab() {
                   {altas.length} nuevos
                 </span>
               </div>
-              <button className="w-full py-2.5 px-4 bg-amber-50 group-hover:bg-amber-600 group-hover:text-white text-amber-700 font-extrabold text-xs rounded-xl border border-amber-150 group-hover:border-amber-600 transition-all flex items-center justify-center gap-2 shadow-sm">
+              <button className="w-full py-2.5 px-4 bg-amber-50 group-hover:bg-[#f97316] group-hover:text-white text-amber-700 font-extrabold text-xs rounded-xl border border-amber-150 group-hover:border-[#f97316] transition-all flex items-center justify-center gap-2 shadow-sm">
                 Ver todos los nuevos alumnos
                 <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
               </button>
@@ -557,7 +557,7 @@ export default function DiarioTab() {
             {/* Detalle de pagos simplificado */}
             <div 
               onClick={() => setIsPagosModalOpen(true)}
-              className="bg-white rounded-2xl border border-gray-150 shadow-sm p-6 flex flex-col justify-between hover:border-blue-300 hover:shadow-md transition-all cursor-pointer group"
+              className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex flex-col justify-between hover:border-orange-200 hover:shadow-md transition-all cursor-pointer group"
             >
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
@@ -565,7 +565,7 @@ export default function DiarioTab() {
                     <DollarSign size={18} className="text-blue-600" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-extrabold text-gray-900 group-hover:text-blue-700 transition-colors">Cobros de Membresías</h3>
+                    <h3 className="text-sm font-extrabold text-gray-900 group-hover:text-orange-600 transition-colors">Cobros de Membresías</h3>
                     <p className="text-xs text-gray-400 font-semibold">{pagos.length} transacciones registradas hoy</p>
                   </div>
                 </div>
@@ -573,7 +573,7 @@ export default function DiarioTab() {
                   ${totalPagos.toLocaleString()}
                 </span>
               </div>
-              <button className="w-full py-2.5 px-4 bg-blue-50 group-hover:bg-blue-600 group-hover:text-white text-blue-700 font-extrabold text-xs rounded-xl border border-blue-150 group-hover:border-blue-600 transition-all flex items-center justify-center gap-2 shadow-sm">
+              <button className="w-full py-2.5 px-4 bg-blue-50 group-hover:bg-[#f97316] group-hover:text-white text-blue-700 font-extrabold text-xs rounded-xl border border-blue-150 group-hover:border-[#f97316] transition-all flex items-center justify-center gap-2 shadow-sm">
                 Ver todas las membresías y planes
                 <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
               </button>
@@ -582,7 +582,7 @@ export default function DiarioTab() {
             {/* Detalle de ventas simplificado */}
             <div 
               onClick={() => setIsVentasModalOpen(true)}
-              className="bg-white rounded-2xl border border-gray-150 shadow-sm p-6 flex flex-col justify-between hover:border-emerald-300 hover:shadow-md transition-all cursor-pointer group"
+              className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex flex-col justify-between hover:border-orange-200 hover:shadow-md transition-all cursor-pointer group"
             >
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
@@ -590,7 +590,7 @@ export default function DiarioTab() {
                     <Package size={18} className="text-emerald-600" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-extrabold text-gray-900 group-hover:text-emerald-700 transition-colors">Ventas de Productos</h3>
+                    <h3 className="text-sm font-extrabold text-gray-900 group-hover:text-orange-600 transition-colors">Ventas de Productos</h3>
                     <p className="text-xs text-gray-400 font-semibold">{ventas.length} artículos vendidos hoy</p>
                   </div>
                 </div>
@@ -598,7 +598,7 @@ export default function DiarioTab() {
                   ${totalVentas.toLocaleString()}
                 </span>
               </div>
-              <button className="w-full py-2.5 px-4 bg-emerald-50 group-hover:bg-emerald-600 group-hover:text-white text-emerald-700 font-extrabold text-xs rounded-xl border border-emerald-150 group-hover:border-emerald-600 transition-all flex items-center justify-center gap-2 shadow-sm">
+              <button className="w-full py-2.5 px-4 bg-emerald-50 group-hover:bg-[#f97316] group-hover:text-white text-emerald-700 font-extrabold text-xs rounded-xl border border-emerald-150 group-hover:border-[#f97316] transition-all flex items-center justify-center gap-2 shadow-sm">
                 Ver todas las ventas de productos
                 <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
               </button>
@@ -611,25 +611,25 @@ export default function DiarioTab() {
       {/* Modal de Cobros de Membresías */}
       {isPagosModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl border border-gray-150 animate-in zoom-in-95 duration-200 overflow-hidden">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl border border-gray-100 animate-in zoom-in-95 duration-200 overflow-hidden">
             {/* Header */}
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between shrink-0 bg-white">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center border border-blue-100">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center border border-blue-100 shrink-0">
                   <DollarSign size={20} className="text-blue-600" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-gray-900">Cobros de Membresías y Planes</h3>
-                  <p className="text-xs text-gray-400 font-semibold">{pagos.length} transacciones registradas hoy</p>
+                  <h3 className="text-lg font-bold text-gray-900 leading-none">Cobros de Membresías y Planes</h3>
+                  <p className="text-xs text-gray-400 font-semibold mt-1">{pagos.length} transacciones registradas hoy</p>
                 </div>
               </div>
-              <div className="flex items-center gap-4">
-                <span className="text-base font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-xl border border-blue-100">
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-black text-blue-700 bg-blue-50 px-3 py-1 rounded-xl border border-blue-100 shadow-sm shrink-0">
                   ${totalPagos.toLocaleString()}
                 </span>
                 <button
                   onClick={() => setIsPagosModalOpen(false)}
-                  className="w-8 h-8 rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-all active:scale-95"
+                  className="w-8 h-8 rounded-lg hover:bg-gray-100 border border-gray-200/60 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors shrink-0"
                 >
                   <X size={18} />
                 </button>
@@ -701,25 +701,25 @@ export default function DiarioTab() {
       {/* Modal de Ventas de Productos */}
       {isVentasModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl border border-gray-150 animate-in zoom-in-95 duration-200 overflow-hidden">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl border border-gray-100 animate-in zoom-in-95 duration-200 overflow-hidden">
             {/* Header */}
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between shrink-0 bg-white">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center border border-emerald-100">
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center border border-emerald-100 shrink-0">
                   <Package size={20} className="text-emerald-600" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-gray-900">Ventas de Productos</h3>
-                  <p className="text-xs text-gray-400 font-semibold">{ventas.length} artículos vendidos hoy</p>
+                  <h3 className="text-lg font-bold text-gray-900 leading-none">Ventas de Productos</h3>
+                  <p className="text-xs text-gray-400 font-semibold mt-1">{ventas.length} artículos vendidos hoy</p>
                 </div>
               </div>
-              <div className="flex items-center gap-4">
-                <span className="text-base font-black text-emerald-600 bg-emerald-50 px-3 py-1 rounded-xl border border-emerald-100">
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-black text-emerald-700 bg-emerald-50 px-3 py-1 rounded-xl border border-emerald-100 shadow-sm shrink-0">
                   ${totalVentas.toLocaleString()}
                 </span>
                 <button
                   onClick={() => setIsVentasModalOpen(false)}
-                  className="w-8 h-8 rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-all active:scale-95"
+                  className="w-8 h-8 rounded-lg hover:bg-gray-100 border border-gray-200/60 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors shrink-0"
                 >
                   <X size={18} />
                 </button>
@@ -797,25 +797,25 @@ export default function DiarioTab() {
       {/* Modal de Altas de Alumnos */}
       {isAltasModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl border border-gray-150 animate-in zoom-in-95 duration-200 overflow-hidden">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl border border-gray-100 animate-in zoom-in-95 duration-200 overflow-hidden">
             {/* Header */}
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between shrink-0 bg-white">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center border border-amber-100">
+                <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center border border-amber-100 shrink-0">
                   <UserPlus size={20} className="text-amber-600" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-gray-900">Altas de Alumnos</h3>
-                  <p className="text-xs text-gray-400 font-semibold">{altas.length} nuevos alumnos registrados hoy</p>
+                  <h3 className="text-lg font-bold text-gray-900 leading-none">Altas de Alumnos</h3>
+                  <p className="text-xs text-gray-400 font-semibold mt-1">{altas.length} nuevos alumnos registrados hoy</p>
                 </div>
               </div>
-              <div className="flex items-center gap-4">
-                <span className="text-base font-black text-amber-600 bg-amber-50 px-3 py-1 rounded-xl border border-amber-100">
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-black text-amber-700 bg-amber-50 px-3 py-1 rounded-xl border border-amber-100 shadow-sm shrink-0">
                   {altas.length} registrados
                 </span>
                 <button
                   onClick={() => setIsAltasModalOpen(false)}
-                  className="w-8 h-8 rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-all active:scale-95"
+                  className="w-8 h-8 rounded-lg hover:bg-gray-100 border border-gray-200/60 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors shrink-0"
                 >
                   <X size={18} />
                 </button>

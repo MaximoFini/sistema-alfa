@@ -131,6 +131,14 @@ export default function ExpensesModal({
     }
   }, [isOpen]);
 
+  const isExpenseNameDuplicate = newName.trim() !== "" && expenses.some(
+    (e) => e.name.trim().toLowerCase() === newName.trim().toLowerCase()
+  );
+
+  const isEditExpenseNameDuplicate = editName.trim() !== "" && expenses.some(
+    (e) => e.id !== editingId && e.name.trim().toLowerCase() === editName.trim().toLowerCase()
+  );
+
   const resetNewExpenseForm = () => {
     setNewName("");
     setNewAmount("");
@@ -160,7 +168,7 @@ export default function ExpensesModal({
   };
 
   const saveEditExpense = () => {
-    if (!editingId || !editName.trim() || !editAmount) return;
+    if (!editingId || !editName.trim() || !editAmount || isEditExpenseNameDuplicate) return;
     onUpdateExpense(editingId, {
       name: editName.trim(),
       amount: Number(editAmount),
@@ -181,7 +189,7 @@ export default function ExpensesModal({
   };
 
   const addExpense = () => {
-    if (!newName.trim() || !newAmount) return;
+    if (!newName.trim() || !newAmount || isExpenseNameDuplicate) return;
     onAddExpense({
       name: newName.trim(),
       amount: Number(newAmount),
@@ -227,23 +235,23 @@ export default function ExpensesModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[85vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-gray-100">
         {/* Header */}
-        <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-orange-50 to-white">
+        <div className="p-6 border-b border-gray-100 flex items-center justify-between shrink-0 bg-white">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center border border-orange-100 shrink-0">
               <DollarSign size={20} className="text-orange-600" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-gray-900">
+              <h2 className="text-lg font-bold text-gray-900 leading-none">
                 Gestión de Egresos
               </h2>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <Calendar size={12} className="text-orange-500" />
-                <span className="text-sm font-semibold text-orange-600">
+              <div className="flex items-center gap-1.5 mt-1">
+                <Calendar size={12} className="text-orange-500 shrink-0" />
+                <span className="text-xs font-semibold text-orange-600">
                   {MONTH_NAMES[month - 1]} {year}
                 </span>
-                <span className="text-sm text-gray-400">
+                <span className="text-xs text-gray-400 font-semibold">
                   — configuración mensual
                 </span>
               </div>
@@ -251,36 +259,36 @@ export default function ExpensesModal({
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-colors"
+            className="w-8 h-8 rounded-lg hover:bg-gray-100 border border-gray-200/60 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors shrink-0"
           >
-            <X size={18} className="text-gray-500" />
+            <X size={18} />
           </button>
         </div>
 
         {/* Summary Cards */}
-        <div className="px-6 py-4 bg-gray-50 border-b border-gray-100">
+        <div className="px-6 py-4 bg-gray-50/50 border-b border-gray-100 shrink-0">
           <div className="grid grid-cols-3 gap-4">
-            <div className="bg-white rounded-xl p-4 border border-gray-100">
-              <p className="text-xs font-medium text-gray-500 mb-1">
+            <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm flex flex-col justify-between">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
                 Total Gastos
               </p>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-xl font-extrabold text-gray-900 mt-1 leading-none">
                 ${totalExpenses.toLocaleString()}
               </p>
             </div>
-            <div className="bg-white rounded-xl p-4 border border-gray-100">
-              <p className="text-xs font-medium text-gray-500 mb-1">
+            <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm flex flex-col justify-between">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
                 Total Sueldos
               </p>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-xl font-extrabold text-gray-900 mt-1 leading-none">
                 ${totalSalaries.toLocaleString()}
               </p>
             </div>
-            <div className="bg-orange-50 rounded-xl p-4 border border-orange-100">
-              <p className="text-xs font-medium text-orange-600 mb-1">
+            <div className="bg-orange-50 border border-orange-100/60 rounded-xl p-4 shadow-sm flex flex-col justify-between">
+              <p className="text-[10px] font-bold text-orange-600 uppercase tracking-wider">
                 Total General
               </p>
-              <p className="text-2xl font-bold text-orange-600">
+              <p className="text-xl font-extrabold text-orange-600 mt-1 leading-none">
                 ${totalAll.toLocaleString()}
               </p>
             </div>
@@ -363,10 +371,16 @@ export default function ExpensesModal({
                       className="px-3 py-2 rounded-lg border border-gray-200 text-sm font-medium outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-50"
                     />
                   </div>
+                  {isExpenseNameDuplicate && (
+                    <p className="text-xs text-red-500 mb-2 font-medium flex items-center gap-1">
+                      <AlertCircle size={12} />
+                      Ya existe un gasto con este nombre.
+                    </p>
+                  )}
                   <div className="flex gap-2">
                     <button
                       onClick={addExpense}
-                      disabled={!newName.trim() || !newAmount}
+                      disabled={!newName.trim() || !newAmount || isExpenseNameDuplicate}
                       className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Save size={16} />
@@ -440,10 +454,17 @@ export default function ExpensesModal({
                             className="px-3 py-2 rounded-lg border border-gray-200 text-sm font-medium outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-50"
                           />
                         </div>
+                        {isEditExpenseNameDuplicate && (
+                          <p className="text-xs text-red-500 mb-2 font-medium flex items-center gap-1">
+                            <AlertCircle size={12} />
+                            Ya existe un gasto con este nombre.
+                          </p>
+                        )}
                         <div className="flex gap-2">
                           <button
                             onClick={saveEditExpense}
-                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-semibold text-sm"
+                            disabled={isEditExpenseNameDuplicate}
+                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <Save size={16} />
                             Guardar
@@ -703,14 +724,14 @@ export default function ExpensesModal({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50">
+        <div className="px-6 py-4 border-t border-gray-100 bg-white shrink-0">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-500">
+            <p className="text-xs text-gray-400 font-semibold">
               💡 Los egresos activos se reflejan en las estadísticas financieras
             </p>
             <button
               onClick={onClose}
-              className="px-6 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors font-semibold text-sm"
+              className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white font-bold text-xs rounded-xl transition-all active:scale-95 shrink-0"
             >
               Cerrar
             </button>

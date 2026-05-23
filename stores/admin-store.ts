@@ -15,6 +15,7 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
 
 export interface FinancialStats {
   ingresosMes: number;
+  ingresosBrutos: number;
   ticketPromedio: number;
   deudaTotal: number;
   alumnosActivos: number;

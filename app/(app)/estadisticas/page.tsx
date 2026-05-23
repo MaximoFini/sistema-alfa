@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useAdminStore } from "@/stores/admin-store";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, X, Activity, DollarSign, Calendar, TrendingUp, Users } from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -125,37 +125,49 @@ function HistorialModal({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="w-[98vw] max-w-[98vw] h-[96vh] max-h-[96vh] overflow-hidden flex flex-col p-0">
+      <DialogContent className="max-w-5xl w-full h-[85vh] max-h-[85vh] overflow-hidden flex flex-col p-0 bg-white rounded-2xl border border-gray-100 shadow-2xl">
         {/* Header */}
-        <div className="px-8 pt-7 pb-5 border-b border-gray-100 shrink-0">
-          <div className="flex items-start justify-between">
+        <div className="p-6 border-b border-gray-100 flex items-center justify-between shrink-0 bg-white">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center border border-orange-100 shrink-0">
+              <Users size={20} className="text-orange-600" />
+            </div>
             <div>
               <DialogHeader>
-                <DialogTitle className="text-2xl font-bold text-gray-900">
+                <DialogTitle className="text-lg font-bold text-gray-900 leading-none">
                   Historial — Alumnos Activos
                 </DialogTitle>
               </DialogHeader>
-              <p className="text-sm text-gray-400 mt-1">
+              <p className="text-xs text-gray-400 font-semibold mt-1">
                 {years.length
                   ? `Evolución mensual desde ${Math.min(...years)} hasta ${Math.max(...years)}`
                   : "Sin datos"}
               </p>
             </div>
           </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-lg hover:bg-gray-100 border border-gray-200/60 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors shrink-0"
+          >
+            <X size={18} />
+          </button>
+        </div>
 
+        {/* Body */}
+        <div className="p-6 overflow-y-auto flex-1 flex flex-col bg-gray-50/50">
           {/* KPI row */}
           {!loading && data.length > 0 && (
-            <div className="grid grid-cols-3 gap-4 mt-5">
-              <div className="bg-gray-50 rounded-xl p-5 flex flex-col gap-1.5">
-                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+            <div className="grid grid-cols-3 gap-4 mb-6 shrink-0">
+              <div className="bg-white border border-gray-100 rounded-xl p-4 flex flex-col gap-1 shadow-sm">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
                   Promedio {hoyYear}
                 </span>
-                <span className="text-4xl font-bold text-gray-900 leading-none">
+                <span className="text-2xl font-extrabold text-gray-900 leading-none mt-1">
                   {currentAvg ?? "—"}
                 </span>
                 {growthPct !== null && (
                   <span
-                    className="text-sm font-semibold mt-1"
+                    className="text-xs font-semibold mt-1"
                     style={{ color: growthPct >= 0 ? "#16a34a" : "#DC2626" }}
                   >
                     {growthPct >= 0 ? "▲" : "▼"} {Math.abs(growthPct)}% vs{" "}
@@ -163,38 +175,34 @@ function HistorialModal({
                   </span>
                 )}
               </div>
-              <div className="bg-gray-50 rounded-xl p-5 flex flex-col gap-1.5">
-                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+              <div className="bg-white border border-gray-100 rounded-xl p-4 flex flex-col gap-1 shadow-sm">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
                   Máximo histórico
                 </span>
-                <span className="text-4xl font-bold text-gray-900 leading-none">
+                <span className="text-2xl font-extrabold text-gray-900 leading-none mt-1">
                   {bestSnap?.alumnos_activos ?? "—"}
                 </span>
                 {bestSnap && (
-                  <span className="text-sm text-gray-400 mt-1">
+                  <span className="text-xs text-gray-400 mt-1 font-medium">
                     {MESES_ABREV[bestSnap.month - 1]} {bestSnap.year}
                   </span>
                 )}
               </div>
-              <div className="bg-gray-50 rounded-xl p-5 flex flex-col gap-1.5">
-                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+              <div className="bg-white border border-gray-100 rounded-xl p-4 flex flex-col gap-1 shadow-sm">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
                   Años registrados
                 </span>
-                <span className="text-4xl font-bold text-gray-900 leading-none">
+                <span className="text-2xl font-extrabold text-gray-900 leading-none mt-1">
                   {years.length}
                 </span>
                 {years.length > 0 && (
-                  <span className="text-sm text-gray-400 mt-1">
+                  <span className="text-xs text-gray-400 mt-1 font-medium">
                     {Math.min(...years)} – {Math.max(...years)}
                   </span>
                 )}
               </div>
             </div>
           )}
-        </div>
-
-        {/* Body */}
-        <div className="px-8 py-5 flex-1 overflow-y-auto flex flex-col">
           {/* Toggle */}
           <div className="flex gap-2 mb-5 shrink-0">
             {(["tabla", "grafico"] as const).map((v) => (
@@ -410,6 +418,15 @@ function HistorialModal({
               </ResponsiveContainer>
             </div>
           )}
+          {/* Footer */}
+          <div className="p-4 border-t border-gray-100 flex justify-end bg-white shrink-0">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white font-bold text-xs rounded-xl transition-all active:scale-95"
+            >
+              Cerrar
+            </button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
@@ -484,59 +501,74 @@ function RetencionHistorialModal({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="w-[98vw] max-w-[98vw] h-[90vh] max-h-[90vh] overflow-hidden flex flex-col p-0">
-        <div className="px-8 pt-7 pb-5 border-b border-gray-100 shrink-0">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-bold text-gray-900">
-              Historial — Tasa de Retención
-            </DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-gray-400 mt-1">
-            {years.length
-              ? `Datos mensuales desde ${Math.min(...years)} hasta ${Math.max(...years)}`
-              : "Sin datos"}
-          </p>
+      <DialogContent className="max-w-5xl w-full h-[85vh] max-h-[85vh] overflow-hidden flex flex-col p-0 bg-white rounded-2xl border border-gray-100 shadow-2xl">
+        {/* Header */}
+        <div className="p-6 border-b border-gray-100 flex items-center justify-between shrink-0 bg-white">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center border border-orange-100 shrink-0">
+              <Activity size={20} className="text-orange-600" />
+            </div>
+            <div>
+              <DialogHeader>
+                <DialogTitle className="text-lg font-bold text-gray-900 leading-none">
+                  Historial — Tasa de Retención
+                </DialogTitle>
+              </DialogHeader>
+              <p className="text-xs text-gray-400 font-semibold mt-1">
+                {years.length
+                  ? `Datos mensuales desde ${Math.min(...years)} hasta ${Math.max(...years)}`
+                  : "Sin datos"}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-lg hover:bg-gray-100 border border-gray-200/60 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors shrink-0"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="p-6 overflow-y-auto flex-1 flex flex-col bg-gray-50/50">
           {!loading && data.length > 0 && (
-            <div className="grid grid-cols-3 gap-4 mt-5">
-              <div className="bg-gray-50 rounded-xl p-5 flex flex-col gap-1.5">
-                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+            <div className="grid grid-cols-3 gap-4 mb-6 shrink-0">
+              <div className="bg-white border border-gray-100 rounded-xl p-4 flex flex-col gap-1 shadow-sm">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
                   Promedio {hoyYear}
                 </span>
-                <span className="text-4xl font-bold text-gray-900 leading-none">
+                <span className="text-2xl font-extrabold text-gray-900 leading-none mt-1">
                   {avgRet !== null ? `${avgRet}%` : "—"}
                 </span>
               </div>
-              <div className="bg-gray-50 rounded-xl p-5 flex flex-col gap-1.5">
-                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+              <div className="bg-white border border-gray-100 rounded-xl p-4 flex flex-col gap-1 shadow-sm">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
                   Mejor mes {hoyYear}
                 </span>
-                <span className="text-4xl font-bold text-gray-900 leading-none">
+                <span className="text-2xl font-extrabold text-gray-900 leading-none mt-1">
                   {bestSnap ? `${bestSnap.tasa_retencion}%` : "—"}
                 </span>
                 {bestSnap && (
-                  <span className="text-sm text-gray-400 mt-1">
+                  <span className="text-xs text-gray-400 mt-1 font-medium">
                     {MESES_ABREV[bestSnap.month - 1]} {bestSnap.year}
                   </span>
                 )}
               </div>
-              <div className="bg-gray-50 rounded-xl p-5 flex flex-col gap-1.5">
-                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+              <div className="bg-white border border-gray-100 rounded-xl p-4 flex flex-col gap-1 shadow-sm">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
                   Años con datos
                 </span>
-                <span className="text-4xl font-bold text-gray-900 leading-none">
+                <span className="text-2xl font-extrabold text-gray-900 leading-none mt-1">
                   {years.length}
                 </span>
                 {years.length > 0 && (
-                  <span className="text-sm text-gray-400 mt-1">
+                  <span className="text-xs text-gray-400 mt-1 font-medium">
                     {Math.min(...years)} – {Math.max(...years)}
                   </span>
                 )}
               </div>
             </div>
           )}
-        </div>
-
-        <div className="px-8 py-5 flex-1 overflow-y-auto flex flex-col">
           <div className="flex gap-2 mb-5 shrink-0">
             {(["grafico", "tabla"] as const).map((v) => (
               <button
@@ -720,6 +752,15 @@ function RetencionHistorialModal({
               </table>
             </div>
           )}
+          {/* Footer */}
+          <div className="p-4 border-t border-gray-100 flex justify-end bg-white shrink-0">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white font-bold text-xs rounded-xl transition-all active:scale-95"
+            >
+              Cerrar
+            </button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
@@ -848,39 +889,51 @@ function RankingHistorialModal({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="w-[95vw] max-w-[800px] h-[90vh] max-h-[90vh] overflow-hidden flex flex-col p-0">
+      <DialogContent className="max-w-5xl w-full h-[85vh] max-h-[85vh] overflow-hidden flex flex-col p-0 bg-white rounded-2xl border border-gray-100 shadow-2xl">
         {/* Header */}
-        <div className="px-6 pt-6 pb-4 border-b border-gray-100 shrink-0 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <DialogHeader>
-              <DialogTitle className="text-xl font-bold text-gray-900">
-                Historial — Ranking de Asistencia
-              </DialogTitle>
-            </DialogHeader>
-            <p className="text-sm text-gray-500 mt-1">
-              Los 5 alumnos con más clases tomadas en cada mes
-            </p>
+        <div className="p-6 border-b border-gray-100 flex items-center justify-between shrink-0 bg-white">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center border border-orange-100 shrink-0">
+              <TrendingUp size={20} className="text-orange-600" />
+            </div>
+            <div>
+              <DialogHeader>
+                <DialogTitle className="text-lg font-bold text-gray-900 leading-none">
+                  Historial — Ranking de Asistencia
+                </DialogTitle>
+              </DialogHeader>
+              <p className="text-xs text-gray-400 font-semibold mt-1">
+                Los 5 alumnos con más clases tomadas en cada mes
+              </p>
+            </div>
           </div>
-
-          <div className="flex bg-gray-100 rounded-lg p-1 gap-1">
-            {availableYears.map((y) => (
-              <button
-                key={y}
-                onClick={() => setSelectedYear(y)}
-                className={`px-3 py-1.5 rounded-md text-sm font-semibold transition-all ${
-                  selectedYear === y
-                    ? "bg-white text-gray-900 shadow-sm"
-                    : "text-gray-500 hover:text-gray-700"
-                }`}
-              >
-                {y}
-              </button>
-            ))}
+          <div className="flex items-center gap-4">
+            <div className="flex bg-gray-100 rounded-lg p-1 gap-1 shrink-0">
+              {availableYears.map((y) => (
+                <button
+                  key={y}
+                  onClick={() => setSelectedYear(y)}
+                  className={`px-3 py-1.5 rounded-md text-sm font-semibold transition-all ${
+                    selectedYear === y
+                      ? "bg-white text-gray-900 shadow-sm"
+                      : "text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  {y}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={onClose}
+              className="w-8 h-8 rounded-lg hover:bg-gray-100 border border-gray-200/60 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors shrink-0 animate-in fade-in"
+            >
+              <X size={18} />
+            </button>
           </div>
         </div>
 
         {/* Body */}
-        <div className="px-6 py-4 flex-1 overflow-y-auto">
+        <div className="p-6 overflow-y-auto flex-1 bg-gray-50/50">
           {loading ? (
             <div className="flex items-center justify-center h-full text-gray-400 text-base font-medium">
               Cargando...
@@ -1003,6 +1056,15 @@ function RankingHistorialModal({
               })}
             </div>
           )}
+          {/* Footer */}
+          <div className="p-4 border-t border-gray-100 flex justify-end bg-white shrink-0">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white font-bold text-xs rounded-xl transition-all active:scale-95"
+            >
+              Cerrar
+            </button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
@@ -1068,9 +1130,7 @@ function NuevosHistorialModal({
     ? Math.round(currentTotal / currentYearData.length)
     : null;
   const lastAvg = lastYearSameMonths.length
-    ? Math.round(lastTotal / lastYearSameMonths.length)
-    : null;
-  const growthPct =
+const growthPct =
     currentAvg !== null && lastAvg !== null && lastAvg > 0
       ? Math.round(((currentAvg - lastAvg) / lastAvg) * 100)
       : null;
@@ -1096,37 +1156,49 @@ function NuevosHistorialModal({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="w-[98vw] max-w-[98vw] h-[96vh] max-h-[96vh] overflow-hidden flex flex-col p-0">
+      <DialogContent className="max-w-5xl w-full h-[85vh] max-h-[85vh] overflow-hidden flex flex-col p-0 bg-white rounded-2xl border border-gray-100 shadow-2xl">
         {/* Header */}
-        <div className="px-8 pt-7 pb-5 border-b border-gray-100 shrink-0">
-          <div className="flex items-start justify-between">
+        <div className="p-6 border-b border-gray-100 flex items-center justify-between shrink-0 bg-white">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center border border-orange-100 shrink-0">
+              <Calendar size={20} className="text-orange-600" />
+            </div>
             <div>
               <DialogHeader>
-                <DialogTitle className="text-2xl font-bold text-gray-900">
+                <DialogTitle className="text-lg font-bold text-gray-900 leading-none">
                   Historial — Alumnos Nuevos por Mes
                 </DialogTitle>
               </DialogHeader>
-              <p className="text-sm text-gray-400 mt-1">
+              <p className="text-xs text-gray-400 font-semibold mt-1">
                 {years.length
                   ? `Evolución mensual desde ${Math.min(...years)} hasta ${Math.max(...years)}`
                   : "Sin datos"}
               </p>
             </div>
           </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-lg hover:bg-gray-100 border border-gray-200/60 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors shrink-0"
+          >
+            <X size={18} />
+          </button>
+        </div>
 
+        {/* Body */}
+        <div className="p-6 overflow-y-auto flex-1 flex flex-col bg-gray-50/50">
           {/* KPI row */}
           {!loading && data.length > 0 && (
-            <div className="grid grid-cols-3 gap-4 mt-5">
-              <div className="bg-gray-50 rounded-xl p-5 flex flex-col gap-1.5">
-                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+            <div className="grid grid-cols-3 gap-4 mb-6 shrink-0">
+              <div className="bg-white border border-gray-100 rounded-xl p-4 flex flex-col gap-1 shadow-sm">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
                   Promedio {hoyYear}
                 </span>
-                <span className="text-4xl font-bold text-gray-900 leading-none">
+                <span className="text-2xl font-extrabold text-gray-900 leading-none mt-1">
                   {currentAvg ?? "—"}
                 </span>
                 {growthPct !== null && (
                   <span
-                    className="text-sm font-semibold mt-1"
+                    className="text-xs font-semibold mt-1"
                     style={{ color: growthPct >= 0 ? "#16a34a" : "#DC2626" }}
                   >
                     {growthPct >= 0 ? "▲" : "▼"} {Math.abs(growthPct)}% vs{" "}
@@ -1134,25 +1206,25 @@ function NuevosHistorialModal({
                   </span>
                 )}
               </div>
-              <div className="bg-gray-50 rounded-xl p-5 flex flex-col gap-1.5">
-                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
-                  Máximo histórico
+              <div className="bg-white border border-gray-100 rounded-xl p-4 flex flex-col gap-1 shadow-sm">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                  Mejor Mes
                 </span>
-                <span className="text-4xl font-bold text-gray-900 leading-none">
+                <span className="text-2xl font-extrabold text-gray-900 leading-none mt-1">
                   {bestSnap?.nuevos_este_mes ?? "—"}
                 </span>
                 {bestSnap && (
-                  <span className="text-sm text-gray-400 mt-1">
+                  <span className="text-xs text-gray-400 mt-1 font-medium">
                     {MESES_ABREV[bestSnap.month - 1]} {bestSnap.year}
                   </span>
                 )}
               </div>
-              <div className="bg-gray-50 rounded-xl p-5 flex flex-col gap-1.5">
-                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
-                  Total {hoyYear}
+              <div className="bg-white border border-gray-100 rounded-xl p-4 flex flex-col gap-1 shadow-sm">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                  Años registrados
                 </span>
-                <span className="text-4xl font-bold text-gray-900 leading-none">
-                  {currentTotal > 0 ? currentTotal : "—"}
+                <span className="text-2xl font-extrabold text-gray-900 leading-none mt-1">
+                  {years.length}
                 </span>
                 {years.length > 0 && (
                   <span className="text-sm text-gray-400 mt-1">
@@ -1378,6 +1450,15 @@ function NuevosHistorialModal({
               </ResponsiveContainer>
             </div>
           )}
+          {/* Footer */}
+          <div className="p-4 border-t border-gray-100 flex justify-end bg-white shrink-0">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white font-bold text-xs rounded-xl transition-all active:scale-95"
+            >
+              Cerrar
+            </button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
@@ -1458,44 +1539,57 @@ function AsistenciasHorarioHistorialModal({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="w-[95vw] max-w-[900px] h-[85vh] max-h-[85vh] overflow-hidden flex flex-col p-0">
-        <div className="px-6 pt-6 pb-4 border-b border-gray-100 shrink-0 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <DialogHeader>
-              <DialogTitle className="text-xl font-bold text-gray-900">
-                Historial — Asistencias por Horario
-              </DialogTitle>
-            </DialogHeader>
-            <p className="text-sm text-gray-500 mt-1">
-              Análisis y comparación de distribución de ingresos a lo largo del día
-            </p>
+      <DialogContent className="max-w-5xl w-full h-[85vh] max-h-[85vh] overflow-hidden flex flex-col p-0 bg-white rounded-2xl border border-gray-100 shadow-2xl">
+        {/* Header */}
+        <div className="p-6 border-b border-gray-100 flex items-center justify-between shrink-0 bg-white">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center border border-orange-100 shrink-0">
+              <Activity size={20} className="text-orange-600" />
+            </div>
+            <div>
+              <DialogHeader>
+                <DialogTitle className="text-lg font-bold text-gray-900 leading-none">
+                  Historial — Asistencias por Horario
+                </DialogTitle>
+              </DialogHeader>
+              <p className="text-xs text-gray-400 font-semibold mt-1">
+                Análisis y distribución de asistencias a lo largo del día
+              </p>
+            </div>
           </div>
-
-          <div className="flex bg-gray-100 rounded-lg p-1 gap-1">
+          <div className="flex items-center gap-4">
+            <div className="flex bg-gray-100 rounded-lg p-1 gap-1 shrink-0">
+              <button
+                onClick={() => setVista("individual")}
+                className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                  vista === "individual"
+                    ? "bg-white text-gray-900 shadow-sm"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                Vista Mensual
+              </button>
+              <button
+                onClick={() => setVista("comparativo")}
+                className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                  vista === "comparativo"
+                    ? "bg-white text-gray-900 shadow-sm"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                Comparar Últimos 3 Meses
+              </button>
+            </div>
             <button
-              onClick={() => setVista("individual")}
-              className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${
-                vista === "individual"
-                  ? "bg-white text-gray-900 shadow-sm"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
+              onClick={onClose}
+              className="w-8 h-8 rounded-lg hover:bg-gray-100 border border-gray-200/60 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors shrink-0"
             >
-              Vista Mensual
-            </button>
-            <button
-              onClick={() => setVista("comparativo")}
-              className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${
-                vista === "comparativo"
-                  ? "bg-white text-gray-900 shadow-sm"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              Comparar Últimos 3 Meses
+              <X size={18} />
             </button>
           </div>
         </div>
 
-        <div className="px-6 py-4 flex-1 overflow-y-auto flex flex-col">
+        <div className="p-6 overflow-y-auto flex-1 bg-gray-50/50 flex flex-col">
           {loading ? (
             <div className="flex items-center justify-center flex-1 text-gray-400 text-base">
               Cargando historial de asistencia horaria...
@@ -1523,7 +1617,7 @@ function AsistenciasHorarioHistorialModal({
                     </select>
                   </div>
 
-                  <div className="flex-1 min-h-[300px] flex flex-col bg-white rounded-xl border border-gray-100 p-4 mt-2">
+                  <div className="flex-1 min-h-[300px] flex flex-col bg-white rounded-2xl border border-gray-100 p-4 mt-2">
                     <ResponsiveContainer width="100%" height={320}>
                       <BarChart data={currentMonthData} barSize={32}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
@@ -1549,7 +1643,7 @@ function AsistenciasHorarioHistorialModal({
                     ))}
                   </div>
 
-                  <div className="flex-1 min-h-[300px] flex flex-col bg-white rounded-xl border border-gray-100 p-4">
+                  <div className="flex-1 min-h-[300px] flex flex-col bg-white rounded-2xl border border-gray-100 p-4">
                     <ResponsiveContainer width="100%" height={320}>
                       <LineChart data={comparativoData}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
@@ -1574,6 +1668,15 @@ function AsistenciasHorarioHistorialModal({
               )}
             </div>
           )}
+          {/* Footer */}
+          <div className="p-4 border-t border-gray-100 flex justify-end bg-white shrink-0">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white font-bold text-xs rounded-xl transition-all active:scale-95"
+            >
+              Cerrar
+            </button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
@@ -1657,56 +1760,70 @@ function GeneroHistorialModal({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="w-[95vw] max-w-[900px] h-[85vh] max-h-[85vh] overflow-hidden flex flex-col p-0">
-        <div className="px-6 pt-6 pb-4 border-b border-gray-100 shrink-0">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-gray-900">
-              Historial — Distribución por Género
-            </DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-gray-500 mt-1">
-            Evolución histórica mensual de la participación masculina y femenina
-          </p>
+      <DialogContent className="max-w-5xl w-full h-[85vh] max-h-[85vh] overflow-hidden flex flex-col p-0 bg-white rounded-2xl border border-gray-100 shadow-2xl">
+        {/* Header */}
+        <div className="p-6 border-b border-gray-100 flex items-center justify-between shrink-0 bg-white">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center border border-orange-100 shrink-0">
+              <Users size={20} className="text-orange-600" />
+            </div>
+            <div>
+              <DialogHeader>
+                <DialogTitle className="text-lg font-bold text-gray-900 leading-none">
+                  Historial — Distribución por Género
+                </DialogTitle>
+              </DialogHeader>
+              <p className="text-xs text-gray-400 font-semibold mt-1">
+                Evolución histórica mensual de la participación masculina y femenina
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-lg hover:bg-gray-100 border border-gray-200/60 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors shrink-0"
+          >
+            <X size={18} />
+          </button>
+        </div>
 
+        {/* Body */}
+        <div className="p-6 overflow-y-auto flex-1 bg-gray-50/50 flex flex-col">
           {!loading && kpis && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4">
-              <div className="bg-gray-50 rounded-xl p-4 flex flex-col gap-1">
-                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6 shrink-0">
+              <div className="bg-white border border-gray-100 rounded-xl p-4 flex flex-col gap-1 shadow-sm">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
                   Promedio Hombres
                 </span>
-                <span className="text-2xl font-bold text-gray-950">
+                <span className="text-2xl font-extrabold text-gray-950 mt-1">
                   {kpis.avgHombres}%
                 </span>
               </div>
-              <div className="bg-gray-50 rounded-xl p-4 flex flex-col gap-1">
-                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+              <div className="bg-white border border-gray-100 rounded-xl p-4 flex flex-col gap-1 shadow-sm">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
                   Promedio Mujeres
                 </span>
-                <span className="text-2xl font-bold text-gray-950">
+                <span className="text-2xl font-extrabold text-gray-950 mt-1">
                   {kpis.avgMujeres}%
                 </span>
               </div>
-              <div className="bg-gray-50 rounded-xl p-4 flex flex-col gap-1">
-                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+              <div className="bg-white border border-gray-100 rounded-xl p-4 flex flex-col gap-1 shadow-sm">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
                   Máx. Hombres
                 </span>
-                <span className="text-sm font-bold text-red-600 truncate">
+                <span className="text-xs font-bold text-red-600 truncate mt-1">
                   {kpis.maxHombres}
                 </span>
               </div>
-              <div className="bg-gray-50 rounded-xl p-4 flex flex-col gap-1">
-                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+              <div className="bg-white border border-gray-100 rounded-xl p-4 flex flex-col gap-1 shadow-sm">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
                   Máx. Mujeres
                 </span>
-                <span className="text-sm font-bold text-gray-600 truncate">
+                <span className="text-xs font-bold text-gray-600 truncate mt-1">
                   {kpis.maxMujeres}
                 </span>
               </div>
             </div>
           )}
-        </div>
-
-        <div className="px-6 py-4 flex-1 overflow-y-auto flex flex-col">
           {loading ? (
             <div className="flex items-center justify-center flex-1 text-gray-400 text-base">
               Cargando historial de distribución por género...
@@ -1728,7 +1845,7 @@ function GeneroHistorialModal({
                 </div>
               </div>
 
-              <div className="flex-1 min-h-[300px] flex flex-col bg-white rounded-xl border border-gray-100 p-4">
+              <div className="flex-1 min-h-[300px] flex flex-col bg-white rounded-2xl border border-gray-100 p-4">
                 <ResponsiveContainer width="100%" height={320}>
                   <LineChart data={formattedChartData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
@@ -1742,6 +1859,15 @@ function GeneroHistorialModal({
               </div>
             </div>
           )}
+          {/* Footer */}
+          <div className="p-4 border-t border-gray-100 flex justify-end bg-white shrink-0">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white font-bold text-xs rounded-xl transition-all active:scale-95"
+            >
+              Cerrar
+            </button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
@@ -1766,7 +1892,7 @@ function StatCard({
   onHistoryClick?: () => void;
 }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-100 p-5 flex flex-col gap-3">
+    <div className="bg-white rounded-2xl border border-gray-100 p-6 flex flex-col gap-3">
       <div className="flex items-start justify-between">
         <span className="text-xs font-semibold tracking-widest text-gray-500 uppercase">
           {label}
@@ -1821,7 +1947,7 @@ function MetricCard({
   description: string;
 }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-100 p-5 flex flex-col gap-2">
+    <div className="bg-white rounded-2xl border border-gray-100 p-6 flex flex-col gap-2">
       <span className="text-xs font-semibold tracking-widest text-gray-500 uppercase">
         {label}
       </span>
@@ -2607,7 +2733,7 @@ export default function EstadisticasPage() {
 
         {/* Fila 3 — Clientes inactivos / perdidos */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="bg-white rounded-xl border border-gray-100 p-5 flex items-center gap-5">
+          <div className="bg-white rounded-2xl border border-gray-100 p-6 flex items-center gap-5">
             <div
               className="w-14 h-14 rounded-xl flex items-center justify-center text-2xl font-bold shrink-0"
               style={{ backgroundColor: "#fffbeb", color: "#d97706" }}
@@ -2625,7 +2751,7 @@ export default function EstadisticasPage() {
               </p>
             </div>
           </div>
-          <div className="bg-white rounded-xl border border-gray-100 p-5 flex items-center gap-5">
+          <div className="bg-white rounded-2xl border border-gray-100 p-6 flex items-center gap-5">
             <div
               className="w-14 h-14 rounded-xl flex items-center justify-center text-2xl font-bold shrink-0"
               style={{ backgroundColor: "#fef2f2", color: "#DC2626" }}
@@ -2644,7 +2770,7 @@ export default function EstadisticasPage() {
         </div>
 
         {/* Ranking por asistencia */}
-        <div className="bg-white rounded-xl border border-gray-100 p-5">
+        <div className="bg-white rounded-2xl border border-gray-100 p-6">
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-2">
               <svg
@@ -2788,7 +2914,7 @@ export default function EstadisticasPage() {
         {/* Fila 4 — Género + Retención */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Género donut */}
-          <div className="bg-white rounded-xl border border-gray-100 p-5 flex flex-col gap-3">
+          <div className="bg-white rounded-2xl border border-gray-100 p-6 flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <p className="font-semibold text-gray-900">
                 Distribución por Género
@@ -2900,7 +3026,7 @@ export default function EstadisticasPage() {
             })()}
           </div>
           {/* Retención mensual */}
-          <div className="lg:col-span-2 bg-white rounded-xl border border-gray-100 p-6">
+          <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 p-6">
             <div className="flex items-center justify-between mb-1">
               <p className="font-semibold text-gray-900">
                 Tasa de Retención Mensual
@@ -2972,7 +3098,7 @@ export default function EstadisticasPage() {
         </div>
 
         {/* Fila 5 — Asistencia por horario (ancho completo) */}
-        <div className="bg-white rounded-xl border border-gray-100 p-6">
+        <div className="bg-white rounded-2xl border border-gray-100 p-6">
           <div className="flex items-center justify-between mb-4">
             <div>
               <p className="font-semibold text-gray-900 mb-1">

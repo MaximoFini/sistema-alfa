@@ -636,7 +636,7 @@ export default function AjustesPage() {
             title="Medios de Pago"
             subtitle="Configuración de pasarelas y cobros"
           >
-            <div className="flex flex-col gap-2 mt-3 max-h-[400px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-200">
+            <div className="flex flex-col gap-2 mt-3">
               {metodos.map((metodo) => (
                 <div
                   key={metodo.id}
@@ -746,7 +746,7 @@ export default function AjustesPage() {
             title="Tarjetas de Pago"
             subtitle="Configuración de tarjetas de débito/crédito aceptadas"
           >
-            <div className="flex flex-col gap-2 mt-3 max-h-[400px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-200">
+            <div className="flex flex-col gap-2 mt-3">
               {cards.map((card) => (
                 <div
                   key={card.id}
@@ -850,166 +850,7 @@ export default function AjustesPage() {
             </div>
           </Section>
 
-          {/* Categorías de Productos Section */}
-          <Section
-            icon={Tag}
-            title="Categorías de Productos"
-            subtitle="Configuración de las categorías de inventario"
-          >
-            <div className="flex flex-col gap-2 mt-3 max-h-[400px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-200">
-              {productCategories.map((category) => (
-                <div
-                  key={category.id}
-                  className={cn(
-                    "flex flex-col px-4 py-3 rounded-xl border group transition-all",
-                    category.is_active
-                      ? "bg-white border-gray-100 shadow-sm"
-                      : "bg-gray-50/50 border-gray-100 opacity-60",
-                  )}
-                >
-                  {editingCategoryId === category.id ? (
-                    <div className="flex flex-col gap-3 w-full">
-                      <div className="flex items-center gap-3 w-full">
-                        <input
-                          value={editCategoryName}
-                          onChange={(e) => setEditCategoryName(e.target.value)}
-                          autoFocus
-                          className="flex-1 bg-white border border-orange-200 rounded-lg px-2.5 py-1.5 text-sm outline-none focus:border-orange-400"
-                        />
-                        <Tooltip label="Guardar cambios">
-                          <button
-                            onClick={saveEditCategory}
-                            className="p-2 bg-[#111111] text-white rounded-lg hover:bg-gray-800 transition-all shrink-0 shadow-sm active:scale-95"
-                          >
-                            <Save size={14} />
-                          </button>
-                        </Tooltip>
-                      </div>
 
-                      {/* Selector de color */}
-                      <div className="flex flex-col gap-1.5 text-left">
-                        <span className="text-[10px] uppercase font-bold text-gray-400">Color de la tarjeta:</span>
-                        <div className="flex flex-wrap gap-1.5">
-                          {PASTEL_COLORS.map((c) => (
-                            <button
-                              key={c.id}
-                              type="button"
-                              onClick={() => setEditCategoryColor(c.id)}
-                              className={cn(
-                                "w-6 h-6 rounded-full border transition-all hover:scale-110",
-                                editCategoryColor === c.id 
-                                  ? "border-gray-800 ring-2 ring-gray-800/10 scale-105" 
-                                  : "border-gray-200"
-                              )}
-                              style={{ backgroundColor: c.dot }}
-                              title={c.name}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-3 w-full">
-                      <div 
-                        className="w-3.5 h-3.5 rounded-full border border-gray-200 shrink-0" 
-                        style={{ backgroundColor: PASTEL_COLORS.find(c => c.id === category.color)?.dot || '#c084fc' }}
-                      />
-                      <div className="flex-1 min-w-0 text-left">
-                        <span className="text-sm font-bold text-gray-800">
-                          {category.name}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Tooltip label="Editar nombre y color">
-                          <button
-                            onClick={() => startEditCategory(category)}
-                            className="p-1.5 text-gray-400 hover:text-gray-900 transition-colors"
-                          >
-                            <Pencil size={14} />
-                          </button>
-                        </Tooltip>
-                        <Tooltip label="Eliminar categoría">
-                          <button
-                            onClick={() => deleteProductCategory(category.id)}
-                            className="p-1.5 text-gray-400 hover:text-red-500 transition-colors"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </Tooltip>
-                      </div>
-                      <Tooltip label={category.is_active ? "Desactivar" : "Activar"}>
-                        <button
-                          onClick={() => toggleProductCategory(category)}
-                          className="shrink-0"
-                        >
-                          {category.is_active ? (
-                            <ToggleRight size={24} className="text-orange-500" />
-                          ) : (
-                            <ToggleLeft size={24} className="text-gray-300" />
-                          )}
-                        </button>
-                      </Tooltip>
-                    </div>
-                  )}
-                </div>
-              ))}
-              {showNewCategory ? (
-                <div className="p-3 bg-orange-50/30 border border-dashed border-orange-200 rounded-xl space-y-3">
-                  <input
-                    value={newCategoryName}
-                    onChange={(e) => setNewCategoryName(e.target.value)}
-                    placeholder="Nombre de la categoría..."
-                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-orange-400"
-                    autoFocus
-                  />
-                  
-                  {/* Selector de color */}
-                  <div className="flex flex-col gap-1.5 text-left">
-                    <span className="text-[10px] uppercase font-bold text-gray-400">Color de la tarjeta:</span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {PASTEL_COLORS.map((c) => (
-                        <button
-                          key={c.id}
-                          type="button"
-                          onClick={() => setNewCategoryColor(c.id)}
-                          className={cn(
-                            "w-6 h-6 rounded-full border transition-all hover:scale-110",
-                            newCategoryColor === c.id 
-                              ? "border-gray-800 ring-2 ring-gray-800/10 scale-105" 
-                              : "border-gray-200"
-                          )}
-                          style={{ backgroundColor: c.dot }}
-                          title={c.name}
-                        />
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end gap-2 pt-1">
-                    <button
-                      onClick={() => setShowNewCategory(false)}
-                      className="text-xs font-bold text-gray-400 hover:text-gray-600 px-2"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      onClick={addProductCategory}
-                      className="bg-[#111111] text-white text-xs font-bold px-4 py-1.5 rounded-lg hover:bg-gray-800 transition-all"
-                    >
-                      Agregar
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setShowNewCategory(true)}
-                  className="py-3 items-center justify-center flex gap-2 border border-dashed border-gray-200 rounded-xl text-gray-400 hover:text-orange-500 hover:border-orange-200 hover:bg-orange-50/30 transition-all text-xs font-bold mt-1"
-                >
-                  <Plus size={14} /> Nueva categoría
-                </button>
-              )}
-            </div>
-          </Section>
         </div>
 
         {/* Right Column: Planes (The intensive part) */}
@@ -1252,7 +1093,7 @@ export default function AjustesPage() {
           </Section>
           <Section
             icon={Tag}
-            title="Categorías y Planes"
+            title="Planes"
             subtitle="Catálogo de servicios y suscripciones"
           >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
@@ -1430,6 +1271,166 @@ export default function AjustesPage() {
                   <span className="text-xs font-black uppercase tracking-widest">
                     Añadir Nuevo Plan
                   </span>
+                </button>
+              )}
+            </div>
+          </Section>
+          {/* Categorías de Productos Section */}
+          <Section
+            icon={Tag}
+            title="Categorías de Productos"
+            subtitle="Configuración de las categorías de inventario"
+          >
+            <div className="flex flex-col gap-2 mt-3">
+              {productCategories.map((category) => (
+                <div
+                  key={category.id}
+                  className={cn(
+                    "flex flex-col px-4 py-3 rounded-xl border group transition-all",
+                    category.is_active
+                      ? "bg-white border-gray-100 shadow-sm"
+                      : "bg-gray-50/50 border-gray-100 opacity-60",
+                  )}
+                >
+                  {editingCategoryId === category.id ? (
+                    <div className="flex flex-col gap-3 w-full">
+                      <div className="flex items-center gap-3 w-full">
+                        <input
+                          value={editCategoryName}
+                          onChange={(e) => setEditCategoryName(e.target.value)}
+                          autoFocus
+                          className="flex-1 bg-white border border-orange-200 rounded-lg px-2.5 py-1.5 text-sm outline-none focus:border-orange-400"
+                        />
+                        <Tooltip label="Guardar cambios">
+                          <button
+                            onClick={saveEditCategory}
+                            className="p-2 bg-[#111111] text-white rounded-lg hover:bg-gray-800 transition-all shrink-0 shadow-sm active:scale-95"
+                          >
+                            <Save size={14} />
+                          </button>
+                        </Tooltip>
+                      </div>
+
+                      {/* Selector de color */}
+                      <div className="flex flex-col gap-1.5 text-left">
+                        <span className="text-[10px] uppercase font-bold text-gray-400">Color de la tarjeta:</span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {PASTEL_COLORS.map((c) => (
+                            <button
+                              key={c.id}
+                              type="button"
+                              onClick={() => setEditCategoryColor(c.id)}
+                              className={cn(
+                                "w-6 h-6 rounded-full border transition-all hover:scale-110",
+                                editCategoryColor === c.id 
+                                  ? "border-gray-800 ring-2 ring-gray-800/10 scale-105" 
+                                  : "border-gray-200"
+                              )}
+                              style={{ backgroundColor: c.dot }}
+                              title={c.name}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3 w-full">
+                      <div 
+                        className="w-3.5 h-3.5 rounded-full border border-gray-200 shrink-0" 
+                        style={{ backgroundColor: PASTEL_COLORS.find(c => c.id === category.color)?.dot || '#c084fc' }}
+                      />
+                      <div className="flex-1 min-w-0 text-left">
+                        <span className="text-sm font-bold text-gray-800">
+                          {category.name}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Tooltip label="Editar nombre y color">
+                          <button
+                            onClick={() => startEditCategory(category)}
+                            className="p-1.5 text-gray-400 hover:text-gray-900 transition-colors"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                        </Tooltip>
+                        <Tooltip label="Eliminar categoría">
+                          <button
+                            onClick={() => deleteProductCategory(category.id)}
+                            className="p-1.5 text-gray-400 hover:text-red-500 transition-colors"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </Tooltip>
+                      </div>
+                      <Tooltip label={category.is_active ? "Desactivar" : "Activar"}>
+                        <button
+                          onClick={() => toggleProductCategory(category)}
+                          className="shrink-0"
+                        >
+                          {category.is_active ? (
+                            <ToggleRight size={24} className="text-orange-500" />
+                          ) : (
+                            <ToggleLeft size={24} className="text-gray-300" />
+                          )}
+                        </button>
+                      </Tooltip>
+                    </div>
+                  )}
+                </div>
+              ))}
+              {showNewCategory ? (
+                <div className="p-3 bg-orange-50/30 border border-dashed border-orange-200 rounded-xl space-y-3">
+                  <input
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    placeholder="Nombre de la categoría..."
+                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-orange-400"
+                    autoFocus
+                  />
+                  
+                  {/* Selector de color */}
+                  <div className="flex flex-col gap-1.5 text-left">
+                    <span className="text-[10px] uppercase font-bold text-gray-400">Color de la tarjeta:</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {PASTEL_COLORS.map((c) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => setNewCategoryColor(c.id)}
+                          className={cn(
+                            "w-6 h-6 rounded-full border transition-all hover:scale-110",
+                            newCategoryColor === c.id 
+                              ? "border-gray-800 ring-2 ring-gray-800/10 scale-105" 
+                              : "border-gray-200"
+                          )}
+                          style={{ backgroundColor: c.dot }}
+                          title={c.name}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-1">
+                    <button
+                      onClick={() => setShowNewCategory(false)}
+                      className="text-xs font-bold text-gray-400 hover:text-gray-600 px-2"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={addProductCategory}
+                      className="bg-[#111111] text-white text-xs font-bold px-4 py-1.5 rounded-lg hover:bg-gray-800 transition-all"
+                    >
+                      Agregar
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowNewCategory(true)}
+                  className="py-3 items-center justify-center flex gap-2 border border-dashed border-gray-200 rounded-xl text-gray-400 hover:text-orange-500 hover:border-orange-200 hover:bg-orange-50/30 transition-all text-xs font-bold mt-1"
+                >
+                  <Plus size={14} /> Nueva categoría
                 </button>
               )}
             </div>

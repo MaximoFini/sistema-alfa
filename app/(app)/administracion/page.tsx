@@ -28,10 +28,10 @@ type Tab = "diario" | "estadisticas" | "estadisticas-productos" | "finanzas" | "
 
 const tabs: { id: Tab; label: string; icon: typeof BarChart2 }[] = [
   { id: "diario", label: "Diario de Actividad", icon: ClipboardList },
-  { id: "estadisticas", label: "Estadisticas Clientes", icon: BarChart2 },
+  { id: "estadisticas", label: "Clientes", icon: BarChart2 },
   {
     id: "estadisticas-productos",
-    label: "Estadisticas de Productos",
+    label: "Productos",
     icon: BarChart2,
   },
   { id: "finanzas", label: "Finanzas", icon: DollarSign },
