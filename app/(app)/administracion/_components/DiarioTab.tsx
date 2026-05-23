@@ -15,10 +15,11 @@ import {
   Coins,
   AlertTriangle,
   Loader2,
-  Clock,
   ArrowRight,
   ClipboardList,
   X,
+  Banknote,
+  ShoppingBag,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -346,27 +347,29 @@ export default function DiarioTab() {
 
           {/* Tarjetas de Resumen Financiero y KPIs */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <div className="col-span-2 md:col-span-1 bg-gradient-to-br from-orange-400 to-orange-500 rounded-2xl p-6 text-white shadow-md relative overflow-hidden flex flex-col justify-between min-h-[120px]">
-              <div className="absolute right-[-10px] top-[-10px] w-24 h-24 bg-white/10 rounded-full blur-xl" />
+            {/* Ingreso total — destacado */}
+            <div className="col-span-2 md:col-span-1 bg-white rounded-2xl p-6 border border-green-200 shadow-sm flex flex-col justify-between min-h-[120px]">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-white/80">Ingreso Total</span>
-                <TrendingUp size={16} className="text-white/80" />
+                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Ingreso Total</span>
+                <div className="w-7 h-7 rounded-lg bg-green-50 flex items-center justify-center">
+                  <TrendingUp size={14} className="text-green-600" />
+                </div>
               </div>
               <div>
-                <p className="text-2xl font-black leading-none">${totalIngresos.toLocaleString()}</p>
-                <p className="text-[10px] text-white/70 mt-1.5 font-medium">Cuotas + Ventas de productos</p>
+                <p className="text-2xl font-black leading-none text-green-700">${totalIngresos.toLocaleString()}</p>
+                <p className="text-[10px] text-gray-400 mt-1.5 font-medium">Cuotas + Ventas de productos</p>
               </div>
             </div>
 
             <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex flex-col justify-between min-h-[120px]">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Ingreso Cuotas</span>
-                <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center">
-                  <DollarSign size={14} className="text-blue-600" />
+                <div className="w-7 h-7 rounded-lg bg-green-50 flex items-center justify-center">
+                  <Banknote size={14} className="text-green-600" />
                 </div>
               </div>
               <div>
-                <p className="text-2xl font-extrabold text-gray-900 leading-none">${totalPagos.toLocaleString()}</p>
+                <p className="text-2xl font-extrabold text-green-700 leading-none">${totalPagos.toLocaleString()}</p>
                 <p className="text-[10px] text-gray-400 mt-1.5 font-medium">{pagos.length} cobros registrados</p>
               </div>
             </div>
@@ -374,12 +377,12 @@ export default function DiarioTab() {
             <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex flex-col justify-between min-h-[120px]">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Ingreso Ventas</span>
-                <div className="w-7 h-7 rounded-lg bg-emerald-50 flex items-center justify-center">
-                  <Package size={14} className="text-emerald-600" />
+                <div className="w-7 h-7 rounded-lg bg-green-50 flex items-center justify-center">
+                  <ShoppingBag size={14} className="text-green-600" />
                 </div>
               </div>
               <div>
-                <p className="text-2xl font-extrabold text-gray-900 leading-none">${totalVentas.toLocaleString()}</p>
+                <p className="text-2xl font-extrabold text-green-700 leading-none">${totalVentas.toLocaleString()}</p>
                 <p className="text-[10px] text-gray-400 mt-1.5 font-medium">{ventas.length} artículos vendidos</p>
               </div>
             </div>
@@ -387,8 +390,8 @@ export default function DiarioTab() {
             <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex flex-col justify-between min-h-[120px]">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Asistencias</span>
-                <div className="w-7 h-7 rounded-lg bg-purple-50 flex items-center justify-center">
-                  <Activity size={14} className="text-purple-600" />
+                <div className="w-7 h-7 rounded-lg bg-orange-50 flex items-center justify-center">
+                  <Activity size={14} className="text-orange-600" />
                 </div>
               </div>
               <div>
@@ -400,8 +403,8 @@ export default function DiarioTab() {
             <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex flex-col justify-between min-h-[120px]">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Alumnos Nuevos</span>
-                <div className="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center">
-                  <UserPlus size={14} className="text-amber-600" />
+                <div className="w-7 h-7 rounded-lg bg-orange-50 flex items-center justify-center">
+                  <UserPlus size={14} className="text-orange-600" />
                 </div>
               </div>
               <div>
@@ -414,7 +417,7 @@ export default function DiarioTab() {
           {/* Arqueo / Cierre de Caja */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center border border-orange-100">
                 <Coins size={18} className="text-orange-600" />
               </div>
               <div>
@@ -476,8 +479,8 @@ export default function DiarioTab() {
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center">
-                  <Activity size={18} className="text-purple-600 animate-pulse" />
+                <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center border border-orange-100">
+                  <Activity size={18} className="text-orange-600" />
                 </div>
                 <div>
                   <p className="font-extrabold text-gray-900 leading-tight">
@@ -528,77 +531,77 @@ export default function DiarioTab() {
 
           {/* Grilla Principal de Actividades */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            
-            {/* Detalle de altas de alumnos simplificado */}
-            <div 
+
+            {/* Detalle de altas de alumnos */}
+            <div
               onClick={() => setIsAltasModalOpen(true)}
               className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex flex-col justify-between hover:border-orange-200 hover:shadow-md transition-all cursor-pointer group"
             >
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center border border-amber-100 group-hover:bg-amber-100 transition-colors">
-                    <UserPlus size={18} className="text-amber-600" />
+                  <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center border border-orange-100 group-hover:bg-orange-100 transition-colors">
+                    <UserPlus size={18} className="text-orange-600" />
                   </div>
                   <div>
                     <h3 className="text-sm font-extrabold text-gray-900 group-hover:text-orange-600 transition-colors">Altas de Alumnos</h3>
                     <p className="text-xs text-gray-400 font-semibold">{altas.length} registros hoy</p>
                   </div>
                 </div>
-                <span className="text-sm font-black text-amber-600 bg-amber-50 px-3 py-1 rounded-xl border border-amber-100 shadow-sm">
+                <span className="text-sm font-black text-orange-600 bg-orange-50 px-3 py-1 rounded-xl border border-orange-100 shadow-sm">
                   {altas.length} nuevos
                 </span>
               </div>
-              <button className="w-full py-2.5 px-4 bg-amber-50 group-hover:bg-[#f97316] group-hover:text-white text-amber-700 font-extrabold text-xs rounded-xl border border-amber-150 group-hover:border-[#f97316] transition-all flex items-center justify-center gap-2 shadow-sm">
+              <button className="w-full py-2.5 px-4 bg-orange-50 group-hover:bg-[#f97316] group-hover:text-white text-orange-700 font-extrabold text-xs rounded-xl border border-orange-200 group-hover:border-[#f97316] transition-all flex items-center justify-center gap-2 shadow-sm">
                 Ver todos los nuevos alumnos
                 <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
               </button>
             </div>
 
-            {/* Detalle de pagos simplificado */}
-            <div 
+            {/* Detalle de pagos */}
+            <div
               onClick={() => setIsPagosModalOpen(true)}
               className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex flex-col justify-between hover:border-orange-200 hover:shadow-md transition-all cursor-pointer group"
             >
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center border border-blue-100 group-hover:bg-blue-100 transition-colors">
-                    <DollarSign size={18} className="text-blue-600" />
+                  <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center border border-orange-100 group-hover:bg-orange-100 transition-colors">
+                    <Banknote size={18} className="text-orange-600" />
                   </div>
                   <div>
                     <h3 className="text-sm font-extrabold text-gray-900 group-hover:text-orange-600 transition-colors">Cobros de Membresías</h3>
                     <p className="text-xs text-gray-400 font-semibold">{pagos.length} transacciones registradas hoy</p>
                   </div>
                 </div>
-                <span className="text-sm font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-xl border border-blue-100 shadow-sm">
+                <span className="text-sm font-black text-green-700 bg-green-50 px-3 py-1 rounded-xl border border-green-200 shadow-sm">
                   ${totalPagos.toLocaleString()}
                 </span>
               </div>
-              <button className="w-full py-2.5 px-4 bg-blue-50 group-hover:bg-[#f97316] group-hover:text-white text-blue-700 font-extrabold text-xs rounded-xl border border-blue-150 group-hover:border-[#f97316] transition-all flex items-center justify-center gap-2 shadow-sm">
+              <button className="w-full py-2.5 px-4 bg-orange-50 group-hover:bg-[#f97316] group-hover:text-white text-orange-700 font-extrabold text-xs rounded-xl border border-orange-200 group-hover:border-[#f97316] transition-all flex items-center justify-center gap-2 shadow-sm">
                 Ver todas las membresías y planes
                 <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
               </button>
             </div>
 
-            {/* Detalle de ventas simplificado */}
-            <div 
+            {/* Detalle de ventas */}
+            <div
               onClick={() => setIsVentasModalOpen(true)}
               className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex flex-col justify-between hover:border-orange-200 hover:shadow-md transition-all cursor-pointer group"
             >
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center border border-emerald-100 group-hover:bg-emerald-100 transition-colors">
-                    <Package size={18} className="text-emerald-600" />
+                  <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center border border-orange-100 group-hover:bg-orange-100 transition-colors">
+                    <ShoppingBag size={18} className="text-orange-600" />
                   </div>
                   <div>
                     <h3 className="text-sm font-extrabold text-gray-900 group-hover:text-orange-600 transition-colors">Ventas de Productos</h3>
                     <p className="text-xs text-gray-400 font-semibold">{ventas.length} artículos vendidos hoy</p>
                   </div>
                 </div>
-                <span className="text-sm font-black text-emerald-600 bg-emerald-50 px-3 py-1 rounded-xl border border-emerald-100 shadow-sm">
+                <span className="text-sm font-black text-green-700 bg-green-50 px-3 py-1 rounded-xl border border-green-200 shadow-sm">
                   ${totalVentas.toLocaleString()}
                 </span>
               </div>
-              <button className="w-full py-2.5 px-4 bg-emerald-50 group-hover:bg-[#f97316] group-hover:text-white text-emerald-700 font-extrabold text-xs rounded-xl border border-emerald-150 group-hover:border-[#f97316] transition-all flex items-center justify-center gap-2 shadow-sm">
+              <button className="w-full py-2.5 px-4 bg-orange-50 group-hover:bg-[#f97316] group-hover:text-white text-orange-700 font-extrabold text-xs rounded-xl border border-orange-200 group-hover:border-[#f97316] transition-all flex items-center justify-center gap-2 shadow-sm">
                 Ver todas las ventas de productos
                 <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
               </button>
@@ -615,16 +618,16 @@ export default function DiarioTab() {
             {/* Header */}
             <div className="p-6 border-b border-gray-100 flex items-center justify-between shrink-0 bg-white">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center border border-blue-100 shrink-0">
-                  <DollarSign size={20} className="text-blue-600" />
+                <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center border border-orange-100 shrink-0">
+                  <Banknote size={20} className="text-orange-600" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-gray-900 leading-none">Cobros de Membresías y Planes</h3>
-                  <p className="text-xs text-gray-400 font-semibold mt-1">{pagos.length} transacciones registradas hoy</p>
+                  <h3 className="text-base font-bold text-gray-900 leading-none">Cobros de Membresías y Planes</h3>
+                  <p className="text-xs text-gray-400 font-medium mt-1">{pagos.length} transacciones registradas hoy</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-sm font-black text-blue-700 bg-blue-50 px-3 py-1 rounded-xl border border-blue-100 shadow-sm shrink-0">
+                <span className="text-sm font-extrabold text-green-700 bg-green-50 px-3 py-1 rounded-xl border border-green-200 shadow-sm shrink-0">
                   ${totalPagos.toLocaleString()}
                 </span>
                 <button
@@ -705,16 +708,16 @@ export default function DiarioTab() {
             {/* Header */}
             <div className="p-6 border-b border-gray-100 flex items-center justify-between shrink-0 bg-white">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center border border-emerald-100 shrink-0">
-                  <Package size={20} className="text-emerald-600" />
+                <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center border border-orange-100 shrink-0">
+                  <ShoppingBag size={20} className="text-orange-600" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-gray-900 leading-none">Ventas de Productos</h3>
-                  <p className="text-xs text-gray-400 font-semibold mt-1">{ventas.length} artículos vendidos hoy</p>
+                  <h3 className="text-base font-bold text-gray-900 leading-none">Ventas de Productos</h3>
+                  <p className="text-xs text-gray-400 font-medium mt-1">{ventas.length} artículos vendidos hoy</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-sm font-black text-emerald-700 bg-emerald-50 px-3 py-1 rounded-xl border border-emerald-100 shadow-sm shrink-0">
+                <span className="text-sm font-extrabold text-green-700 bg-green-50 px-3 py-1 rounded-xl border border-green-200 shadow-sm shrink-0">
                   ${totalVentas.toLocaleString()}
                 </span>
                 <button
@@ -801,16 +804,16 @@ export default function DiarioTab() {
             {/* Header */}
             <div className="p-6 border-b border-gray-100 flex items-center justify-between shrink-0 bg-white">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center border border-amber-100 shrink-0">
-                  <UserPlus size={20} className="text-amber-600" />
+                <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center border border-orange-100 shrink-0">
+                  <UserPlus size={20} className="text-orange-600" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-gray-900 leading-none">Altas de Alumnos</h3>
-                  <p className="text-xs text-gray-400 font-semibold mt-1">{altas.length} nuevos alumnos registrados hoy</p>
+                  <h3 className="text-base font-bold text-gray-900 leading-none">Altas de Alumnos</h3>
+                  <p className="text-xs text-gray-400 font-medium mt-1">{altas.length} nuevos alumnos registrados hoy</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-sm font-black text-amber-700 bg-amber-50 px-3 py-1 rounded-xl border border-amber-100 shadow-sm shrink-0">
+                <span className="text-sm font-extrabold text-orange-700 bg-orange-50 px-3 py-1 rounded-xl border border-orange-200 shadow-sm shrink-0">
                   {altas.length} registrados
                 </span>
                 <button

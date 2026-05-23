@@ -418,15 +418,15 @@ function HistorialModal({
               </ResponsiveContainer>
             </div>
           )}
-          {/* Footer */}
-          <div className="p-4 border-t border-gray-100 flex justify-end bg-white shrink-0">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white font-bold text-xs rounded-xl transition-all active:scale-95"
-            >
-              Cerrar
-            </button>
-          </div>
+        </div>
+        {/* Footer */}
+        <div className="p-4 border-t border-gray-100 flex justify-end bg-white shrink-0">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white font-bold text-xs rounded-xl transition-all active:scale-95"
+          >
+            Cerrar
+          </button>
         </div>
       </DialogContent>
     </Dialog>
@@ -752,15 +752,15 @@ function RetencionHistorialModal({
               </table>
             </div>
           )}
-          {/* Footer */}
-          <div className="p-4 border-t border-gray-100 flex justify-end bg-white shrink-0">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white font-bold text-xs rounded-xl transition-all active:scale-95"
-            >
-              Cerrar
-            </button>
-          </div>
+        </div>
+        {/* Footer */}
+        <div className="p-4 border-t border-gray-100 flex justify-end bg-white shrink-0">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white font-bold text-xs rounded-xl transition-all active:scale-95"
+          >
+            Cerrar
+          </button>
         </div>
       </DialogContent>
     </Dialog>
@@ -1056,15 +1056,15 @@ function RankingHistorialModal({
               })}
             </div>
           )}
-          {/* Footer */}
-          <div className="p-4 border-t border-gray-100 flex justify-end bg-white shrink-0">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white font-bold text-xs rounded-xl transition-all active:scale-95"
-            >
-              Cerrar
-            </button>
-          </div>
+        </div>
+        {/* Footer */}
+        <div className="p-4 border-t border-gray-100 flex justify-end bg-white shrink-0">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white font-bold text-xs rounded-xl transition-all active:scale-95"
+          >
+            Cerrar
+          </button>
         </div>
       </DialogContent>
     </Dialog>
@@ -1234,10 +1234,7 @@ const growthPct =
               </div>
             </div>
           )}
-        </div>
 
-        {/* Body */}
-        <div className="px-8 py-5 flex-1 overflow-y-auto flex flex-col">
           {/* Toggle */}
           <div className="flex gap-2 mb-5 shrink-0">
             {(["tabla", "grafico"] as const).map((v) => (
@@ -1450,15 +1447,15 @@ const growthPct =
               </ResponsiveContainer>
             </div>
           )}
-          {/* Footer */}
-          <div className="p-4 border-t border-gray-100 flex justify-end bg-white shrink-0">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white font-bold text-xs rounded-xl transition-all active:scale-95"
-            >
-              Cerrar
-            </button>
-          </div>
+        </div>
+        {/* Footer */}
+        <div className="p-4 border-t border-gray-100 flex justify-end bg-white shrink-0">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white font-bold text-xs rounded-xl transition-all active:scale-95"
+          >
+            Cerrar
+          </button>
         </div>
       </DialogContent>
     </Dialog>
@@ -1668,15 +1665,15 @@ function AsistenciasHorarioHistorialModal({
               )}
             </div>
           )}
-          {/* Footer */}
-          <div className="p-4 border-t border-gray-100 flex justify-end bg-white shrink-0">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white font-bold text-xs rounded-xl transition-all active:scale-95"
-            >
-              Cerrar
-            </button>
-          </div>
+        </div>
+        {/* Footer */}
+        <div className="p-4 border-t border-gray-100 flex justify-end bg-white shrink-0">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white font-bold text-xs rounded-xl transition-all active:scale-95"
+          >
+            Cerrar
+          </button>
         </div>
       </DialogContent>
     </Dialog>
@@ -1859,15 +1856,15 @@ function GeneroHistorialModal({
               </div>
             </div>
           )}
-          {/* Footer */}
-          <div className="p-4 border-t border-gray-100 flex justify-end bg-white shrink-0">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white font-bold text-xs rounded-xl transition-all active:scale-95"
-            >
-              Cerrar
-            </button>
-          </div>
+        </div>
+        {/* Footer */}
+        <div className="p-4 border-t border-gray-100 flex justify-end bg-white shrink-0">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white font-bold text-xs rounded-xl transition-all active:scale-95"
+          >
+            Cerrar
+          </button>
         </div>
       </DialogContent>
     </Dialog>
@@ -2572,6 +2569,17 @@ export default function EstadisticasPage() {
   return (
     <div className="p-4 lg:p-6 w-full mx-auto flex flex-col gap-6 bg-[#FAFAFA] min-h-screen">
       <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center gap-3 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+          <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center border border-orange-100 shrink-0">
+            <Users size={20} className="text-orange-600" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-gray-900 leading-tight">Estadísticas de Clientes</h1>
+            <p className="text-xs text-gray-400 mt-0.5">Métricas de retención, actividad y comportamiento de los alumnos.</p>
+          </div>
+        </div>
+
         <HistorialModal
           open={historialOpen}
           onClose={() => setHistorialOpen(false)}
