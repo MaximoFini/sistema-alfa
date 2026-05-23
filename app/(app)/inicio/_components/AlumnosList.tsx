@@ -983,7 +983,7 @@ export default function AlumnosList() {
   const queryActual = queryParam;
 
   const [showModal, setShowModal] = useState(false);
-  const [verHoy, setVerHoy] = useState(true); // Activo por defecto
+
 
   // Obtener la fecha de hoy en formato 'YYYY-MM-DD' considerando la zona horaria local de Argentina (GMT-3)
   const localDate = new Date();
@@ -998,7 +998,7 @@ export default function AlumnosList() {
     /[^a-zA-Z0-9áéíóúüñÁÉÍÓÚÜÑ\s]/g,
     "",
   );
-  const cacheKey = `${paginaActual}:${safeQuery}`;
+  const cacheKey = `${paginaActual}:${safeQuery}:${!queryActual ? todayStr : ""}`;
   const cached = alumnosCache[cacheKey];
   const isLoading = alumnosLoadingKeys[cacheKey] ?? false;
 
@@ -1009,12 +1009,20 @@ export default function AlumnosList() {
 
   // Fetch cuando cambia la página o el query
   useEffect(() => {
-    fetchAlumnos(paginaActual, queryActual);
-  }, [paginaActual, queryActual, fetchAlumnos]);
+    if (!queryActual) {
+      fetchAlumnos(paginaActual, "", todayStr);
+    } else {
+      fetchAlumnos(paginaActual, queryActual, null);
+    }
+  }, [paginaActual, queryActual, todayStr, fetchAlumnos]);
 
   function handleGuardado() {
     invalidateAlumnos();
-    fetchAlumnos(paginaActual, queryActual);
+    if (!queryActual) {
+      fetchAlumnos(paginaActual, "", todayStr);
+    } else {
+      fetchAlumnos(paginaActual, queryActual, null);
+    }
   }
 
   // ─── Realtime: escucha cambios en múltiples tablas ─────────────────────────
@@ -1025,7 +1033,11 @@ export default function AlumnosList() {
       clearTimeout(refreshTimeout);
       refreshTimeout = setTimeout(() => {
         invalidateAlumnos();
-        fetchAlumnos(paginaActual, queryActual);
+        if (!queryActual) {
+          fetchAlumnos(paginaActual, "", todayStr);
+        } else {
+          fetchAlumnos(paginaActual, queryActual, null);
+        }
       }, 100);
     };
 
@@ -1052,17 +1064,13 @@ export default function AlumnosList() {
       clearTimeout(refreshTimeout);
       supabase.removeChannel(channel);
     };
-  }, [paginaActual, queryActual, fetchAlumnos, invalidateAlumnos]);
+  }, [paginaActual, queryActual, todayStr, fetchAlumnos, invalidateAlumnos]);
 
   // Enriquecer datos con UI derivada
   const alumnosEnriquecidos = alumnos.map(enriquecerAlumno);
 
-  // Filtrar localmente si el switch de ingresos de hoy está activo
-  const alumnosMostrados = verHoy
-    ? alumnosEnriquecidos.filter(
-        (alumno) => alumno.ultimaAsistencia?.fecha === todayStr,
-      )
-    : alumnosEnriquecidos;
+  // La variable alumnosMostrados debe ser directamente el listado de alumnos devuelto por la caché de Zustand
+  const alumnosMostrados = alumnosEnriquecidos;
 
   return (
     <div className="relative min-h-screen">
@@ -1098,7 +1106,7 @@ export default function AlumnosList() {
                     Alumnos
                   </h1>
                   <p className="text-sm text-gray-500 mt-0.5">
-                    {verHoy ? (
+                    {!queryActual ? (
                       <span className="inline-flex items-center gap-1.5 text-orange-600 font-semibold bg-orange-50 px-2.5 py-0.5 rounded-full text-xs border border-orange-100/50">
                         {alumnosMostrados.length} ingreso{alumnosMostrados.length !== 1 ? "s" : ""} hoy
                       </span>
@@ -1127,27 +1135,9 @@ export default function AlumnosList() {
                 <Buscador />
               </div>
               
-              {/* Premium Switch/Toggle */}
-              <div className="flex items-center justify-between gap-3 bg-gradient-to-r from-orange-50/80 to-amber-50/80 border border-orange-100/60 rounded-xl px-4 py-2 shadow-xs shrink-0 md:min-h-[44px] select-none">
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-600 shrink-0">
-                    <Calendar size={14} />
-                  </div>
-                  <span className="text-sm font-semibold text-gray-800 whitespace-nowrap">
-                    Ver ingresos de hoy
-                  </span>
-                </div>
-                <Switch
-                  checked={verHoy}
-                  onCheckedChange={(checked) => {
-                    triggerHapticFeedback(HapticPresets.medium);
-                    setVerHoy(checked);
-                  }}
-                  className="data-[state=checked]:bg-orange-500"
-                />
-              </div>
 
-              {!verHoy && (
+
+              {queryActual !== "" && (
                 <div className="flex items-center gap-1.5 border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 min-h-[44px] shrink-0">
                   <Filter size={15} className="text-gray-400" />
                   <span className="text-sm text-gray-500 whitespace-nowrap">
@@ -1161,25 +1151,17 @@ export default function AlumnosList() {
               {queryActual ? (
                 <>
                   <span className="text-gray-600 font-semibold">
-                    {verHoy ? alumnosMostrados.length : totalRegistros}
+                    {totalRegistros}
                   </span>{" "}
                   resultado
-                  {(verHoy ? alumnosMostrados.length : totalRegistros) !== 1 ? "s" : ""} para{" "}
+                  {totalRegistros !== 1 ? "s" : ""} para{" "}
                   <span className="text-gray-600 font-semibold">
                     &ldquo;{queryActual}&rdquo;
                   </span>
-                  {verHoy && " (filtrado hoy)"}
                 </>
               ) : (
                 <>
-                  {verHoy ? (
-                    <>Mostrando {alumnosMostrados.length} ingreso{alumnosMostrados.length !== 1 ? "s" : ""} de hoy</>
-                  ) : (
-                    <>
-                      {alumnos.length} de {totalRegistros} alumnos (página{" "}
-                      {paginaActual})
-                    </>
-                  )}
+                  Mostrando {alumnosMostrados.length} ingreso{alumnosMostrados.length !== 1 ? "s" : ""} de hoy
                 </>
               )}
             </p>
@@ -1219,18 +1201,16 @@ export default function AlumnosList() {
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-16 text-center">
-            {verHoy ? (
+            {!queryActual ? (
               <>
                 <div className="w-14 h-14 rounded-full bg-orange-50 flex items-center justify-center mb-3 select-none text-orange-500">
                   <Calendar size={24} />
                 </div>
-                <p className="text-gray-500 font-medium text-base">
+                <p className="text-gray-500 font-semibold text-lg max-w-md leading-snug">
                   No se registraron ingresos hoy
                 </p>
-                <p className="text-gray-400 text-sm mt-1 max-w-sm">
-                  {queryActual
-                    ? `Ningún ingreso de hoy coincide con "${queryActual}".`
-                    : "Desactiva el switch 'Ver ingresos de hoy' para ver toda la base de datos."}
+                <p className="text-gray-400 text-sm mt-2 max-w-md px-4 leading-relaxed">
+                  Comienza a buscar un alumno en la barra superior para marcar su asistencia o registrar cobros.
                 </p>
               </>
             ) : (
@@ -1242,17 +1222,15 @@ export default function AlumnosList() {
                   No se encontraron alumnos
                 </p>
                 <p className="text-gray-400 text-sm mt-1">
-                  {queryActual
-                    ? `No hay resultados para "${queryActual}"`
-                    : "No hay alumnos en esta página"}
+                  No hay resultados para &ldquo;{queryActual}&rdquo;
                 </p>
               </>
             )}
           </div>
         )}
 
-        {/* Paginación (visible cuando el switch está inactivo) */}
-        {!verHoy && (
+        {/* Paginación (visible cuando queryActual tiene texto) */}
+        {queryActual !== "" && (
           <Paginacion
             paginaActual={paginaActual}
             totalPaginas={totalPaginas}

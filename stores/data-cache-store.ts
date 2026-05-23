@@ -103,7 +103,7 @@ interface DataCacheState {
   fetchProductos: () => Promise<void>;
   fetchVentas: () => Promise<void>;
   fetchPaymentMethods: () => Promise<void>;
-  fetchAlumnos: (page: number, query: string) => Promise<void>;
+  fetchAlumnos: (page: number, query: string, dateStr?: string | null) => Promise<void>;
   invalidateCategories: () => void;
   invalidatePlans: () => void;
   invalidateProductos: () => void;
@@ -283,9 +283,9 @@ export const useDataCacheStore = create<DataCacheState>((set, get) => ({
   },
 
   // Fetch Alumnos — con caché por página+query (5 min)
-  fetchAlumnos: async (page: number, query: string) => {
+  fetchAlumnos: async (page: number, query: string, dateStr?: string | null) => {
     const safeQuery = query.replace(/[^a-zA-Z0-9áéíóúüñÁÉÍÓÚÜÑ\s]/g, "");
-    const cacheKey = `${page}:${safeQuery}`;
+    const cacheKey = `${page}:${safeQuery}:${dateStr || ""}`;
     const state = get();
     const now = Date.now();
 
@@ -309,6 +309,7 @@ export const useDataCacheStore = create<DataCacheState>((set, get) => ({
         "alumnos_por_orden_llegada",
         {
           p_query: safeQuery || null,
+          p_date: dateStr || null,
           p_limit: POR_PAGINA_ALUMNOS,
           p_offset: offset,
         },
