@@ -8,6 +8,19 @@ type Estado =
   | "periodo_gracia"
   | "prueba";
 
+// Función para calcular la edad a partir de la fecha de nacimiento
+function calcularEdad(fechaNacimiento: string): number {
+  if (!fechaNacimiento) return 0;
+  const hoy = new Date();
+  const cumpleanos = new Date(fechaNacimiento);
+  let edad = hoy.getFullYear() - cumpleanos.getFullYear();
+  const m = hoy.getMonth() - cumpleanos.getMonth();
+  if (m < 0 || (m === 0 && hoy.getDate() < cumpleanos.getDate())) {
+    edad--;
+  }
+  return edad;
+}
+
 // Función auxiliar para obtener fecha local en formato YYYY-MM-DD
 function getFechaLocal(): string {
   const now = new Date();
@@ -30,7 +43,7 @@ export async function POST(request: NextRequest) {
     // Buscar alumno por DNI
     const { data: alumno, error: alumnoError } = await supabase
       .from("alumnos")
-      .select("id, nombre, activo, es_prueba, actividad_interes, actividad_proximo_vencimiento, clases_gracia_disponibles, clases_gracia_usadas, fecha_proximo_vencimiento")
+      .select("id, nombre, activo, es_prueba, actividad_interes, actividad_proximo_vencimiento, clases_gracia_disponibles, clases_gracia_usadas, fecha_proximo_vencimiento, fecha_nacimiento, cuis_completado, cuis_clases_presentadas")
       .eq("dni", dni)
       .single();
 
@@ -141,10 +154,22 @@ export async function POST(request: NextRequest) {
       const horaLocal = `${hours}:${minutes}:${seconds}`;
       const fechaISO = `${fechaLocal}T${horaLocal}`;
 
+      // Calcular si es menor de edad y si debemos incrementar cuis_clases_presentadas
+      const esMenorDeEdad = alumno.fecha_nacimiento
+        ? calcularEdad(alumno.fecha_nacimiento) < 18
+        : false;
+
+      const updateData: any = { fecha_ultima_asistencia: fechaISO };
+      let nuevoCuisClasesPresentadas = alumno.cuis_clases_presentadas ?? 0;
+      if (esMenorDeEdad && alumno.cuis_completado === false) {
+        nuevoCuisClasesPresentadas += 1;
+        updateData.cuis_clases_presentadas = nuevoCuisClasesPresentadas;
+      }
+
       // Actualizar fecha_ultima_asistencia
       const { error: updateError } = await supabase
         .from("alumnos")
-        .update({ fecha_ultima_asistencia: fechaISO })
+        .update(updateData)
         .eq("id", alumno.id);
 
       if (updateError) {
@@ -190,6 +215,10 @@ export async function POST(request: NextRequest) {
       .limit(1)
       .single();
 
+    const esMenorDeEdad = alumno.fecha_nacimiento
+      ? calcularEdad(alumno.fecha_nacimiento) < 18
+      : false;
+
     return NextResponse.json({
       found: true,
       alumno: {
@@ -201,11 +230,18 @@ export async function POST(request: NextRequest) {
             ? "Sin plan registrado"
             : razonBloqueo === "plan_no_iniciado" && fechaInicioPlan
               ? `Inicia el ${formatearFecha(fechaInicioPlan)}`
-              : "Sin fecha",
+              : razonBloqueo === "cus_vencido"
+                ? "Falta CUS obligatorio"
+                : "Sin fecha",
         actividad:
           planActivo?.actividad || alumno.actividad_proximo_vencimiento,
         clasesGracia: clasesGracia ?? undefined,
         razonBloqueo: razonBloqueo,
+        esMenorDeEdad,
+        cuisCompletado: alumno.cuis_completado,
+        cuisClasesPresentadas: ingresoPermitido && esMenorDeEdad && alumno.cuis_completado === false
+          ? (alumno.cuis_clases_presentadas ?? 0) + 1
+          : (alumno.cuis_clases_presentadas ?? 0),
       },
     });
   } catch (error) {
@@ -223,10 +259,22 @@ async function determinarEstado(
 ): Promise<{
   estado: Estado;
   clasesGracia?: { usadas: number; disponibles: number };
-  razonBloqueo?: "sin_plan" | "plan_no_iniciado";
+  razonBloqueo?: "sin_plan" | "plan_no_iniciado" | "cus_vencido";
   fechaInicioPlan?: string;
 }> {
   const hoy = getFechaLocal(); // YYYY-MM-DD
+
+  // Validar si el alumno es menor y si el CUS está vencido (bloqueado)
+  const esMenorDeEdad = alumno.fecha_nacimiento
+    ? calcularEdad(alumno.fecha_nacimiento) < 18
+    : false;
+
+  if (esMenorDeEdad && alumno.cuis_completado === false && (alumno.cuis_clases_presentadas ?? 0) >= 3) {
+    return {
+      estado: "vencido",
+      razonBloqueo: "cus_vencido",
+    };
+  }
 
   // Una sola query trae todos los planes — filtramos con JS
   const { data: todosLosPlanes, error: errorPlanes } = await supabase

@@ -4,7 +4,7 @@ import { useSearchParams, usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, Suspense } from "react";
 import { Search, X } from "lucide-react";
 
-const DEBOUNCE_MS = 400;
+const DEBOUNCE_MS = 200;
 
 function BuscadorInner() {
   const router = useRouter();

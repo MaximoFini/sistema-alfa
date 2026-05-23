@@ -252,10 +252,10 @@ export default function TabPagos({
                     </span>
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground ml-auto">
                       <Calendar size={11} />
-                      <span>{formatFecha(pago.fecha_inicio)}</span>
+                      <span>Inicio: {formatFecha(pago.fecha_inicio)}</span>
                       <span className="text-border">→</span>
                       <span className={config.dateColor}>
-                        {formatFecha(pago.fecha_vencimiento)}
+                        Vencimiento: {formatFecha(pago.fecha_vencimiento)}
                       </span>
                     </div>
                   </div>

@@ -11,6 +11,7 @@ import {
   ShieldX,
   Settings,
   Loader2,
+  ClipboardList,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
@@ -21,10 +22,12 @@ import EstadisticasPage from "@/app/(app)/estadisticas/page";
 import FinanzasPage from "@/app/(app)/finanzas/page";
 import AjustesPage from "@/app/(app)/administracion/ajustes/page";
 import EstadisticasProductosPage from "@/app/(app)/administracion/_components/EstadisticasProductos";
+import DiarioTab from "@/app/(app)/administracion/_components/DiarioTab";
 
-type Tab = "estadisticas" | "estadisticas-productos" | "finanzas" | "ajustes";
+type Tab = "diario" | "estadisticas" | "estadisticas-productos" | "finanzas" | "ajustes";
 
 const tabs: { id: Tab; label: string; icon: typeof BarChart2 }[] = [
+  { id: "diario", label: "Diario de Actividad", icon: ClipboardList },
   { id: "estadisticas", label: "Estadisticas Clientes", icon: BarChart2 },
   {
     id: "estadisticas-productos",
@@ -167,7 +170,7 @@ export default function AdministracionPage() {
   const { authenticated, setAuthenticated, fetchFinanzasStats } =
     useAdminStore();
   const { fetchSettings, fetchPlanes, fetchMetodos } = useAdminSettingsStore();
-  const [activeTab, setActiveTab] = useState<Tab>("estadisticas");
+  const [activeTab, setActiveTab] = useState<Tab>("diario");
 
   useEffect(() => {
     if (loading) return;
@@ -334,6 +337,11 @@ export default function AdministracionPage() {
           </div>
         </div>
         <div className="flex-1">
+          <div
+            style={{ display: activeTab === "diario" ? "block" : "none" }}
+          >
+            <DiarioTab />
+          </div>
           <div
             style={{ display: activeTab === "estadisticas" ? "block" : "none" }}
           >

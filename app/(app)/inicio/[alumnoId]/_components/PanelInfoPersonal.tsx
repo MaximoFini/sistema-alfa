@@ -120,9 +120,11 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 export default function PanelInfoPersonal({
   alumno,
   diasInactivo,
+  onAlumnoActualizado,
 }: {
   alumno: Alumno;
   diasInactivo: number;
+  onAlumnoActualizado?: (datos: Partial<Alumno>) => void;
 }) {
   const router = useRouter();
   const [showEditModal, setShowEditModal] = useState(false);
@@ -226,6 +228,29 @@ export default function PanelInfoPersonal({
 
     triggerHapticFeedback(HapticPresets.medium);
     setGuardando(true);
+
+    // Verificar si ya existe otro alumno con el mismo DNI
+    const { data: dniExistente, error: checkError } = await supabase
+      .from("alumnos")
+      .select("id")
+      .eq("dni", formData.dni.trim())
+      .neq("id", alumno.id)
+      .maybeSingle();
+
+    if (checkError) {
+      setGuardando(false);
+      triggerHapticFeedback(HapticPresets.error);
+      alert("Error al verificar el DNI: " + checkError.message);
+      return;
+    }
+
+    if (dniExistente) {
+      setGuardando(false);
+      setErrors({ dni: "Ya existe otro alumno registrado con este DNI" });
+      triggerHapticFeedback(HapticPresets.warning);
+      return;
+    }
+
     const edadCalculada = calcularEdad(formData.fecha_nacimiento);
 
     const { error } = await supabase
@@ -250,6 +275,21 @@ export default function PanelInfoPersonal({
       triggerHapticFeedback(HapticPresets.error);
       alert("Error al actualizar el alumno: " + error.message);
       return;
+    }
+
+    if (onAlumnoActualizado) {
+      onAlumnoActualizado({
+        nombre: formData.nombre.trim(),
+        dni: formData.dni.trim(),
+        domicilio: formData.domicilio.trim(),
+        telefono: formData.telefono.trim(),
+        fecha_nacimiento: formData.fecha_nacimiento,
+        genero: formData.genero,
+        edad_actual: edadCalculada,
+        email: formData.email.trim() || null,
+        telefono_emergencia: formData.telefonoEmergencia.trim() || null,
+        observaciones: formData.observaciones.trim() || null,
+      });
     }
 
     triggerHapticFeedback(HapticPresets.success);
@@ -305,6 +345,12 @@ export default function PanelInfoPersonal({
     // Optistic UI update for instant feedback
     setClasesGraciaDisponibles(2);
     setClasesGraciaUsadas(0);
+    if (onAlumnoActualizado) {
+      onAlumnoActualizado({
+        clases_gracia_disponibles: 2,
+        clases_gracia_usadas: 0,
+      });
+    }
     setOtorgandoGracia(false);
     router.refresh();
   }
@@ -331,6 +377,12 @@ export default function PanelInfoPersonal({
     // Optistic UI update for instant feedback
     setClasesGraciaDisponibles(0);
     setClasesGraciaUsadas(0);
+    if (onAlumnoActualizado) {
+      onAlumnoActualizado({
+        clases_gracia_disponibles: 0,
+        clases_gracia_usadas: 0,
+      });
+    }
     setOtorgandoGracia(false);
     router.refresh();
   }
@@ -352,6 +404,9 @@ export default function PanelInfoPersonal({
 
     triggerHapticFeedback(HapticPresets.success);
     setCuisCompletado(true);
+    if (onAlumnoActualizado) {
+      onAlumnoActualizado({ cuis_completado: true });
+    }
     setMarcandoCuis(false);
     router.refresh();
   }
@@ -609,7 +664,7 @@ export default function PanelInfoPersonal({
             onClick={() => setShowEditModal(false)}
           />
           <div
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[101] bg-card rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto"
+            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[101] bg-card rounded-2xl shadow-2xl w-[95vw] md:w-full md:max-w-3xl max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="sticky top-0 bg-card border-b border-border px-5 py-4 flex items-center justify-between z-10">
@@ -630,6 +685,7 @@ export default function PanelInfoPersonal({
             </div>
 
             <div className="px-5 py-5 flex flex-col gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
               <div className="flex flex-col gap-2">
                 <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                   Nombre completo *
@@ -785,7 +841,7 @@ export default function PanelInfoPersonal({
                 />
               </div>
 
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-2 md:col-span-2">
                 <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                   Observaciones / Notas Médicas o de Lesiones (Opcional)
                 </label>
@@ -799,6 +855,8 @@ export default function PanelInfoPersonal({
                   placeholder="Ej: Alergia al polvo, lesión en rodilla derecha"
                 />
               </div>
+
+              </div> {/* Cierre del grid */}
 
               <div className="flex gap-3 pt-4">
                 <button
@@ -950,7 +1008,7 @@ export default function PanelInfoPersonal({
         </div>
       )}
 
-      <div className="px-6 divide-y divide-border">
+      <div className="px-6 divide-y divide-border mb-6">
         {alumno.dni && (
           <DataField
             icon={<CreditCard size={14} />}
@@ -1012,53 +1070,6 @@ export default function PanelInfoPersonal({
             icon={<Mail size={14} />}
             label="Email"
             value={alumno.email}
-          />
-        )}
-      </div>
-
-      {/* Divider */}
-      <div className="h-px bg-border mt-2" />
-
-      {/* Sección: Plan actual */}
-      <SectionTitle>Plan actual</SectionTitle>
-      <div className="px-6 divide-y divide-border mb-6">
-        {alumno.actividad_proximo_vencimiento && (
-          <DataField
-            icon={<Dumbbell size={14} />}
-            label="Actividad"
-            value={alumno.actividad_proximo_vencimiento}
-          />
-        )}
-        {alumno.abono_ultima_inscripcion && (
-          <DataField
-            icon={<CreditCard size={14} />}
-            label="Abono"
-            value={alumno.abono_ultima_inscripcion}
-          />
-        )}
-        {alumno.fecha_ultimo_inicio && (
-          <DataField
-            icon={<Calendar size={14} />}
-            label="Inicio"
-            value={formatFecha(alumno.fecha_ultimo_inicio)}
-          />
-        )}
-        {alumno.fecha_proximo_vencimiento && (
-          <DataField
-            icon={<Clock size={14} />}
-            label="Vencimiento"
-            value={
-              <span className={estaActivo ? "text-green-600" : "text-red-500"}>
-                {formatFecha(alumno.fecha_proximo_vencimiento)}
-              </span>
-            }
-          />
-        )}
-        {alumno.fecha_ultima_asistencia && (
-          <DataField
-            icon={<Calendar size={14} />}
-            label="Última asistencia"
-            value={formatFecha(alumno.fecha_ultima_asistencia)}
           />
         )}
       </div>

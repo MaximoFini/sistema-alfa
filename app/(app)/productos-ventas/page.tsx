@@ -953,7 +953,9 @@ export default function ProductosVentasPage() {
     optimisticUpdateProducto,
   } = useDataCacheStore();
 
-  const loading = productosLoading || ventasLoading;
+  // Optimización UX: Solo mostrar carga en pantalla completa si no hay datos en caché.
+  // Si ya hay datos en caché, los mostramos de inmediato y revalidamos en segundo plano.
+  const loading = (productosLoading && productos.length === 0) || (ventasLoading && ventas.length === 0);
 
   useEffect(() => {
     fetchProductos();

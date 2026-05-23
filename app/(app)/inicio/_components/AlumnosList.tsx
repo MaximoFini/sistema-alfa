@@ -208,6 +208,76 @@ function NuevoAlumnoModal({
     setErrors((prev) => ({ ...prev, actividad: "", precio: "" }));
   }
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLFormElement>) => {
+    if (e.key === "Enter") {
+      // Si el elemento actual es un textarea, dejamos que Enter funcione normalmente (salto de línea)
+      if (e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      // Evitamos el comportamiento por defecto de enviar el formulario
+      e.preventDefault();
+
+      const formElement = e.currentTarget;
+      const elements = Array.from(formElement.elements) as HTMLElement[];
+
+      // Filtramos solo los elementos interactivos visibles/editables que queremos navegar
+      const focusable = elements.filter((el) => {
+        const nodeName = el.nodeName.toLowerCase();
+
+        // Si está deshabilitado o tiene tabIndex negativo, no es enfocable
+        if ((el as any).disabled || el.tabIndex === -1) {
+          return false;
+        }
+
+        // Si es un input, select o textarea
+        if (["input", "select", "textarea"].includes(nodeName)) {
+          if (el instanceof HTMLInputElement) {
+            // Evitamos inputs ocultos o inputs de sólo lectura (como precio no editable)
+            if (el.type === "hidden" || el.readOnly) {
+              return false;
+            }
+          }
+          return true;
+        }
+
+        // Si es un botón, solo queremos enfocar los botones principales (no Cancelar ni Volver Atrás)
+        if (nodeName === "button") {
+          const text = el.textContent?.toLowerCase() || "";
+          const isCancel =
+            text.includes("cancelar") ||
+            text.includes("volver atrás") ||
+            el.getAttribute("aria-label") === "Cerrar";
+          return !isCancel;
+        }
+
+        return false;
+      });
+
+      const currentIndex = focusable.indexOf(e.target as HTMLElement);
+      if (currentIndex !== -1 && currentIndex < focusable.length - 1) {
+        // Enfocamos el siguiente elemento
+        const nextEl = focusable[currentIndex + 1];
+        nextEl.focus();
+
+        // Si el siguiente elemento es un select, abrimos sus opciones
+        if (nextEl instanceof HTMLSelectElement) {
+          try {
+            (nextEl as any).showPicker?.();
+          } catch (err) {
+            console.warn("showPicker not supported or failed:", err);
+          }
+        }
+      } else if (currentIndex === focusable.length - 1) {
+        // Si es el último elemento enfocable (que sería el botón principal de guardar), hacemos clic
+        const lastEl = focusable[currentIndex];
+        if (lastEl instanceof HTMLButtonElement) {
+          lastEl.click();
+        }
+      }
+    }
+  };
+
   function validatePaso1(): Record<string, string> {
     const e: Record<string, string> = {};
     if (!form.nombre.trim()) e.nombre = "El nombre es requerido";
@@ -219,6 +289,8 @@ function NuevoAlumnoModal({
     if (!form.domicilio.trim()) e.domicilio = "La dirección es requerida";
     if (!form.telefono.trim()) e.telefono = "El teléfono es requerido";
     if (!form.genero) e.genero = "El género es requerido";
+    if (!form.telefonoEmergencia.trim())
+      e.telefonoEmergencia = "El contacto de emergencia es requerido";
     return e;
   }
 
@@ -256,14 +328,37 @@ function NuevoAlumnoModal({
       return;
     }
 
+    setGuardando(true);
+
+    // Verificar si ya existe un alumno con el mismo DNI
+    const { data: dniExistente, error: checkError } = await supabase
+      .from("alumnos")
+      .select("id")
+      .eq("dni", form.dni.trim())
+      .maybeSingle();
+
+    if (checkError) {
+      setGuardando(false);
+      triggerHapticFeedback(HapticPresets.error);
+      alert("Error al verificar el DNI: " + checkError.message);
+      return;
+    }
+
+    if (dniExistente) {
+      setGuardando(false);
+      setErrors({ dni: "Ya existe un alumno registrado con este DNI" });
+      triggerHapticFeedback(HapticPresets.warning);
+      return;
+    }
+
     triggerHapticFeedback(HapticPresets.medium);
 
     if (goToStep2) {
+      setGuardando(false);
       // Avanzar al paso 2 de inmediato en el cliente, sin tocar la base de datos aún (0 RTT)
       setStep(2);
     } else {
       // Guardado tradicional sin cobro (1 RTT)
-      setGuardando(true);
       const edadCalculada = calcularEdad(form.fechaNacimiento);
 
       const { error } = await supabase
@@ -308,6 +403,28 @@ function NuevoAlumnoModal({
 
     triggerHapticFeedback(HapticPresets.medium);
     setGuardando(true);
+
+    // Verificar si ya existe un alumno con el mismo DNI (doble seguridad)
+    const { data: dniExistente, error: checkError } = await supabase
+      .from("alumnos")
+      .select("id")
+      .eq("dni", form.dni.trim())
+      .maybeSingle();
+
+    if (checkError) {
+      setGuardando(false);
+      triggerHapticFeedback(HapticPresets.error);
+      alert("Error al verificar el DNI: " + checkError.message);
+      return;
+    }
+
+    if (dniExistente) {
+      setGuardando(false);
+      setStep(1); // Volver al paso 1 para mostrar el error
+      setErrors({ dni: "Ya existe un alumno registrado con este DNI" });
+      triggerHapticFeedback(HapticPresets.warning);
+      return;
+    }
 
     let fechaProximoVencimiento = null;
     const planElegido = subscriptionPlans.find(
@@ -419,6 +536,7 @@ function NuevoAlumnoModal({
               e.preventDefault();
               handleGuardarPaso1(false);
             }}
+            onKeyDown={handleKeyDown}
             className="px-4 md:px-6 py-5 flex flex-col gap-4 overflow-y-auto"
           >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
@@ -576,7 +694,7 @@ function NuevoAlumnoModal({
               {/* Contacto de Emergencia */}
               <div className="flex flex-col gap-2">
                 <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
-                  Contacto de Emergencia (Opcional)
+                  Contacto de Emergencia *
                 </label>
                 <input
                   type="text"
@@ -585,6 +703,11 @@ function NuevoAlumnoModal({
                   onChange={(e) => setField("telefonoEmergencia", e.target.value)}
                   className="border border-gray-200 rounded-lg px-4 py-3 text-base md:text-sm outline-none min-h-[44px] focus:border-red-400 focus:ring-2 focus:ring-red-50"
                 />
+                {errors.telefonoEmergencia && (
+                  <span className="text-xs text-red-500">
+                    {errors.telefonoEmergencia}
+                  </span>
+                )}
               </div>
 
               {/* Observaciones */}
@@ -709,6 +832,7 @@ function NuevoAlumnoModal({
               e.preventDefault();
               handleGuardarPaso2();
             }}
+            onKeyDown={handleKeyDown}
             className="px-4 md:px-6 py-5 flex flex-col gap-4 overflow-y-auto"
           >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
@@ -1041,11 +1165,12 @@ export default function AlumnosList() {
   }, [paginaActual, queryActual, todayStr, fetchAlumnos]);
 
   function handleGuardado() {
-    invalidateAlumnos();
+    // Al guardar con éxito, no invalidamos la caché completa para evitar parpadeos con skeletons.
+    // Hacemos una recarga silenciosa en background usando forceRefresh = true.
     if (!queryActual) {
-      fetchAlumnos(paginaActual, "", todayStr);
+      fetchAlumnos(paginaActual, "", todayStr, true);
     } else {
-      fetchAlumnos(paginaActual, queryActual, null);
+      fetchAlumnos(paginaActual, queryActual, null, true);
     }
   }
 
@@ -1056,11 +1181,12 @@ export default function AlumnosList() {
     const handleRefresh = () => {
       clearTimeout(refreshTimeout);
       refreshTimeout = setTimeout(() => {
-        invalidateAlumnos();
+        // En tiempo real tampoco invalidamos/borramos caché. Hacemos fetch background silencioso.
+        // Zustand evitará peticiones concurrentes si ya se está cargando por alumnosLoadingKeys.
         if (!queryActual) {
-          fetchAlumnos(paginaActual, "", todayStr);
+          fetchAlumnos(paginaActual, "", todayStr, true);
         } else {
-          fetchAlumnos(paginaActual, queryActual, null);
+          fetchAlumnos(paginaActual, queryActual, null, true);
         }
       }, 100);
     };

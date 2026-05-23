@@ -23,7 +23,10 @@ type Result =
       clasesGracia?: { usadas: number; disponibles: number };
       esPrueba?: boolean;
       yaUsoClasePrueba?: boolean;
-      razonBloqueo?: "sin_plan" | "plan_no_iniciado";
+      razonBloqueo?: "sin_plan" | "plan_no_iniciado" | "cus_vencido";
+      esMenorDeEdad?: boolean;
+      cuisCompletado?: boolean;
+      cuisClasesPresentadas?: number;
     }
   | "not-found"
   | null;
@@ -284,6 +287,19 @@ function IngresoWebPageContent() {
           `Tu plan comienza el ${result.vencimiento}. Volvé en esa fecha.` as any,
       };
     }
+    // Caso especial: alumno menor de edad con CUS vencido
+    else if (
+      result !== null &&
+      result !== "not-found" &&
+      result.razonBloqueo === "cus_vencido"
+    ) {
+      theme = {
+        ...clientEstadoTheme.vencido,
+        label: "FALTA CUS OBLIGATORIO" as any,
+        sublabel:
+          "El plazo de entrega del Certificado Único de Salud (CUS) ha vencido. Presentalo en secretaría para ingresar." as any,
+      };
+    }
 
     return (
       <div
@@ -539,6 +555,29 @@ function IngresoWebPageContent() {
                         </div>
                       )}
 
+                      {/* Recordatorio de CUS para menores */}
+                      {result.esMenorDeEdad && result.cuisCompletado === false && result.cuisClasesPresentadas != null && result.cuisClasesPresentadas <= 3 && (
+                        <div
+                          className="mt-6 rounded-2xl px-10 py-6 flex flex-col items-center gap-2 shadow-xl border border-white/25"
+                          style={{ backgroundColor: "rgba(251, 146, 60, 0.25)" }}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <span className="text-2xl">⚠️</span>
+                            <p className="text-base md:text-lg font-extrabold uppercase tracking-wider text-orange-300">
+                              Recordatorio: CUS Pendiente
+                            </p>
+                          </div>
+                          <p className="text-base md:text-lg text-white font-bold">
+                            Al ser menor, debés presentar tu Certificado de Salud.
+                          </p>
+                          <p className="text-sm md:text-base text-orange-100 font-semibold">
+                            {3 - result.cuisClasesPresentadas > 0 
+                              ? `Te quedan ${3 - result.cuisClasesPresentadas} clases de plazo para entregarlo en secretaría.`
+                              : "¡Esta es la última clase de plazo para entregarlo!"}
+                          </p>
+                        </div>
+                      )}
+
                       {/* Clase de gracia: contador */}
                       {result.estado === "periodo_gracia" &&
                         result.clasesGracia && (
@@ -784,6 +823,15 @@ function IngresoWebPageContent() {
                     description: `El plan de este alumno comienza el ${result.vencimiento}.`,
                   };
                 }
+                // Caso especial: alumno menor de edad con CUS vencido
+                else if (result.razonBloqueo === "cus_vencido") {
+                  cfg = {
+                    ...cfg,
+                    label: "FALTA CUS OBLIGATORIO",
+                    description:
+                      "El alumno es menor de edad y superó el plazo de 3 clases sin entregar el Certificado Único de Salud (CUS). Ingreso bloqueado.",
+                  };
+                }
 
                 const Icon = cfg.icon;
                 return (
@@ -816,6 +864,20 @@ function IngresoWebPageContent() {
                         {result.vencimiento}
                       </span>
                     </p>
+
+                    {/* Alerta de CUS para el recepcionista */}
+                    {result.esMenorDeEdad && result.cuisCompletado === false && result.cuisClasesPresentadas != null && result.cuisClasesPresentadas <= 3 && (
+                      <div className="w-full mt-4 p-4 bg-orange-50 border border-orange-200 rounded-xl text-center flex flex-col gap-1.5 shadow-sm">
+                        <p className="text-sm font-bold text-orange-700 uppercase tracking-wide">
+                          ⚠️ Recordatorio CUS Pendiente
+                        </p>
+                        <p className="text-xs md:text-sm text-orange-800 font-bold">
+                          {3 - result.cuisClasesPresentadas > 0 
+                            ? `Le quedan ${3 - result.cuisClasesPresentadas} clases de plazo para presentarlo.`
+                            : "¡Última clase de plazo para presentarlo!"}
+                        </p>
+                      </div>
+                    )}
                     <button
                       onClick={handleClear}
                       className="mt-2 text-xs text-gray-400 hover:text-gray-600 underline underline-offset-2 transition-colors"

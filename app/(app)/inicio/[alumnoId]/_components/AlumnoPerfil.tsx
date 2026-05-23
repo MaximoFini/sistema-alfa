@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+
 import { ArrowLeft, UserCircle2, Sparkles, CheckCircle } from "lucide-react";
 import PanelInfoPersonal from "./PanelInfoPersonal";
 import TabAsistencias from "./TabAsistencias";
@@ -68,6 +69,11 @@ export default function AlumnoPerfil({
   const [convirtiendo, setConvirtiendo] = useState(false);
   const [alumno, setAlumno] = useState(alumnoInicial);
   const esPrueba = alumno.es_prueba === true;
+
+  // Sync state when prop updates (e.g. from router.refresh or other server fetches)
+  useEffect(() => {
+    setAlumno(alumnoInicial);
+  }, [alumnoInicial]);
 
   // Función para actualizar el alumno cuando se registra un cobro
   function handleAlumnoActualizado(datosActualizados: Partial<Alumno>) {
@@ -153,7 +159,11 @@ export default function AlumnoPerfil({
         {/* Columna 1: datos personales */}
         <aside className="w-full xl:w-72 2xl:w-80 shrink-0 border-b xl:border-b-0 xl:border-r border-border bg-card">
           <div className="xl:sticky xl:top-[49px] xl:max-h-[calc(100vh-49px)] xl:overflow-y-auto">
-            <PanelInfoPersonal alumno={alumno} diasInactivo={diasInactivo} />
+            <PanelInfoPersonal
+              alumno={alumno}
+              diasInactivo={diasInactivo}
+              onAlumnoActualizado={handleAlumnoActualizado}
+            />
           </div>
         </aside>
 

@@ -106,7 +106,7 @@ interface DataCacheState {
   fetchProductos: () => Promise<void>;
   fetchVentas: () => Promise<void>;
   fetchPaymentMethods: () => Promise<void>;
-  fetchAlumnos: (page: number, query: string, dateStr?: string | null) => Promise<void>;
+  fetchAlumnos: (page: number, query: string, dateStr?: string | null, forceRefresh?: boolean) => Promise<void>;
   invalidateCategories: () => void;
   invalidatePlans: () => void;
   invalidateProductos: () => void;
@@ -286,7 +286,7 @@ export const useDataCacheStore = create<DataCacheState>((set, get) => ({
   },
 
   // Fetch Alumnos — con caché por página+query (5 min)
-  fetchAlumnos: async (page: number, query: string, dateStr?: string | null) => {
+  fetchAlumnos: async (page: number, query: string, dateStr?: string | null, forceRefresh?: boolean) => {
     const safeQuery = query.replace(/[^a-zA-Z0-9áéíóúüñÁÉÍÓÚÜÑ\s]/g, "");
     const cacheKey = `${page}:${safeQuery}:${dateStr || ""}`;
     const state = get();
@@ -294,7 +294,7 @@ export const useDataCacheStore = create<DataCacheState>((set, get) => ({
 
     // Cache hit
     const cached = state.alumnosCache[cacheKey];
-    if (cached && now - cached.fetchedAt < CACHE_DURATION) {
+    if (!forceRefresh && cached && now - cached.fetchedAt < CACHE_DURATION) {
       return;
     }
 
@@ -436,10 +436,16 @@ export const useDataCacheStore = create<DataCacheState>((set, get) => ({
     set({ productosLoading: true });
 
     try {
-      const { data, error } = await supabase
+      const fetchPromise = supabase
         .from("productos")
         .select("id, nombre, precio_venta, precio_costo, stock, stock_minimo, activo, categoria, talles, created_at, updated_at")
         .order("nombre", { ascending: true });
+
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Timeout al cargar productos desde la base de datos (límite de 8 segundos superado)")), 8000)
+      );
+
+      const { data, error } = await Promise.race([fetchPromise, timeoutPromise]);
 
       if (error) throw error;
 
@@ -474,11 +480,17 @@ export const useDataCacheStore = create<DataCacheState>((set, get) => ({
     set({ ventasLoading: true });
 
     try {
-      const { data, error } = await supabase
+      const fetchPromise = supabase
         .from("ventas")
         .select("*, productos(nombre)")
         .order("created_at", { ascending: false })
         .limit(100);
+
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Timeout al cargar ventas desde la base de datos (límite de 8 segundos superado)")), 8000)
+      );
+
+      const { data, error } = await Promise.race([fetchPromise, timeoutPromise]);
 
       if (error) throw error;
 
