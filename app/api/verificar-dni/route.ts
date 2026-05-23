@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     // Buscar alumno por DNI
     const { data: alumno, error: alumnoError } = await supabase
       .from("alumnos")
-      .select("*")
+      .select("id, nombre, activo, es_prueba, actividad_interes, actividad_proximo_vencimiento, clases_gracia_disponibles, clases_gracia_usadas, fecha_proximo_vencimiento")
       .eq("dni", dni)
       .single();
 
@@ -228,33 +228,30 @@ async function determinarEstado(
 }> {
   const hoy = getFechaLocal(); // YYYY-MM-DD
 
-  // VALIDACIÓN 1: Verificar si el alumno tiene algún plan registrado (pasado, presente o futuro)
-  const { data: todosLosPlanes, error: errorTodosPlanes } = await supabase
+  // Una sola query trae todos los planes — filtramos con JS
+  const { data: todosLosPlanes, error: errorPlanes } = await supabase
     .from("pagos")
     .select("fecha_inicio, fecha_vencimiento")
     .eq("alumno_id", alumno.id)
-    .order("fecha_inicio", { ascending: true });
+    .order("fecha_inicio", { ascending: true })
+    .limit(50); // máximo razonable
 
-  if (errorTodosPlanes) {
-    console.error("Error buscando planes del alumno:", errorTodosPlanes);
+  if (errorPlanes) {
+    console.error("Error buscando planes del alumno:", errorPlanes);
     return { estado: "vencido" };
   }
 
-  // Si NO tiene ningún plan registrado → bloquear con razón específica
+  // Sin ningún plan registrado → bloquear
   if (!todosLosPlanes || todosLosPlanes.length === 0) {
-    return {
-      estado: "vencido",
-      razonBloqueo: "sin_plan",
-    };
+    return { estado: "vencido", razonBloqueo: "sin_plan" };
   }
 
-  // VALIDACIÓN 2: Verificar si el plan más próximo aún no ha iniciado
-  // Buscar el plan que inicia más próximo a hoy (puede ser hoy o en el futuro)
+  // Plan próximo (futuro o el más reciente)
   const planProximo =
     todosLosPlanes.find((p: any) => p.fecha_inicio >= hoy) ||
     todosLosPlanes[todosLosPlanes.length - 1];
 
-  // Si el plan más próximo tiene fecha de inicio FUTURA (después de hoy)
+  // Plan con inicio futuro → bloqueado con razón
   if (planProximo && planProximo.fecha_inicio > hoy) {
     return {
       estado: "vencido",
@@ -263,53 +260,36 @@ async function determinarEstado(
     };
   }
 
-  // VALIDACIÓN 3: Buscar si existe algún plan activo HOY
-  const { data: planesActivos, error } = await supabase
-    .from("pagos")
-    .select("fecha_inicio, fecha_vencimiento")
-    .eq("alumno_id", alumno.id)
-    .lte("fecha_inicio", hoy)
-    .gte("fecha_vencimiento", hoy);
+  // Filtrar planes activos hoy (en JS, sin segunda query)
+  const planesActivos = todosLosPlanes.filter(
+    (p: any) => p.fecha_inicio <= hoy && p.fecha_vencimiento >= hoy
+  );
 
-  if (error) {
-    console.error("Error buscando planes activos:", error);
-    return { estado: "vencido" };
-  }
-
-  // Si no hay planes activos hoy, verificar período de gracia
-  if (!planesActivos || planesActivos.length === 0) {
+  // Sin planes activos hoy → verificar período de gracia
+  if (planesActivos.length === 0) {
     const disponibles: number = alumno.clases_gracia_disponibles ?? 0;
     const usadas: number = alumno.clases_gracia_usadas ?? 0;
 
     if (disponibles > 0 && usadas < disponibles) {
-      // Tiene clases de gracia disponibles
       return {
         estado: "periodo_gracia",
-        clasesGracia: {
-          usadas: usadas + 1, // +1 porque esta clase se acaba de usar
-          disponibles,
-        },
+        clasesGracia: { usadas: usadas + 1, disponibles },
       };
     }
-
-    // Sin plan y sin gracia disponible → bloqueado
     return { estado: "vencido" };
   }
 
-  // Tiene al menos un plan activo, verificar si está próximo a vencer
+  // Tiene plan activo → verificar si está próximo a vencer
   const planActivo = planesActivos[0];
   const vencimiento = new Date(planActivo.fecha_vencimiento);
   const hoyDate = new Date(hoy);
-
   const diasRestantes =
     (vencimiento.getTime() - hoyDate.getTime()) / (1000 * 60 * 60 * 24);
 
-  // Si vence en los próximos 7 días (advertencia)
   if (diasRestantes <= 7) {
     return { estado: "advertencia" };
   }
 
-  // Al día
   return { estado: "al-dia" };
 }
 

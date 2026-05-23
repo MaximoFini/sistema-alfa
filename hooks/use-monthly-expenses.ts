@@ -137,91 +137,103 @@ export function useMonthlyExpenses(year: number, month: number) {
       if (needsSeedExpenses || needsSeedSalaries) {
         setSeeding(true);
 
-        // Try to find the most recent previous month with data (up to 12 months back)
-        let sourceExpenses: MonthlyExpense[] = [];
-        let sourceSalaries: MonthlySalary[] = [];
+        // Buscar los últimos 6 meses en una sola query batch en vez de loop N+1
+        const prevMonthsList: { year: number; month: number }[] = [];
+        let py = year;
+        let pm = month;
+        for (let i = 0; i < 6; i++) {
+          const p = prevMonth(py, pm);
+          py = p.year;
+          pm = p.month;
+          prevMonthsList.push({ year: py, month: pm });
+        }
 
-        for (let i = 1; i <= 12; i++) {
-          const prev = prevMonth(year, month);
-          // Walk back i months
-          let py = year;
-          let pm = month;
-          for (let j = 0; j < i; j++) {
-            const p = prevMonth(py, pm);
-            py = p.year;
-            pm = p.month;
-          }
+        // Query batch: trae expenses de hasta 6 meses anteriores de una vez
+        if (needsSeedExpenses) {
+          const { data: prevExpensesData } = await supabase
+            .from("monthly_expenses_config")
+            .select("*")
+            .in(
+              "year",
+              [...new Set(prevMonthsList.map((m) => m.year))]
+            )
+            .order("year", { ascending: false })
+            .order("month", { ascending: false });
 
-          if (needsSeedExpenses && sourceExpenses.length === 0) {
-            const { data } = await supabase
-              .from("monthly_expenses_config")
-              .select("*")
-              .eq("year", py)
-              .eq("month", pm);
-            if (data && data.length > 0) {
-              sourceExpenses = data as MonthlyExpense[];
+          if (prevExpensesData && prevExpensesData.length > 0) {
+            // Encontrar el mes más reciente con datos
+            for (const pm of prevMonthsList) {
+              const monthData = prevExpensesData.filter(
+                (e: any) => e.year === pm.year && e.month === pm.month
+              );
+              if (monthData.length > 0) {
+                const seeded = await seedExpensesFromRows(monthData);
+                finalExpenses = seeded;
+                break;
+              }
             }
-          }
-
-          if (needsSeedSalaries && sourceSalaries.length === 0) {
-            const { data } = await supabase
-              .from("monthly_salaries_config")
-              .select("*")
-              .eq("year", py)
-              .eq("month", pm);
-            if (data && data.length > 0) {
-              sourceSalaries = data as MonthlySalary[];
-            }
-          }
-
-          if (
-            (!needsSeedExpenses || sourceExpenses.length > 0) &&
-            (!needsSeedSalaries || sourceSalaries.length > 0)
-          ) {
-            break;
           }
         }
 
-        // If still no previous month data, seed from base business_expenses table
-        if (needsSeedExpenses && sourceExpenses.length === 0) {
+        if (needsSeedSalaries) {
+          const { data: prevSalariesData } = await supabase
+            .from("monthly_salaries_config")
+            .select("*")
+            .in(
+              "year",
+              [...new Set(prevMonthsList.map((m) => m.year))]
+            )
+            .order("year", { ascending: false })
+            .order("month", { ascending: false });
+
+          if (prevSalariesData && prevSalariesData.length > 0) {
+            // Encontrar el mes más reciente con datos
+            for (const pm of prevMonthsList) {
+              const monthData = prevSalariesData.filter(
+                (s: any) => s.year === pm.year && s.month === pm.month
+              );
+              if (monthData.length > 0) {
+                const seeded = await seedSalariesFromRows(monthData);
+                finalSalaries = seeded;
+                break;
+              }
+            }
+          }
+        }
+
+        // Si aún no hay datos, intentar desde las tablas base
+        if (needsSeedExpenses && finalExpenses.length === 0) {
           const { data } = await supabase
             .from("business_expenses")
             .select("name, amount, is_active, category, description")
             .order("name", { ascending: true });
           if (data && data.length > 0) {
-            sourceExpenses = data.map((d: any) => ({
+            const sourceExpenses = data.map((d: any) => ({
               ...d,
               id: "",
               year,
               month,
             }));
+            const seeded = await seedExpensesFromRows(sourceExpenses);
+            finalExpenses = seeded;
           }
         }
 
-        if (needsSeedSalaries && sourceSalaries.length === 0) {
+        if (needsSeedSalaries && finalSalaries.length === 0) {
           const { data } = await supabase
             .from("business_salaries")
             .select("name, amount, is_active, description")
             .order("name", { ascending: true });
           if (data && data.length > 0) {
-            sourceSalaries = data.map((d: any) => ({
+            const sourceSalaries = data.map((d: any) => ({
               ...d,
               id: "",
               year,
               month,
             }));
+            const seeded = await seedSalariesFromRows(sourceSalaries);
+            finalSalaries = seeded;
           }
-        }
-
-        // Insert seeded data
-        if (needsSeedExpenses && sourceExpenses.length > 0) {
-          const seeded = await seedExpensesFromRows(sourceExpenses);
-          finalExpenses = seeded;
-        }
-
-        if (needsSeedSalaries && sourceSalaries.length > 0) {
-          const seeded = await seedSalariesFromRows(sourceSalaries);
-          finalSalaries = seeded;
         }
 
         setSeeding(false);

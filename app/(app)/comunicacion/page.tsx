@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import {
@@ -153,6 +153,7 @@ export default function ComunicacionPage() {
   const [showPreview, setShowPreview] = useState(false);
 
   const checkboxAllRef = useRef<HTMLInputElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // ── Data fetching ────────────────────────────────────────────────────────────
 
@@ -354,20 +355,58 @@ export default function ComunicacionPage() {
     setMensaje(m.texto);
     const filtroKey = m.filtro as FiltroKey;
     if (filtroKey in FILTROS) handleFiltro(filtroKey);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({ top: 0, behavior: "smooth" });
+    } else {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   }
 
   // ── Render ───────────────────────────────────────────────────────────────────
 
   return (
-    <div className="p-6 lg:p-8 max-w-4xl mx-auto space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Comunicacion</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Filtra alumnos por situacion y prepara mensajes de WhatsApp.
-        </p>
+    <div className="relative min-h-screen">
+      {/* Fondo con marca de agua */}
+      <div className="fixed inset-0 flex items-center justify-center top-16 md:top-0 pointer-events-none z-0 overflow-hidden">
+        <img
+          src="/Mejor%20logo.png"
+          alt="Sistema Alfa Background"
+          className="w-[80vw] md:w-[450px] opacity-[0.35] object-contain ml-0 md:translate-x-[128px]"
+        />
       </div>
+
+      <div className="relative z-10 flex flex-col h-screen bg-transparent">
+        {/* Header */}
+        <div className="bg-white border-b border-gray-200 shadow-sm">
+          <div className="px-4 md:px-6 lg:px-8">
+            {/* Título */}
+            <div className="pt-6 pb-4">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center shadow-md shadow-red-500/20">
+                    <MessageCircle size={20} className="text-white" />
+                  </div>
+                  <div>
+                    <h1 className="text-2xl md:text-3xl font-bold text-gray-900 tracking-tight">
+                      Comunicación
+                    </h1>
+                    <p className="text-sm text-gray-500 mt-0.5">
+                      Filtra alumnos por situación y prepara mensajes de WhatsApp
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Contenido principal */}
+        <div
+          ref={scrollContainerRef}
+          className="flex-1 overflow-y-auto p-6 lg:p-8"
+        >
+          <div className="max-w-4xl mx-auto space-y-6">
 
       {/* Filter chips */}
       <div className="flex gap-2 flex-wrap">
@@ -721,6 +760,9 @@ export default function ComunicacionPage() {
             ))}
           </div>
         )}
+      </div>
+          </div>
+        </div>
       </div>
     </div>
   );

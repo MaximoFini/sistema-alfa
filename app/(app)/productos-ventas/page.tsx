@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useDataCacheStore } from "@/stores/data-cache-store";
+import { useStaticDataStore } from "@/stores/static-data-store";
 import {
   Plus,
   Pencil,
@@ -18,6 +19,7 @@ import {
   Shirt,
   FlaskConical,
   Tag,
+  ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -47,6 +49,9 @@ interface Venta {
   notas: string | null;
   talle_vendido: string | null;
   created_at: string;
+  medio_pago?: string | null;
+  tarjeta?: string | null;
+  alias_transferencia?: string | null;
   productos?: {
     nombre: string;
   };
@@ -77,11 +82,18 @@ interface VentaFormData {
 
 const TALLES_DISPONIBLES = ["XS", "S", "M", "L", "XL", "XXL"];
 
-const CATEGORIA_CARD_STYLES: Record<string, { bg: string; border: string }> = {
-  General: { bg: "bg-sky-100", border: "border-sky-200" },
-  Indumentaria: { bg: "bg-orange-100", border: "border-orange-200" },
-  Suplementacion: { bg: "bg-emerald-100", border: "border-emerald-200" },
-};
+const PASTEL_COLORS = [
+  { id: "sky", bg: "bg-sky-100/60", border: "border-sky-200/60", text: "text-sky-700", dot: "#38bdf8" },
+  { id: "orange", bg: "bg-orange-100/60", border: "border-orange-200/60", text: "text-orange-700", dot: "#fb923c" },
+  { id: "emerald", bg: "bg-emerald-100/60", border: "border-emerald-200/60", text: "text-emerald-700", dot: "#34d399" },
+  { id: "purple", bg: "bg-purple-100/60", border: "border-purple-200/60", text: "text-purple-700", dot: "#c084fc" },
+  { id: "rose", bg: "bg-rose-100/60", border: "border-rose-200/60", text: "text-rose-700", dot: "#f472b6" },
+  { id: "amber", bg: "bg-amber-100/60", border: "border-amber-200/60", text: "text-amber-700", dot: "#fbbf24" },
+  { id: "teal", bg: "bg-teal-100/60", border: "border-teal-200/60", text: "text-teal-700", dot: "#2dd4bf" },
+  { id: "cyan", bg: "bg-cyan-100/60", border: "border-cyan-200/60", text: "text-cyan-700", dot: "#22d3ee" },
+  { id: "indigo", bg: "bg-indigo-100/60", border: "border-indigo-200/60", text: "text-indigo-700", dot: "#818cf8" },
+  { id: "red", bg: "bg-red-100/60", border: "border-red-200/60", text: "text-red-700", dot: "#f87171" },
+];
 
 // ─── Modal para crear/editar producto ─────────────────────────────────────────
 function ProductoModal({
@@ -506,13 +518,15 @@ function VentaModal({
   productos,
   onClose,
   onSaved,
+  productoId,
 }: {
   productos: Producto[];
   onClose: () => void;
   onSaved: () => void;
+  productoId?: string;
 }) {
   const [form, setForm] = useState<VentaFormData>({
-    producto_id: "",
+    producto_id: productoId || "",
     cantidad: "1",
     notas: "",
     medio_pago: "",
@@ -520,13 +534,18 @@ function VentaModal({
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [tarjeta, setTarjeta] = useState("");
+  const [aliasTransferencia, setAliasTransferencia] = useState("");
 
   // Usar el store de caché para métodos de pago
   const { paymentMethods, fetchPaymentMethods } = useDataCacheStore();
+  // Usar el store de datos estáticos para las tarjetas
+  const { acceptedCards, fetchAcceptedCards } = useStaticDataStore();
 
   useEffect(() => {
     fetchPaymentMethods();
-  }, [fetchPaymentMethods]);
+    fetchAcceptedCards();
+  }, [fetchPaymentMethods, fetchAcceptedCards]);
 
   const productoSeleccionado = productos.find((p) => p.id === form.producto_id);
   const esIndumentaria = productoSeleccionado?.categoria === "Indumentaria";
@@ -600,6 +619,9 @@ function VentaModal({
     setLoading(true);
 
     try {
+      const esTarjeta = form.medio_pago.toLowerCase().includes("tarjeta");
+      const esTransferencia = form.medio_pago.toLowerCase().includes("transferencia");
+
       // Registrar venta
       const ventaData: any = {
         producto_id: form.producto_id,
@@ -609,6 +631,8 @@ function VentaModal({
         medio_pago: form.medio_pago,
         notas: form.notas.trim() || null,
         talle_vendido: esIndumentaria ? form.talle_vendido : null,
+        tarjeta: esTarjeta ? (tarjeta || null) : null,
+        alias_transferencia: esTransferencia ? (aliasTransferencia.trim() || null) : null,
       };
 
       const { error: ventaError } = await supabase
@@ -792,6 +816,47 @@ function VentaModal({
             </select>
           </div>
 
+          {form.medio_pago.toLowerCase().includes("tarjeta") && (
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Tarjeta
+              </label>
+              <div className="relative">
+                <select
+                  value={tarjeta}
+                  onChange={(e) => setTarjeta(e.target.value)}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-50 transition-all bg-white appearance-none pr-10"
+                >
+                  <option value="">Seleccionar tarjeta...</option>
+                  {acceptedCards.map((card) => (
+                    <option key={card.id} value={card.name}>
+                      {card.name}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown
+                  size={16}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                />
+              </div>
+            </div>
+          )}
+
+          {form.medio_pago.toLowerCase().includes("transferencia") && (
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Alias / CBU de destino
+              </label>
+              <input
+                type="text"
+                placeholder="Ej: gimnasio.alfa.mp"
+                value={aliasTransferencia}
+                onChange={(e) => setAliasTransferencia(e.target.value)}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-50 transition-all"
+              />
+            </div>
+          )}
+
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
               Notas (opcional)
@@ -853,8 +918,27 @@ export default function ProductosVentasPage() {
   const [tab, setTab] = useState<"productos" | "historial">("productos");
   const [showProductoModal, setShowProductoModal] = useState(false);
   const [showVentaModal, setShowVentaModal] = useState(false);
+  const [ventaProductoId, setVentaProductoId] = useState<string | undefined>();
   const [productoEdit, setProductoEdit] = useState<Producto | undefined>();
   const [searchTerm, setSearchTerm] = useState("");
+  const [categories, setCategories] = useState<{ id: string; name: string; color?: string }[]>([]);
+
+  useEffect(() => {
+    async function loadCategories() {
+      try {
+        const { data, error } = await supabase
+          .from("product_categories")
+          .select("id, name, color")
+          .eq("is_active", true);
+        if (!error && data) {
+          setCategories(data);
+        }
+      } catch (err) {
+        console.error("Error loading categories:", err);
+      }
+    }
+    loadCategories();
+  }, []);
 
   // Usar el store de caché
   const {
@@ -1094,172 +1178,188 @@ export default function ProductosVentasPage() {
                             producto.stock <= producto.stock_minimo;
                           const esIndumentaria =
                             producto.categoria === "Indumentaria";
-                          const cardStyle =
-                            CATEGORIA_CARD_STYLES[producto.categoria] ?? {
-                              bg: "bg-purple-50/50",
-                              border: "border-purple-100",
-                            };
+                          
+                          // Resolve custom category color or fallback to purple
+                          const categoryColor = categories.find(c => c.name === producto.categoria)?.color || "purple";
+                          const cardStyle = PASTEL_COLORS.find(c => c.id === categoryColor) || PASTEL_COLORS[3];
+
                           return (
                             <div
                               key={producto.id}
                               className={cn(
-                                "rounded-xl border p-4 transition-all hover:shadow-lg",
+                                "rounded-xl border p-4 transition-all hover:shadow-lg flex flex-col justify-between h-full",
                                 stockBajo
                                   ? "border-red-200 bg-red-50/30"
                                   : `${cardStyle.bg} ${cardStyle.border}`,
                               )}
                             >
-                              {stockBajo && (
-                                <div className="flex items-center gap-2 mb-3 px-3 py-1.5 bg-red-100 border border-red-200 rounded-lg">
-                                  <AlertTriangle
-                                    size={14}
-                                    className="text-red-600"
-                                  />
-                                  <span className="text-xs font-semibold text-red-700">
-                                    Stock bajo
-                                  </span>
-                                </div>
-                              )}
-
-                              <div className="mb-3">
-                                <div className="flex items-center gap-1.5 mb-1">
-                                  {esIndumentaria && (
-                                    <Shirt
+                              <div className="flex-1 flex flex-col">
+                                {stockBajo && (
+                                  <div className="flex items-center gap-2 mb-3 px-3 py-1.5 bg-red-100 border border-red-200 rounded-lg">
+                                    <AlertTriangle
                                       size={14}
-                                      className="text-gray-400 shrink-0"
+                                      className="text-red-600"
                                     />
-                                  )}
-                                  <h4 className="font-bold text-gray-900 truncate">
-                                    {producto.nombre}
-                                  </h4>
-                                </div>
-                                
-                                {/* Categoria badge */}
-                                <div className="mb-2">
-                                  {producto.categoria === "Indumentaria" ? (
-                                    <span className="text-xs font-semibold text-orange-700 bg-orange-100 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
-                                      <Shirt size={11} /> Indumentaria
+                                    <span className="text-xs font-semibold text-red-700">
+                                      Stock bajo
                                     </span>
-                                  ) : producto.categoria === "Suplementacion" ? (
-                                    <span className="text-xs font-semibold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
-                                      <FlaskConical size={11} /> Suplementacion
-                                    </span>
-                                  ) : producto.categoria === "General" ? (
-                                    <span className="text-xs font-semibold text-sky-700 bg-sky-100 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
-                                      <Package size={11} /> General
-                                    </span>
-                                  ) : (
-                                    <span className="text-xs font-semibold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full inline-flex items-center gap-1 border border-purple-100">
-                                      <Tag size={11} /> {producto.categoria}
-                                    </span>
-                                  )}
-                                </div>
+                                  </div>
+                                )}
 
-                                <div className="flex items-center gap-2">
-                                  <span
-                                    className="text-2xl font-bold"
-                                    style={{ color: "#DC2626" }}
-                                  >
-                                    ${producto.precio_venta.toFixed(2)}
-                                  </span>
-                                </div>
-                              </div>
-
-                              <div className="space-y-2 mb-4">
-
-                                <div className="flex justify-between text-sm">
-                                  <span className="text-gray-600">
-                                    Stock total:
-                                  </span>
-                                  <span
-                                    className={cn(
-                                      "font-semibold",
-                                      stockBajo
-                                        ? "text-red-600"
-                                        : "text-gray-900",
+                                <div className="mb-3">
+                                  <div className="flex items-center gap-1.5 mb-1">
+                                    {esIndumentaria && (
+                                      <Shirt
+                                        size={14}
+                                        className="text-gray-400 shrink-0"
+                                      />
                                     )}
-                                  >
-                                    {producto.stock} unidades
-                                  </span>
+                                    <h4 className="font-bold text-xl text-gray-900 truncate">
+                                      {producto.nombre}
+                                    </h4>
+                                  </div>
+                                  
+                                  {/* Categoria badge */}
+                                  <div className="mb-2">
+                                    <span className={cn(
+                                      "text-xs font-semibold px-2 py-0.5 rounded-full inline-flex items-center gap-1 border",
+                                      cardStyle.text,
+                                      cardStyle.bg,
+                                      cardStyle.border
+                                    )}>
+                                      {producto.categoria === "Indumentaria" ? (
+                                        <Shirt size={11} />
+                                      ) : producto.categoria === "Suplementacion" ? (
+                                        <FlaskConical size={11} />
+                                      ) : producto.categoria === "General" ? (
+                                        <Package size={11} />
+                                      ) : (
+                                        <Tag size={11} />
+                                      )}
+                                      {producto.categoria}
+                                    </span>
+                                  </div>
+
+                                  <div className="flex items-center gap-2">
+                                    <span
+                                      className="text-2xl font-bold"
+                                      style={{ color: "#DC2626" }}
+                                    >
+                                      ${producto.precio_venta.toFixed(2)}
+                                    </span>
+                                  </div>
                                 </div>
 
-                                {/* Desglose de talles */}
-                                {esIndumentaria &&
-                                  producto.talles &&
-                                  Object.keys(producto.talles).length > 0 && (
-                                    <div>
-                                      <p className="text-xs text-gray-500 mb-1">
-                                        Talles:
-                                      </p>
-                                      <div className="flex flex-wrap gap-1">
-                                        {Object.entries(producto.talles).map(
-                                          ([talle, qty]) => (
-                                            <span
-                                              key={talle}
-                                              className={cn(
-                                                "text-xs font-semibold px-2 py-0.5 rounded-full border",
-                                                qty === 0
-                                                  ? "border-gray-200 text-gray-400 line-through bg-gray-50"
-                                                  : "border-blue-200 text-blue-700 bg-blue-50",
-                                              )}
-                                            >
-                                              {talle}: {qty}
-                                            </span>
-                                          ),
-                                        )}
+                                <div className="space-y-2 mb-4">
+
+                                  <div className="flex justify-between text-sm">
+                                    <span className="text-gray-600">
+                                      Stock total:
+                                    </span>
+                                    <span
+                                      className={cn(
+                                        "font-semibold",
+                                        stockBajo
+                                          ? "text-red-600"
+                                          : "text-gray-900",
+                                      )}
+                                    >
+                                      {producto.stock} unidades
+                                    </span>
+                                  </div>
+
+                                  {/* Desglose de talles */}
+                                  {esIndumentaria &&
+                                    producto.talles &&
+                                    Object.keys(producto.talles).length > 0 && (
+                                      <div>
+                                        <p className="text-xs text-gray-500 mb-1">
+                                          Talles:
+                                        </p>
+                                        <div className="flex flex-wrap gap-1">
+                                          {Object.entries(producto.talles).map(
+                                            ([talle, qty]) => (
+                                              <span
+                                                key={talle}
+                                                className={cn(
+                                                  "text-xs font-semibold px-2 py-0.5 rounded-full border",
+                                                  qty === 0
+                                                    ? "border-gray-200 text-gray-400 line-through bg-gray-50"
+                                                    : "border-blue-200 text-blue-700 bg-blue-50",
+                                                )}
+                                              >
+                                                {talle}: {qty}
+                                              </span>
+                                            ),
+                                          )}
+                                        </div>
                                       </div>
-                                    </div>
-                                  )}
+                                    )}
 
-                                <div className="flex justify-between text-sm">
-                                  <span className="text-gray-600">
-                                    Stock mínimo:
-                                  </span>
-                                  <span className="font-semibold text-gray-900">
-                                    {producto.stock_minimo}
-                                  </span>
-                                </div>
-                                <div className="flex justify-between text-sm">
-                                  <span className="text-gray-600">Costo:</span>
-                                  <span className="font-semibold text-gray-900">
-                                    ${producto.precio_costo.toFixed(2)}
-                                  </span>
-                                </div>
-                                <div className="flex justify-between text-sm">
-                                  <span className="text-gray-600">
-                                    Ganancia:
-                                  </span>
-                                  <span
-                                    className="font-semibold"
-                                    style={{ color: "#16A34A" }}
-                                  >
-                                    $
-                                    {(
-                                      producto.precio_venta -
-                                      producto.precio_costo
-                                    ).toFixed(2)}
-                                  </span>
+                                  <div className="flex justify-between text-sm">
+                                    <span className="text-gray-600">
+                                      Stock mínimo:
+                                    </span>
+                                    <span className="font-semibold text-gray-900">
+                                      {producto.stock_minimo}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between text-sm">
+                                    <span className="text-gray-600">Costo:</span>
+                                    <span className="font-semibold text-gray-900">
+                                      ${producto.precio_costo.toFixed(2)}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between text-sm">
+                                    <span className="text-gray-600">
+                                      Ganancia:
+                                    </span>
+                                    <span
+                                      className="font-semibold"
+                                      style={{ color: "#16A34A" }}
+                                    >
+                                      $
+                                      {(
+                                        producto.precio_venta -
+                                        producto.precio_costo
+                                      ).toFixed(2)}
+                                    </span>
+                                  </div>
                                 </div>
                               </div>
 
-                              <div className="flex gap-2">
+                              <div className="space-y-2 mt-auto">
                                 <button
                                   onClick={() => {
-                                    setProductoEdit(producto);
-                                    setShowProductoModal(true);
+                                    setVentaProductoId(producto.id);
+                                    setShowVentaModal(true);
                                   }}
-                                  className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-center gap-1.5"
+                                  className="w-full px-3 py-2.5 rounded-lg text-xs font-bold text-white transition-all flex items-center justify-center gap-1.5 shadow-sm hover:brightness-110 active:scale-[0.99]"
+                                  style={{ backgroundColor: "#DC2626" }}
                                 >
-                                  <Pencil size={14} />
-                                  Editar
+                                  <ShoppingCart size={14} />
+                                  Registrar Venta
                                 </button>
-                                <button
-                                  onClick={() => handleToggleActivo(producto)}
-                                  className="px-3 py-2 border border-gray-200 rounded-lg text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
-                                  title="Desactivar"
-                                >
-                                  <Trash2 size={14} />
-                                </button>
+
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => {
+                                      setProductoEdit(producto);
+                                      setShowProductoModal(true);
+                                    }}
+                                    className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-center gap-1.5"
+                                  >
+                                    <Pencil size={14} />
+                                    Editar
+                                  </button>
+                                  <button
+                                    onClick={() => handleToggleActivo(producto)}
+                                    className="px-3 py-2 border border-gray-200 rounded-lg text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                                    title="Desactivar"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </div>
                               </div>
                             </div>
                           );
@@ -1332,6 +1432,9 @@ export default function ProductosVentasPage() {
                               Ganancia
                             </th>
                             <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+                              Medio de Pago
+                            </th>
+                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
                               Notas
                             </th>
                           </tr>
@@ -1340,7 +1443,7 @@ export default function ProductosVentasPage() {
                           {ventas.length === 0 ? (
                             <tr>
                               <td
-                                colSpan={8}
+                                colSpan={9}
                                 className="px-6 py-12 text-center"
                               >
                                 <ShoppingCart
@@ -1401,6 +1504,23 @@ export default function ProductosVentasPage() {
                                 >
                                   ${(venta.ganancia || 0).toFixed(2)}
                                 </td>
+                                <td className="px-6 py-4 text-sm text-gray-900">
+                                  <div className="flex flex-col">
+                                    <span className="font-semibold text-gray-800">
+                                      {venta.medio_pago || "Efectivo"}
+                                    </span>
+                                    {venta.tarjeta && (
+                                      <span className="text-xs text-gray-500 font-normal">
+                                        {venta.tarjeta}
+                                      </span>
+                                    )}
+                                    {venta.alias_transferencia && (
+                                      <span className="text-xs text-gray-500 font-normal italic">
+                                        Alias: {venta.alias_transferencia}
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
                                 <td className="px-6 py-4 text-sm text-gray-600">
                                   {venta.notas || "-"}
                                 </td>
@@ -1432,7 +1552,11 @@ export default function ProductosVentasPage() {
         {showVentaModal && (
           <VentaModal
             productos={productos}
-            onClose={() => setShowVentaModal(false)}
+            productoId={ventaProductoId}
+            onClose={() => {
+              setShowVentaModal(false);
+              setVentaProductoId(undefined);
+            }}
             onSaved={onVentaSaved}
           />
         )}

@@ -365,7 +365,6 @@ function NuevoAlumnoModal({
     onClose();
   }
 
-  // Wrapper responsivo: BottomSheet en móvil, Modal en desktop
   return (
     <>
       {/* Backdrop */}
@@ -380,7 +379,7 @@ function NuevoAlumnoModal({
           ${
             isMobile
               ? "left-0 right-0 bottom-0 rounded-t-3xl max-h-[90vh]"
-              : "left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-2xl w-full max-w-md max-h-[90vh]"
+              : "left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-2xl w-full max-w-3xl max-h-[90vh]"
           }
         `}
         onClick={(e) => e.stopPropagation()}
@@ -422,39 +421,42 @@ function NuevoAlumnoModal({
             }}
             className="px-4 md:px-6 py-5 flex flex-col gap-4 overflow-y-auto"
           >
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
-                Nombre completo *
-              </label>
-              <input
-                type="text"
-                placeholder="Ej: Juan García"
-                value={form.nombre}
-                onChange={(e) => setField("nombre", e.target.value)}
-                className="border border-gray-200 rounded-lg px-4 py-3 text-base md:text-sm outline-none min-h-[44px] focus:border-red-400 focus:ring-2 focus:ring-red-50"
-              />
-              {errors.nombre && (
-                <span className="text-xs text-red-500">{errors.nombre}</span>
-              )}
-            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
+              {/* Nombre completo */}
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                  Nombre completo *
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ej: Juan García"
+                  value={form.nombre}
+                  onChange={(e) => setField("nombre", e.target.value)}
+                  className="border border-gray-200 rounded-lg px-4 py-3 text-base md:text-sm outline-none min-h-[44px] focus:border-red-400 focus:ring-2 focus:ring-red-50"
+                />
+                {errors.nombre && (
+                  <span className="text-xs text-red-500">{errors.nombre}</span>
+                )}
+              </div>
 
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
-                DNI *
-              </label>
-              <input
-                type="text"
-                placeholder="Ej: 38765432"
-                value={form.dni}
-                onChange={(e) => setField("dni", e.target.value)}
-                className="border border-gray-200 rounded-lg px-4 py-3 text-base md:text-sm outline-none min-h-[44px] focus:border-red-400 focus:ring-2 focus:ring-red-50"
-              />
-              {errors.dni && (
-                <span className="text-xs text-red-500">{errors.dni}</span>
-              )}
-            </div>
+              {/* DNI */}
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                  DNI *
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ej: 38765432"
+                  value={form.dni}
+                  onChange={(e) => setField("dni", e.target.value)}
+                  className="border border-gray-200 rounded-lg px-4 py-3 text-base md:text-sm outline-none min-h-[44px] focus:border-red-400 focus:ring-2 focus:ring-red-50"
+                />
+                {errors.dni && (
+                  <span className="text-xs text-red-500">{errors.dni}</span>
+                )}
+              </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Nacimiento */}
               <div className="flex flex-col gap-2">
                 <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
                   Nacimiento *
@@ -477,6 +479,8 @@ function NuevoAlumnoModal({
                   </span>
                 )}
               </div>
+
+              {/* Registro */}
               <div className="flex flex-col gap-2">
                 <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
                   Registro *
@@ -493,9 +497,8 @@ function NuevoAlumnoModal({
                   </span>
                 )}
               </div>
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Teléfono */}
               <div className="flex flex-col gap-2">
                 <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
                   Teléfono *
@@ -513,6 +516,8 @@ function NuevoAlumnoModal({
                   </span>
                 )}
               </div>
+
+              {/* Género */}
               <div className="flex flex-col gap-2">
                 <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
                   Género *
@@ -536,146 +541,151 @@ function NuevoAlumnoModal({
                   <span className="text-xs text-red-500">{errors.genero}</span>
                 )}
               </div>
-            </div>
 
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
-                Dirección *
-              </label>
-              <input
-                type="text"
-                placeholder="Ej: Av. Corrientes 1234"
-                value={form.domicilio}
-                onChange={(e) => setField("domicilio", e.target.value)}
-                className="border border-gray-200 rounded-lg px-4 py-3 text-base md:text-sm outline-none min-h-[44px] focus:border-red-400 focus:ring-2 focus:ring-red-50"
-              />
-              {errors.domicilio && (
-                <span className="text-xs text-red-500">{errors.domicilio}</span>
+              {/* Dirección */}
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                  Dirección *
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ej: Av. Corrientes 1234"
+                  value={form.domicilio}
+                  onChange={(e) => setField("domicilio", e.target.value)}
+                  className="border border-gray-200 rounded-lg px-4 py-3 text-base md:text-sm outline-none min-h-[44px] focus:border-red-400 focus:ring-2 focus:ring-red-50"
+                />
+                {errors.domicilio && (
+                  <span className="text-xs text-red-500">{errors.domicilio}</span>
+                )}
+              </div>
+
+              {/* Email */}
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  placeholder="Ej: juan@gmail.com"
+                  value={form.email}
+                  onChange={(e) => setField("email", e.target.value)}
+                  className="border border-gray-200 rounded-lg px-4 py-3 text-base md:text-sm outline-none min-h-[44px] focus:border-red-400 focus:ring-2 focus:ring-red-50"
+                />
+              </div>
+
+              {/* Contacto de Emergencia */}
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                  Contacto de Emergencia (Opcional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ej: 11-4521-0012 (Mamá)"
+                  value={form.telefonoEmergencia}
+                  onChange={(e) => setField("telefonoEmergencia", e.target.value)}
+                  className="border border-gray-200 rounded-lg px-4 py-3 text-base md:text-sm outline-none min-h-[44px] focus:border-red-400 focus:ring-2 focus:ring-red-50"
+                />
+              </div>
+
+              {/* Observaciones */}
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                  Observaciones (Opcional)
+                </label>
+                <textarea
+                  placeholder="Ej: Alergia al polvo, lesión en rodilla derecha"
+                  value={form.observaciones}
+                  onChange={(e) => setField("observaciones", e.target.value)}
+                  rows={2}
+                  className="border border-gray-200 rounded-lg px-4 py-3 text-base md:text-sm outline-none min-h-[48px] focus:border-red-400 focus:ring-2 focus:ring-red-50 resize-y"
+                />
+              </div>
+
+              {/* CUS — solo visible si es menor de edad */}
+              {esMenorDeEdad && (
+                <div className="md:col-span-2 flex flex-col gap-2">
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex flex-col gap-2.5">
+                    {/* Encabezado */}
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle size={14} className="text-amber-600 shrink-0" />
+                      <p className="text-xs font-bold text-amber-800 uppercase tracking-wide">
+                        Menor de edad — CUS requerido
+                      </p>
+                    </div>
+
+                    {/* Estado actual */}
+                    <div
+                      className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold ${
+                        form.cuisCompletado
+                          ? "bg-green-100 text-green-800"
+                          : "bg-amber-100 text-amber-800"
+                      }`}
+                    >
+                      {form.cuisCompletado ? (
+                        <>
+                          <ShieldCheck size={13} className="text-green-600 shrink-0" />
+                          CUS entregado — no hay clases pendientes
+                        </>
+                      ) : (
+                        <>
+                          <AlertTriangle size={13} className="text-amber-600 shrink-0" />
+                          CUS pendiente — tiene 3 clases para presentarlo
+                        </>
+                      )}
+                    </div>
+
+                    {/* Descripción */}
+                    <p className="text-xs text-amber-700 leading-relaxed">
+                      Tiene {calcularEdad(form.fechaNacimiento)} años. El CUS (Certificado Único de Salud) es obligatorio para menores.
+                    </p>
+
+                    {/* Checkbox siempre afirmativo */}
+                    <label className="flex items-center gap-3 cursor-pointer group">
+                      <div className="relative shrink-0">
+                        <input
+                          type="checkbox"
+                          checked={form.cuisCompletado}
+                          onChange={(e) =>
+                            setForm((f) => ({ ...f, cuisCompletado: e.target.checked }))
+                          }
+                          className="sr-only"
+                        />
+                        <div
+                          className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${
+                            form.cuisCompletado
+                              ? "bg-green-500 border-green-500"
+                              : "bg-white border-amber-300 group-hover:border-amber-400"
+                          }`}
+                        >
+                          {form.cuisCompletado && (
+                            <ShieldCheck size={12} className="text-white" strokeWidth={3} />
+                          )}
+                        </div>
+                      </div>
+                      <span className="text-sm text-gray-700">
+                        El CUS ya fue entregado al momento del registro
+                      </span>
+                    </label>
+                  </div>
+                </div>
               )}
             </div>
 
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
-                Email
-              </label>
-              <input
-                type="email"
-                placeholder="Ej: juan@gmail.com"
-                value={form.email}
-                onChange={(e) => setField("email", e.target.value)}
-                className="border border-gray-200 rounded-lg px-4 py-3 text-base md:text-sm outline-none min-h-[44px] focus:border-red-400 focus:ring-2 focus:ring-red-50"
-              />
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
-                Contacto de Emergencia (Opcional)
-              </label>
-              <input
-                type="text"
-                placeholder="Ej: 11-4521-0012 (Mamá)"
-                value={form.telefonoEmergencia}
-                onChange={(e) => setField("telefonoEmergencia", e.target.value)}
-                className="border border-gray-200 rounded-lg px-4 py-3 text-base md:text-sm outline-none min-h-[44px] focus:border-red-400 focus:ring-2 focus:ring-red-50"
-              />
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
-                Observaciones / Notas Médicas o de Lesiones (Opcional)
-              </label>
-              <textarea
-                placeholder="Ej: Alergia al polvo, lesión en rodilla derecha"
-                value={form.observaciones}
-                onChange={(e) => setField("observaciones", e.target.value)}
-                rows={3}
-                className="border border-gray-200 rounded-lg px-4 py-3 text-base md:text-sm outline-none min-h-[80px] focus:border-red-400 focus:ring-2 focus:ring-red-50 resize-y"
-              />
-            </div>
-
-            {/* CUS — solo visible si es menor de edad */}
-            {esMenorDeEdad && (
-              <div className="flex flex-col gap-2">
-                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex flex-col gap-2.5">
-                  {/* Encabezado */}
-                  <div className="flex items-center gap-2">
-                    <AlertTriangle size={14} className="text-amber-600 shrink-0" />
-                    <p className="text-xs font-bold text-amber-800 uppercase tracking-wide">
-                      Menor de edad — CUS requerido
-                    </p>
-                  </div>
-
-                  {/* Estado actual */}
-                  <div
-                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold ${
-                      form.cuisCompletado
-                        ? "bg-green-100 text-green-800"
-                        : "bg-amber-100 text-amber-800"
-                    }`}
-                  >
-                    {form.cuisCompletado ? (
-                      <>
-                        <ShieldCheck size={13} className="text-green-600 shrink-0" />
-                        CUS entregado — no hay clases pendientes
-                      </>
-                    ) : (
-                      <>
-                        <AlertTriangle size={13} className="text-amber-600 shrink-0" />
-                        CUS pendiente — tiene 3 clases para presentarlo
-                      </>
-                    )}
-                  </div>
-
-                  {/* Descripción */}
-                  <p className="text-xs text-amber-700 leading-relaxed">
-                    Tiene {calcularEdad(form.fechaNacimiento)} años. El CUS (Certificado Único de Salud) es obligatorio para menores.
-                  </p>
-
-                  {/* Checkbox siempre afirmativo */}
-                  <label className="flex items-center gap-3 cursor-pointer group">
-                    <div className="relative shrink-0">
-                      <input
-                        type="checkbox"
-                        checked={form.cuisCompletado}
-                        onChange={(e) =>
-                          setForm((f) => ({ ...f, cuisCompletado: e.target.checked }))
-                        }
-                        className="sr-only"
-                      />
-                      <div
-                        className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${
-                          form.cuisCompletado
-                            ? "bg-green-500 border-green-500"
-                            : "bg-white border-amber-300 group-hover:border-amber-400"
-                        }`}
-                      >
-                        {form.cuisCompletado && (
-                          <ShieldCheck size={12} className="text-white" strokeWidth={3} />
-                        )}
-                      </div>
-                    </div>
-                    <span className="text-sm text-gray-700">
-                      El CUS ya fue entregado al momento del registro
-                    </span>
-                  </label>
-                </div>
-              </div>
-            )}
-
-            <div className="flex flex-col gap-3 pt-3 mt-auto">
+            {/* Acciones */}
+            <div className="flex flex-col md:flex-row-reverse items-center justify-between gap-3 pt-3 mt-auto shrink-0 border-t border-gray-100">
               <button
                 type="button"
                 disabled={guardando}
                 onClick={() => handleGuardarPaso1(true)}
-                className="w-full py-3 bg-orange-600 text-white text-base md:text-sm font-bold min-h-[44px] rounded-xl shadow-md hover:brightness-110 disabled:opacity-70 transition-all border border-transparent"
+                className="w-full md:w-auto md:px-6 py-3 bg-orange-600 text-white text-base md:text-sm font-bold min-h-[44px] rounded-xl shadow-md hover:brightness-110 disabled:opacity-70 transition-all border border-transparent"
               >
                 {guardando ? "Guardando..." : "Guardar y Registrar Cobro"}
               </button>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 w-full md:w-auto">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="flex-1 py-2.5 text-gray-600 bg-gray-50 border border-gray-200 text-base md:text-sm font-semibold min-h-[44px] rounded-lg hover:bg-gray-100"
+                  className="flex-1 md:flex-initial md:px-6 py-2.5 text-gray-600 bg-gray-50 border border-gray-200 text-base md:text-sm font-semibold min-h-[44px] rounded-lg hover:bg-gray-100"
                 >
                   Cancelar
                 </button>
@@ -683,9 +693,9 @@ function NuevoAlumnoModal({
                   type="button"
                   disabled={guardando}
                   onClick={() => handleGuardarPaso1(false)}
-                  className="flex-1 py-2.5 text-orange-600 bg-orange-50 border border-orange-100 text-base md:text-sm font-semibold min-h-[44px] rounded-lg hover:bg-orange-100 disabled:opacity-70"
+                  className="flex-1 md:flex-initial md:px-6 py-2.5 text-orange-600 bg-orange-50 border border-orange-100 text-base md:text-sm font-semibold min-h-[44px] rounded-lg hover:bg-orange-100 disabled:opacity-70 whitespace-nowrap"
                 >
-                  Guardar
+                  Guardar Datos Alumnos
                 </button>
               </div>
             </div>
@@ -699,104 +709,28 @@ function NuevoAlumnoModal({
               e.preventDefault();
               handleGuardarPaso2();
             }}
-            className="px-4 md:px-6 py-5 flex flex-col gap-4"
+            className="px-4 md:px-6 py-5 flex flex-col gap-4 overflow-y-auto"
           >
-            <div className="p-4 bg-green-50 border border-green-100 text-green-800 rounded-xl text-sm font-medium mb-2 text-center">
-              Datos personales validados. Completá el cobro para registrar.
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
-                Actividad *
-              </label>
-              <div className="relative">
-                <select
-                  value={pagoForm.actividad}
-                  onChange={handleActividadChange}
-                  className="w-full border border-gray-200 rounded-lg px-4 py-3 text-base md:text-sm outline-none min-h-[44px] focus:border-red-400 focus:ring-2 focus:ring-red-50 bg-white appearance-none font-bold"
-                >
-                  <option value="">Seleccionar plan...</option>
-                  {subscriptionPlans.map((plan) => (
-                    <option key={plan.name} value={plan.name}>
-                      {plan.name}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown
-                  size={16}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-                />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
+              <div className="md:col-span-2 p-4 bg-green-50 border border-green-100 text-green-800 rounded-xl text-sm font-medium mb-2 text-center">
+                Datos personales validados. Completá el cobro para registrar.
               </div>
-              {errors.actividad && (
-                <span className="text-xs text-red-500">{errors.actividad}</span>
-              )}
-            </div>
 
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
-                Precio *
-              </label>
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold">
-                  $
-                </span>
-                <input
-                  type="number"
-                  placeholder="0"
-                  value={pagoForm.precio}
-                  onChange={(e) => setPagoField("precio", e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg pl-8 pr-4 py-3 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-50 font-bold bg-gray-50"
-                  readOnly={!pagoForm.actividad}
-                />
-              </div>
-              {errors.precio && (
-                <span className="text-xs text-red-500">{errors.precio}</span>
-              )}
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
-                Medio de Pago *
-              </label>
-              <div className="relative">
-                <select
-                  value={pagoForm.medioPago}
-                  onChange={(e) => setPagoField("medioPago", e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg px-4 py-3 text-base md:text-sm outline-none min-h-[44px] focus:border-red-400 focus:ring-2 focus:ring-red-50 bg-white appearance-none"
-                >
-                  <option value="">Seleccionar...</option>
-                  {paymentMethods.map((mp) => (
-                    <option key={mp.name} value={mp.name}>
-                      {mp.name}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown
-                  size={16}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-                />
-              </div>
-              {errors.medioPago && (
-                <span className="text-xs text-red-500">{errors.medioPago}</span>
-              )}
-            </div>
-
-            {/* Tarjeta — solo si el medio de pago contiene 'tarjeta' */}
-            {pagoForm.medioPago.toLowerCase().includes('tarjeta') && (
+              {/* Actividad */}
               <div className="flex flex-col gap-2">
                 <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
-                  Tarjeta
+                  Actividad *
                 </label>
                 <div className="relative">
                   <select
-                    value={pagoForm.tarjeta}
-                    onChange={(e) => setPagoField("tarjeta", e.target.value)}
-                    className="w-full border border-gray-200 rounded-lg px-4 py-3 text-base md:text-sm outline-none min-h-[44px] focus:border-red-400 focus:ring-2 focus:ring-red-50 bg-white appearance-none"
+                    value={pagoForm.actividad}
+                    onChange={handleActividadChange}
+                    className="w-full border border-gray-200 rounded-lg px-4 py-3 text-base md:text-sm outline-none min-h-[44px] focus:border-red-400 focus:ring-2 focus:ring-red-50 bg-white appearance-none font-bold"
                   >
-                    <option value="">Seleccionar tarjeta...</option>
-                    {acceptedCards.map((card) => (
-                      <option key={card.id} value={card.name}>
-                        {card.name}
+                    <option value="">Seleccionar plan...</option>
+                    {subscriptionPlans.map((plan) => (
+                      <option key={plan.name} value={plan.name}>
+                        {plan.name}
                       </option>
                     ))}
                   </select>
@@ -805,25 +739,106 @@ function NuevoAlumnoModal({
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
                   />
                 </div>
+                {errors.actividad && (
+                  <span className="text-xs text-red-500">{errors.actividad}</span>
+                )}
               </div>
-            )}
 
-            {pagoForm.medioPago.toLowerCase().includes("transferencia") && (
+              {/* Precio */}
               <div className="flex flex-col gap-2">
                 <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
-                  Alias / CBU de destino
+                  Precio *
                 </label>
-                <input
-                  type="text"
-                  placeholder="Ej: gimnasio.alfa.mp"
-                  value={pagoForm.aliasTransferencia}
-                  onChange={(e) => setPagoField("aliasTransferencia", e.target.value)}
-                  className="border border-gray-200 rounded-lg px-4 py-3 text-base md:text-sm outline-none min-h-[44px] focus:border-red-400 focus:ring-2 focus:ring-red-50"
-                />
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold">
+                    $
+                  </span>
+                  <input
+                    type="number"
+                    placeholder="0"
+                    value={pagoForm.precio}
+                    onChange={(e) => setPagoField("precio", e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg pl-8 pr-4 py-3 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-50 font-bold bg-gray-50"
+                    readOnly={!pagoForm.actividad}
+                  />
+                </div>
+                {errors.precio && (
+                  <span className="text-xs text-red-500">{errors.precio}</span>
+                )}
               </div>
-            )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Medio de Pago */}
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                  Medio de Pago *
+                </label>
+                <div className="relative">
+                  <select
+                    value={pagoForm.medioPago}
+                    onChange={(e) => setPagoField("medioPago", e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg px-4 py-3 text-base md:text-sm outline-none min-h-[44px] focus:border-red-400 focus:ring-2 focus:ring-red-50 bg-white appearance-none"
+                  >
+                    <option value="">Seleccionar...</option>
+                    {paymentMethods.map((mp) => (
+                      <option key={mp.name} value={mp.name}>
+                        {mp.name}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown
+                    size={16}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                  />
+                </div>
+                {errors.medioPago && (
+                  <span className="text-xs text-red-500">{errors.medioPago}</span>
+                )}
+              </div>
+
+              {/* Tarjeta — solo si el medio de pago contiene 'tarjeta' */}
+              {pagoForm.medioPago.toLowerCase().includes('tarjeta') && (
+                <div className="flex flex-col gap-2">
+                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                    Tarjeta
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={pagoForm.tarjeta}
+                      onChange={(e) => setPagoField("tarjeta", e.target.value)}
+                      className="w-full border border-gray-200 rounded-lg px-4 py-3 text-base md:text-sm outline-none min-h-[44px] focus:border-red-400 focus:ring-2 focus:ring-red-50 bg-white appearance-none"
+                    >
+                      <option value="">Seleccionar tarjeta...</option>
+                      {acceptedCards.map((card) => (
+                        <option key={card.id} value={card.name}>
+                          {card.name}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown
+                      size={16}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Transferencia — solo si el medio de pago contiene 'transferencia' */}
+              {pagoForm.medioPago.toLowerCase().includes("transferencia") && (
+                <div className="flex flex-col gap-2">
+                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                    Alias / CBU de destino
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ej: gimnasio.alfa.mp"
+                    value={pagoForm.aliasTransferencia}
+                    onChange={(e) => setPagoField("aliasTransferencia", e.target.value)}
+                    className="border border-gray-200 rounded-lg px-4 py-3 text-base md:text-sm outline-none min-h-[44px] focus:border-red-400 focus:ring-2 focus:ring-red-50"
+                  />
+                </div>
+              )}
+
+              {/* Fecha de Cobro */}
               <div className="flex flex-col gap-2">
                 <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
                   Fecha de Cobro *
@@ -841,6 +856,7 @@ function NuevoAlumnoModal({
                 )}
               </div>
 
+              {/* Fecha de Inicio del Plan */}
               <div className="flex flex-col gap-2">
                 <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
                   Fecha de Inicio del Plan *
@@ -862,13 +878,21 @@ function NuevoAlumnoModal({
               </div>
             </div>
 
-            <div className="flex flex-col gap-3 pt-4 mt-auto">
+            {/* Acciones Paso 2 */}
+            <div className="flex flex-col md:flex-row-reverse items-center justify-between gap-3 pt-4 mt-auto shrink-0 border-t border-gray-100">
               <button
                 type="submit"
                 disabled={guardando}
-                className="w-full py-3 bg-green-600 text-white text-sm font-bold rounded-xl shadow-md hover:bg-green-700 disabled:opacity-70 transition-all border border-transparent min-h-[44px]"
+                className="w-full md:w-auto md:px-8 py-3 bg-green-600 text-white text-sm font-bold rounded-xl shadow-md hover:bg-green-700 disabled:opacity-70 transition-all border border-transparent min-h-[44px]"
               >
                 {guardando ? "Registrando..." : "Guardar"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setStep(1)}
+                className="w-full md:w-auto md:px-6 py-2.5 text-gray-600 bg-gray-50 border border-gray-200 text-sm font-semibold min-h-[44px] rounded-lg hover:bg-gray-100"
+              >
+                Volver atrás
               </button>
             </div>
           </form>

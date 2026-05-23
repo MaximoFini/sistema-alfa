@@ -1932,80 +1932,102 @@ export default function EstadisticasPage() {
   );
   const alumnoNombreMapRef = useRef<Map<string, string>>(new Map());
 
+  const procesarRanking = useCallback((conteo: Map<string, { nombre: string; count: number; genero: string }>) => {
+    const allEntries = [...conteo.entries()];
+
+    const generalTop10 = allEntries
+      .sort((a, b) => b[1].count - a[1].count)
+      .slice(0, 10)
+      .map(([, { nombre, count, genero }], i) => ({
+        pos: i + 1,
+        nombre,
+        inicial: nombre.charAt(0).toUpperCase(),
+        clases: count,
+        genero,
+      }));
+
+    const mascTop10 = allEntries
+      .filter(([, val]) => val.genero === "Masculino")
+      .sort((a, b) => b[1].count - a[1].count)
+      .slice(0, 10)
+      .map(([, { nombre, count, genero }], i) => ({
+        pos: i + 1,
+        nombre,
+        inicial: nombre.charAt(0).toUpperCase(),
+        clases: count,
+        genero,
+      }));
+
+    const femTop10 = allEntries
+      .filter(([, val]) => val.genero === "Femenino")
+      .sort((a, b) => b[1].count - a[1].count)
+      .slice(0, 10)
+      .map(([, { nombre, count, genero }], i) => ({
+        pos: i + 1,
+        nombre,
+        inicial: nombre.charAt(0).toUpperCase(),
+        clases: count,
+        genero,
+      }));
+
+    setRankingTop5(generalTop10);
+    setRankingTopMasc(mascTop10);
+    setRankingTopFem(femTop10);
+  }, []);
+
   const fetchRanking = useCallback(() => {
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
-    const primerDiaMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
-    const primerDiaMesStr = primerDiaMes.toISOString().split("T")[0];
-    const hoyStr = hoy.toISOString().split("T")[0];
+    const hoyYear = hoy.getFullYear();
+    const hoyMonth = hoy.getMonth() + 1;
 
     import("@/lib/supabase").then(({ supabase }) => {
       supabase
-        .from("asistencias")
-        .select("alumno_id, alumnos!inner(nombre, genero)")
-        .gte("fecha", primerDiaMesStr)
-        .lte("fecha", hoyStr)
-        .then(({ data: asistencias }) => {
-          if (!asistencias) return;
-          const conteo = new Map<string, { nombre: string; count: number; genero: string }>();
-          for (const a of asistencias as any[]) {
-            const id = a.alumno_id;
-            if (!id) continue;
-            const nombre =
-              a.alumnos?.nombre ||
-              alumnoNombreMapRef.current.get(id) ||
-              "Alumno";
-            const genero = a.alumnos?.genero || "Masculino";
-            const prev = conteo.get(id);
-            conteo.set(id, { nombre, count: (prev?.count ?? 0) + 1, genero });
+        .rpc("get_ranking_asistencias_mes", {
+          p_year: hoyYear,
+          p_month: hoyMonth,
+          p_limit: 10,
+        })
+        .then(({ data: rankingData, error }) => {
+          if (error) {
+            // Fallback: query directa si la RPC no existe aún
+            supabase
+              .from("asistencias")
+              .select("alumno_id, alumnos!inner(nombre, genero)")
+              .gte("fecha", `${hoyYear}-${String(hoyMonth).padStart(2, "0")}-01`)
+              .lte("fecha", hoy.toISOString().split("T")[0])
+              .limit(2000)
+              .then(({ data: asistencias }) => {
+                if (!asistencias) return;
+                const conteo = new Map<string, { nombre: string; count: number; genero: string }>();
+                for (const a of asistencias as any[]) {
+                  const id = a.alumno_id;
+                  if (!id) continue;
+                  const nombre = a.alumnos?.nombre || alumnoNombreMapRef.current.get(id) || "Alumno";
+                  const genero = a.alumnos?.genero || "Masculino";
+                  const prev = conteo.get(id);
+                  conteo.set(id, { nombre, count: (prev?.count ?? 0) + 1, genero });
+                }
+                procesarRanking(conteo);
+              });
+            return;
           }
 
-          const allEntries = [...conteo.entries()];
+          if (!rankingData) return;
 
-          // Top 10 General
-          const generalTop10 = allEntries
-            .sort((a, b) => b[1].count - a[1].count)
-            .slice(0, 10)
-            .map(([, { nombre, count, genero }], i) => ({
-              pos: i + 1,
-              nombre,
-              inicial: nombre.charAt(0).toUpperCase(),
-              clases: count,
-              genero,
-            }));
-
-          // Top 10 Masculino
-          const mascTop10 = allEntries
-            .filter(([, val]) => val.genero === "Masculino")
-            .sort((a, b) => b[1].count - a[1].count)
-            .slice(0, 10)
-            .map(([, { nombre, count, genero }], i) => ({
-              pos: i + 1,
-              nombre,
-              inicial: nombre.charAt(0).toUpperCase(),
-              clases: count,
-              genero,
-            }));
-
-          // Top 10 Femenino
-          const femTop10 = allEntries
-            .filter(([, val]) => val.genero === "Femenino")
-            .sort((a, b) => b[1].count - a[1].count)
-            .slice(0, 10)
-            .map(([, { nombre, count, genero }], i) => ({
-              pos: i + 1,
-              nombre,
-              inicial: nombre.charAt(0).toUpperCase(),
-              clases: count,
-              genero,
-            }));
-
-          setRankingTop5(generalTop10);
-          setRankingTopMasc(mascTop10);
-          setRankingTopFem(femTop10);
+          // Transformar resultado de RPC al formato esperado
+          const conteo = new Map<string, { nombre: string; count: number; genero: string }>();
+          for (const row of rankingData as any[]) {
+            conteo.set(row.alumno_id, {
+              nombre: row.nombre,
+              count: Number(row.total_clases),
+              genero: row.genero || "Masculino",
+            });
+          }
+          procesarRanking(conteo);
         });
     });
-  }, []);
+  }, [procesarRanking]);
 
   useEffect(() => {
     setMounted(true);
@@ -2056,6 +2078,7 @@ export default function EstadisticasPage() {
           "id, nombre, activo, genero, edad_actual, fecha_registro, fecha_ultima_asistencia, fecha_proximo_vencimiento",
         )
         .eq("es_prueba", false)
+        .limit(5000)  // techo de seguridad para evitar queries sin límite
         .then(({ data }) => {
           if (!data) return;
 

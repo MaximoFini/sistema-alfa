@@ -190,10 +190,13 @@ export default function AdministracionPage() {
   // Cuando el usuario pasa el PasswordGate, iniciar carga en segundo plano
   useEffect(() => {
     if (!authenticated) return;
-    fetchFinanzasStats();
-    fetchSettings();
-    fetchPlanes();
-    fetchMetodos();
+    // Ejecutar todos los fetches en paralelo para reducir tiempo de carga
+    Promise.all([
+      fetchFinanzasStats(),
+      fetchSettings(),
+      fetchPlanes(),
+      fetchMetodos(),
+    ]);
   }, [
     authenticated,
     fetchFinanzasStats,

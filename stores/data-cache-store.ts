@@ -31,6 +31,9 @@ interface Venta {
   notas: string | null;
   talle_vendido: string | null;
   created_at: string;
+  medio_pago?: string | null;
+  tarjeta?: string | null;
+  alias_transferencia?: string | null;
   productos?: {
     nombre: string;
   };
@@ -435,7 +438,7 @@ export const useDataCacheStore = create<DataCacheState>((set, get) => ({
     try {
       const { data, error } = await supabase
         .from("productos")
-        .select("*")
+        .select("id, nombre, precio_venta, precio_costo, stock, stock_minimo, activo, categoria, talles, created_at, updated_at")
         .order("nombre", { ascending: true });
 
       if (error) throw error;

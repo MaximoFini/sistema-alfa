@@ -25,6 +25,19 @@ import {
 import { cn } from "@/lib/utils";
 import { useAdminSettings } from "@/hooks/use-admin-settings";
 
+const PASTEL_COLORS = [
+  { id: "sky", name: "Celeste", bg: "bg-sky-100/60", border: "border-sky-200/60", text: "text-sky-700", dot: "#38bdf8" },
+  { id: "orange", name: "Naranja", bg: "bg-orange-100/60", border: "border-orange-200/60", text: "text-orange-700", dot: "#fb923c" },
+  { id: "emerald", name: "Verde", bg: "bg-emerald-100/60", border: "border-emerald-200/60", text: "text-emerald-700", dot: "#34d399" },
+  { id: "purple", name: "Violeta", bg: "bg-purple-100/60", border: "border-purple-200/60", text: "text-purple-700", dot: "#c084fc" },
+  { id: "rose", name: "Rosa", bg: "bg-rose-100/60", border: "border-rose-200/60", text: "text-rose-700", dot: "#f472b6" },
+  { id: "amber", name: "Amarillo", bg: "bg-amber-100/60", border: "border-amber-200/60", text: "text-amber-700", dot: "#fbbf24" },
+  { id: "teal", name: "Cian oscuro", bg: "bg-teal-100/60", border: "border-teal-200/60", text: "text-teal-700", dot: "#2dd4bf" },
+  { id: "cyan", name: "Turquesa", bg: "bg-cyan-100/60", border: "border-cyan-200/60", text: "text-cyan-700", dot: "#22d3ee" },
+  { id: "indigo", name: "Azul", bg: "bg-indigo-100/60", border: "border-indigo-200/60", text: "text-indigo-700", dot: "#818cf8" },
+  { id: "red", name: "Rojo", bg: "bg-red-100/60", border: "border-red-200/60", text: "text-red-700", dot: "#f87171" },
+];
+
 // ─── Accordion section wrapper ────────────────────────────────────────────────
 function Section({
   icon: Icon,
@@ -231,7 +244,9 @@ export default function AjustesPage() {
   // Product Categories UI state
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const [editCategoryName, setEditCategoryName] = useState("");
+  const [editCategoryColor, setEditCategoryColor] = useState("purple");
   const [newCategoryName, setNewCategoryName] = useState("");
+  const [newCategoryColor, setNewCategoryColor] = useState("purple");
   const [showNewCategory, setShowNewCategory] = useState(false);
 
   // Usuarios UI state
@@ -354,18 +369,20 @@ export default function AjustesPage() {
   function startEditCategory(category: any) {
     setEditingCategoryId(category.id);
     setEditCategoryName(category.name);
+    setEditCategoryColor(category.color || "purple");
   }
 
   async function saveEditCategory() {
     if (!editingCategoryId || !editCategoryName.trim()) return;
-    await updateProductCategoryStore(editingCategoryId, editCategoryName.trim());
+    await updateProductCategoryStore(editingCategoryId, editCategoryName.trim(), editCategoryColor);
     setEditingCategoryId(null);
   }
 
   async function addProductCategory() {
     if (!newCategoryName.trim()) return;
-    await addProductCategoryStore(newCategoryName.trim());
+    await addProductCategoryStore(newCategoryName.trim(), newCategoryColor);
     setNewCategoryName("");
+    setNewCategoryColor("purple");
     setShowNewCategory(false);
   }
 
@@ -844,38 +861,66 @@ export default function AjustesPage() {
                 <div
                   key={category.id}
                   className={cn(
-                    "flex items-center gap-3 px-4 py-3 rounded-xl border group transition-all",
+                    "flex flex-col px-4 py-3 rounded-xl border group transition-all",
                     category.is_active
                       ? "bg-white border-gray-100 shadow-sm"
                       : "bg-gray-50/50 border-gray-100 opacity-60",
                   )}
                 >
                   {editingCategoryId === category.id ? (
-                    <div className="flex items-center gap-3 w-full">
-                      <input
-                        value={editCategoryName}
-                        onChange={(e) => setEditCategoryName(e.target.value)}
-                        autoFocus
-                        className="flex-1 bg-white border border-orange-200 rounded-lg px-2.5 py-1.5 text-sm outline-none focus:border-orange-400"
-                      />
-                      <Tooltip label="Guardar cambios">
-                        <button
-                          onClick={saveEditCategory}
-                          className="p-2 bg-[#111111] text-white rounded-lg hover:bg-gray-800 transition-all"
-                        >
-                          <Save size={14} />
-                        </button>
-                      </Tooltip>
+                    <div className="flex flex-col gap-3 w-full">
+                      <div className="flex items-center gap-3 w-full">
+                        <input
+                          value={editCategoryName}
+                          onChange={(e) => setEditCategoryName(e.target.value)}
+                          autoFocus
+                          className="flex-1 bg-white border border-orange-200 rounded-lg px-2.5 py-1.5 text-sm outline-none focus:border-orange-400"
+                        />
+                        <Tooltip label="Guardar cambios">
+                          <button
+                            onClick={saveEditCategory}
+                            className="p-2 bg-[#111111] text-white rounded-lg hover:bg-gray-800 transition-all shrink-0 shadow-sm active:scale-95"
+                          >
+                            <Save size={14} />
+                          </button>
+                        </Tooltip>
+                      </div>
+
+                      {/* Selector de color */}
+                      <div className="flex flex-col gap-1.5 text-left">
+                        <span className="text-[10px] uppercase font-bold text-gray-400">Color de la tarjeta:</span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {PASTEL_COLORS.map((c) => (
+                            <button
+                              key={c.id}
+                              type="button"
+                              onClick={() => setEditCategoryColor(c.id)}
+                              className={cn(
+                                "w-6 h-6 rounded-full border transition-all hover:scale-110",
+                                editCategoryColor === c.id 
+                                  ? "border-gray-800 ring-2 ring-gray-800/10 scale-105" 
+                                  : "border-gray-200"
+                              )}
+                              style={{ backgroundColor: c.dot }}
+                              title={c.name}
+                            />
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   ) : (
-                    <>
+                    <div className="flex items-center gap-3 w-full">
+                      <div 
+                        className="w-3.5 h-3.5 rounded-full border border-gray-200 shrink-0" 
+                        style={{ backgroundColor: PASTEL_COLORS.find(c => c.id === category.color)?.dot || '#c084fc' }}
+                      />
                       <div className="flex-1 min-w-0 text-left">
                         <span className="text-sm font-bold text-gray-800">
                           {category.name}
                         </span>
                       </div>
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Tooltip label="Editar nombre">
+                        <Tooltip label="Editar nombre y color">
                           <button
                             onClick={() => startEditCategory(category)}
                             className="p-1.5 text-gray-400 hover:text-gray-900 transition-colors"
@@ -904,7 +949,7 @@ export default function AjustesPage() {
                           )}
                         </button>
                       </Tooltip>
-                    </>
+                    </div>
                   )}
                 </div>
               ))}
@@ -917,7 +962,30 @@ export default function AjustesPage() {
                     className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-orange-400"
                     autoFocus
                   />
-                  <div className="flex justify-end gap-2">
+                  
+                  {/* Selector de color */}
+                  <div className="flex flex-col gap-1.5 text-left">
+                    <span className="text-[10px] uppercase font-bold text-gray-400">Color de la tarjeta:</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {PASTEL_COLORS.map((c) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => setNewCategoryColor(c.id)}
+                          className={cn(
+                            "w-6 h-6 rounded-full border transition-all hover:scale-110",
+                            newCategoryColor === c.id 
+                              ? "border-gray-800 ring-2 ring-gray-800/10 scale-105" 
+                              : "border-gray-200"
+                          )}
+                          style={{ backgroundColor: c.dot }}
+                          title={c.name}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-1">
                     <button
                       onClick={() => setShowNewCategory(false)}
                       className="text-xs font-bold text-gray-400 hover:text-gray-600 px-2"

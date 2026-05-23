@@ -63,6 +63,7 @@ interface ProductCategory {
   id: string;
   name: string;
   is_active: boolean;
+  color?: string | null;
   created_at: string;
 }
 
@@ -181,8 +182,8 @@ interface AdminSettingsState {
   
   fetchProductCategories: () => Promise<void>;
   toggleProductCategory: (categoryId: string) => Promise<void>;
-  updateProductCategory: (categoryId: string, name: string) => Promise<void>;
-  addProductCategory: (name: string) => Promise<void>;
+  updateProductCategory: (categoryId: string, name: string, color: string) => Promise<void>;
+  addProductCategory: (name: string, color: string) => Promise<void>;
   deleteProductCategory: (categoryId: string) => Promise<void>;
   
   invalidateAll: () => void;
@@ -244,7 +245,7 @@ export const useAdminSettingsStore = create<AdminSettingsState>((set, get) => ({
     try {
       const { data, error } = await supabase
         .from("system_settings")
-        .select("*")
+        .select("id, notify_days_before_expiration, alert_1_days_no_attendance, alert_2_days_no_attendance, alert_3_days_no_attendance, days_after_expiration_inactive, days_without_renewal_lost")
         .limit(1)
         .single();
 
@@ -280,7 +281,7 @@ export const useAdminSettingsStore = create<AdminSettingsState>((set, get) => ({
     try {
       const { data, error } = await supabase
         .from("subscription_plans")
-        .select("*")
+        .select("id, name, price, duration_days, is_active")
         .order("price", { ascending: true });
 
       if (error) throw error;
@@ -360,7 +361,7 @@ export const useAdminSettingsStore = create<AdminSettingsState>((set, get) => ({
     try {
       const { data, error } = await supabase
         .from("system_users")
-        .select("*")
+        .select("id, username, email, is_admin, is_active")
         .order("username", { ascending: true });
 
       if (error) throw error;
@@ -773,7 +774,7 @@ export const useAdminSettingsStore = create<AdminSettingsState>((set, get) => ({
     try {
       const { data, error } = await supabase
         .from("business_expenses")
-        .select("*")
+        .select("id, name, amount, is_active, category, description, is_system")
         .order("name", { ascending: true });
 
       if (error) throw error;
@@ -940,7 +941,7 @@ export const useAdminSettingsStore = create<AdminSettingsState>((set, get) => ({
     try {
       const { data, error } = await supabase
         .from("business_salaries")
-        .select("*")
+        .select("id, name, amount, is_active, description")
         .order("name", { ascending: true });
 
       if (error) throw error;
@@ -1090,7 +1091,7 @@ export const useAdminSettingsStore = create<AdminSettingsState>((set, get) => ({
     try {
       const { data, error } = await supabase
         .from("accepted_cards")
-        .select("*")
+        .select("id, name, is_active")
         .order("name", { ascending: true });
 
       if (error) throw error;
@@ -1220,7 +1221,7 @@ export const useAdminSettingsStore = create<AdminSettingsState>((set, get) => ({
     try {
       const { data, error } = await supabase
         .from("product_categories")
-        .select("*")
+        .select("id, name, is_active, color, created_at")
         .order("name", { ascending: true });
 
       if (error) throw error;
@@ -1230,6 +1231,7 @@ export const useAdminSettingsStore = create<AdminSettingsState>((set, get) => ({
           id: c.id,
           name: c.name,
           is_active: c.is_active,
+          color: c.color,
           created_at: c.created_at,
         })),
         productCategoriesLastFetched: Date.now(),
@@ -1264,11 +1266,11 @@ export const useAdminSettingsStore = create<AdminSettingsState>((set, get) => ({
     }
   },
 
-  updateProductCategory: async (categoryId, name) => {
+  updateProductCategory: async (categoryId, name, color) => {
     try {
       const { error } = await supabase
         .from("product_categories")
-        .update({ name })
+        .update({ name, color })
         .eq("id", categoryId);
 
       if (error) throw error;
@@ -1276,7 +1278,7 @@ export const useAdminSettingsStore = create<AdminSettingsState>((set, get) => ({
       const state = get();
       set({
         productCategories: state.productCategories.map((c) =>
-          c.id === categoryId ? { ...c, name } : c
+          c.id === categoryId ? { ...c, name, color } : c
         ),
       });
     } catch (error) {
@@ -1284,11 +1286,11 @@ export const useAdminSettingsStore = create<AdminSettingsState>((set, get) => ({
     }
   },
 
-  addProductCategory: async (name) => {
+  addProductCategory: async (name, color) => {
     try {
       const { data, error } = await supabase
         .from("product_categories")
-        .insert({ name, is_active: true })
+        .insert({ name, color, is_active: true })
         .select()
         .single();
 
@@ -1302,6 +1304,7 @@ export const useAdminSettingsStore = create<AdminSettingsState>((set, get) => ({
             id: data.id,
             name: data.name,
             is_active: data.is_active,
+            color: data.color,
             created_at: data.created_at,
           },
         ],

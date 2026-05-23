@@ -40,31 +40,25 @@ export async function GET() {
       porcentaje: ingresosMes > 0 ? Math.round((monto / ingresosMes) * 100) : 0,
     }));
 
-    // Obtener alumnos activos
-    const { count: alumnosActivos, error: alumnosError } = await supabase
-      .from("alumnos")
-      .select("*", { count: "exact", head: true })
-      .eq("activo", true);
-
-    if (alumnosError) throw alumnosError;
-
-    // Calcular ticket promedio
-    const ticketPromedio = alumnosActivos && alumnosActivos > 0
-      ? Math.round(ingresosMes / alumnosActivos)
-      : 0;
-
-    // Obtener deuda total acumulada (suma de saldos de alumnos activos)
-    const { data: alumnosConDeuda, error: deudaError } = await supabase
+    // Una sola query a alumnos para activos, deuda y conteo
+    const { data: alumnosData, error: alumnosError } = await supabase
       .from("alumnos")
       .select("saldo")
       .eq("activo", true);
 
-    if (deudaError) throw deudaError;
+    if (alumnosError) throw alumnosError;
 
-    const deudaTotal = alumnosConDeuda?.reduce(
+    const alumnosActivos = alumnosData?.length ?? 0;
+    const deudaTotal = alumnosData?.reduce(
       (sum, alumno) => sum + Number(alumno.saldo || 0),
       0
-    ) || 0;
+    ) ?? 0;
+    const alumnosConDeudaCount = alumnosData?.filter(
+      (alumno) => Number(alumno.saldo || 0) > 0
+    ).length ?? 0;
+    const ticketPromedio = alumnosActivos > 0
+      ? Math.round(ingresosMes / alumnosActivos)
+      : 0;
 
     // Obtener ingresos del mes anterior
     const mesAnterior = currentMonth === 1 ? 12 : currentMonth - 1;
@@ -115,16 +109,13 @@ export async function GET() {
       }
     }
 
-    // Contar alumnos con deuda
-    const alumnosConDeudaCount = alumnosConDeuda?.filter(
-      (alumno) => Number(alumno.saldo || 0) > 0
-    ).length || 0;
+
 
     return NextResponse.json({
       ingresosMes,
       ticketPromedio,
       deudaTotal,
-      alumnosActivos: alumnosActivos || 0,
+      alumnosActivos,
       variacion,
       ingresosMesAnterior,
       alumnosConDeuda: alumnosConDeudaCount,
