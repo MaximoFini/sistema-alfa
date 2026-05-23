@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Image from "next/image";
+import dynamic from "next/dynamic";
 import {
   BarChart2,
   DollarSign,
@@ -20,11 +20,42 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/use-auth";
 import { useAdminStore } from "@/stores/admin-store";
 import { useAdminSettingsStore } from "@/hooks/use-admin-settings";
-import EstadisticasPage from "@/app/(app)/estadisticas/page";
-import FinanzasPage from "@/app/(app)/finanzas/page";
-import AjustesPage from "@/app/(app)/administracion/ajustes/page";
-import EstadisticasProductosPage from "@/app/(app)/administracion/_components/EstadisticasProductos";
 import DiarioTab from "@/app/(app)/administracion/_components/DiarioTab";
+
+// Skeleton genérico para las pestañas en carga
+function TabSkeleton() {
+  return (
+    <div className="flex flex-col gap-4 p-6 animate-pulse">
+      <div className="h-8 bg-gray-200 rounded-xl w-1/3" />
+      <div className="h-40 bg-gray-200 rounded-xl w-full" />
+      <div className="grid grid-cols-2 gap-4">
+        <div className="h-24 bg-gray-200 rounded-xl" />
+        <div className="h-24 bg-gray-200 rounded-xl" />
+      </div>
+    </div>
+  );
+}
+
+// Carga lazy de los componentes pesados (solo se descargan al activar la pestaña)
+const EstadisticasPage = dynamic(
+  () => import("@/app/(app)/estadisticas/page"),
+  { ssr: false, loading: () => <TabSkeleton /> }
+);
+
+const FinanzasPage = dynamic(
+  () => import("@/app/(app)/finanzas/page"),
+  { ssr: false, loading: () => <TabSkeleton /> }
+);
+
+const AjustesPage = dynamic(
+  () => import("@/app/(app)/administracion/ajustes/page"),
+  { ssr: false, loading: () => <TabSkeleton /> }
+);
+
+const EstadisticasProductosPage = dynamic(
+  () => import("@/app/(app)/administracion/_components/EstadisticasProductos"),
+  { ssr: false, loading: () => <TabSkeleton /> }
+);
 
 type Tab = "diario" | "estadisticas" | "estadisticas-productos" | "finanzas" | "ajustes";
 
@@ -296,30 +327,12 @@ export default function AdministracionPage() {
           </div>
         </div>
         <div className="flex-1">
-          <div
-            style={{ display: activeTab === "diario" ? "block" : "none" }}
-          >
-            <DiarioTab />
-          </div>
-          <div
-            style={{ display: activeTab === "estadisticas" ? "block" : "none" }}
-          >
-            <EstadisticasPage />
-          </div>
-          <div
-            style={{
-              display:
-                activeTab === "estadisticas-productos" ? "block" : "none",
-            }}
-          >
-            <EstadisticasProductosPage />
-          </div>
-          <div style={{ display: activeTab === "finanzas" ? "block" : "none" }}>
-            <FinanzasPage />
-          </div>
-          <div style={{ display: activeTab === "ajustes" ? "block" : "none" }}>
-            <AjustesPage />
-          </div>
+          {/* Solo se monta el componente de la pestaña activa (sin DOM overflow) */}
+          {activeTab === "diario" && <DiarioTab />}
+          {activeTab === "estadisticas" && <EstadisticasPage />}
+          {activeTab === "estadisticas-productos" && <EstadisticasProductosPage />}
+          {activeTab === "finanzas" && <FinanzasPage />}
+          {activeTab === "ajustes" && <AjustesPage />}
         </div>
       </div>
     </div>

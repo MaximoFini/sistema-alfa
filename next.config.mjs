@@ -3,9 +3,6 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  turbopack: {
-    root: process.cwd(),
-  },
   staticPageGenerationTimeout: 60,
   poweredByHeader: false,
   compress: true,
@@ -16,6 +13,7 @@ const nextConfig = {
   },
   // Optimizaciones para caché y performance
   reactStrictMode: true,
+  turbopack: {},
   experimental: {
     optimizePackageImports: ["@radix-ui/react-*", "date-fns", "lucide-react"],
     staticGenerationRetryCount: 1,
@@ -33,10 +31,12 @@ const nextConfig = {
           cacheGroups: {
             default: false,
             vendors: false,
-            // Vendor chunk para dependencias comunes
+            // Vendor chunk para dependencias comunes (solo client-side async)
+            // IMPORTANTE: chunks: "async" evita incluir librerías browser-only
+            // (ej: @supabase/realtime-js usa `self`) en el bundle del servidor SSR
             vendor: {
               name: "vendor",
-              chunks: "all",
+              chunks: "async",
               test: /node_modules/,
               priority: 20,
             },
