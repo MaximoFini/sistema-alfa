@@ -139,8 +139,9 @@ export async function GET(request: Request) {
       (alumno) => Number(alumno.saldo || 0) > 0
     ).length ?? 0;
 
-    const ticketPromedio = alumnosActivos > 0
-      ? Math.round(ingresosMes / alumnosActivos)
+    const cantidadPagos = pagosDelMes?.length || 0;
+    const ticketPromedio = cantidadPagos > 0
+      ? Math.round(totalPagos / cantidadPagos)
       : 0;
 
     // Obtener ingresos del mes anterior (mes actual - 1)

@@ -22,13 +22,13 @@ El KPI de "Ingresos del mes" debe reflejar el resultado neto real del negocio.
 
 ## 2. Ticket Promedio
 ### Explicación
-Refleja el ingreso promedio generado por cada alumno activo en el gimnasio durante el mes.
-- **Fórmula**: `Ticket Promedio = Ingresos del Mes (Neto) / Cantidad de Alumnos Activos`.
+Refleja el pago promedio de cuotas registrado durante el mes, sin tener en cuenta por ahora la venta de productos.
+- **Fórmula**: `Ticket Promedio = Total de Pagos de Cuotas / Cantidad de Pagos Registrados`.
 - **Estrategia Técnica**:
   - **API (`/api/finanzas`)**:
-    1. Utilizar el valor de `Ingresos del Mes (Neto)` calculado en el paso anterior.
-    2. Obtener la cantidad de alumnos donde `activo = true` (ya implementado).
-    3. Calcular `Math.round(ingresosMesNeto / alumnosActivos)` y retornarlo en `ticketPromedio`.
+    1. Obtener la sumatoria de todos los pagos de cuotas del mes (`totalPagos`).
+    2. Obtener la cantidad de pagos de cuotas del mes (`cantidadPagos = pagosDelMes.length`).
+    3. Calcular `Math.round(totalPagos / cantidadPagos)` y retornarlo en `ticketPromedio`.
 
 ---
 

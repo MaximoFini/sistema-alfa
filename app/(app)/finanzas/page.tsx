@@ -292,9 +292,7 @@ export default function FinanzasPage() {
   // El ingreso Neto es: Bruto (traído dinámicamente) - Gastos Activos - Sueldos Activos
   const displayIngresosMes = stats ? (stats.ingresosBrutos - totalGastos - totalSueldos) : 0;
 
-  const displayTicketPromedio = stats && stats.alumnosActivos > 0
-    ? Math.round(displayIngresosMes / stats.alumnosActivos)
-    : 0;
+  const displayTicketPromedio = stats ? stats.ticketPromedio : 0;
 
   // Actualizar reactivamente la última barra del historial (mes seleccionado) para reflejar cambios en tiempo real
   const mesesNombresShort = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
@@ -406,11 +404,11 @@ export default function FinanzasPage() {
           <KPICard
             label="Ticket Promedio"
             value={`$${displayTicketPromedio.toLocaleString("es")}`}
-            sub="ingreso por alumno activo"
+            sub="promedio por pago de cuota"
             accentBg="#eff6ff"
             accentText="#2563eb"
             icon={<CreditCard size={16} />}
-            note="Calculado sobre ingresos netos del mes / alumnos activos."
+            note="Calculado sobre: total cobrado en cuotas / cantidad de pagos en el mes."
           />
         </div>
 
@@ -654,7 +652,15 @@ export default function FinanzasPage() {
 
 // ── Historial de ingresos mensuales con Modal Interactivo ────────────────────────
 
-type FinancialSnapRow = { year: number; month: number; ingresos_mes: number };
+type FinancialSnapRow = {
+  year: number;
+  month: number;
+  ingresos_mes: number;
+  es_importado?: boolean;
+  origen_importacion?: string;
+  fecha_importacion?: string;
+  notas_importacion?: string;
+};
 
 const MESES_ABREV = [
   "Ene",
@@ -688,7 +694,7 @@ function FinanzasHistorialModal({
     import("@/lib/supabase").then(({ supabase }) => {
       supabase
         .from("estadisticas_mensuales")
-        .select("year, month, ingresos_mes")
+        .select("year, month, ingresos_mes, es_importado, origen_importacion, fecha_importacion, notas_importacion")
         .order("year", { ascending: false })
         .order("month")
         .then(({ data: rows }) => {
@@ -936,7 +942,12 @@ function FinanzasHistorialModal({
                           return (
                             <td key={i} className="px-1 py-1.5">
                               <div
-                                className="rounded-lg flex items-center justify-center text-sm font-bold"
+                                className="rounded-lg flex items-center justify-center text-sm font-bold relative group cursor-help"
+                                title={
+                                  snap && snap.es_importado
+                                    ? `Dato importado: $${snap.ingresos_mes.toLocaleString("es")}\nOrigen: ${snap.origen_importacion || "Otro sistema"}\nFecha: ${snap.fecha_importacion ? new Date(snap.fecha_importacion).toLocaleDateString("es") : "—"}${snap.notas_importacion ? `\nNotas: ${snap.notas_importacion}` : ""}`
+                                    : undefined
+                                }
                                 style={{
                                   height: 44,
                                   ...(t !== null
@@ -960,6 +971,9 @@ function FinanzasHistorialModal({
                                 }}
                               >
                                 {snap ? formatMontoHeatmap(snap.ingresos_mes) : "—"}
+                                {snap?.es_importado && (
+                                  <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-orange-400 shadow-sm animate-pulse" />
+                                )}
                               </div>
                             </td>
                           );
