@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
+import { useAdminStore } from "@/stores/admin-store";
 import {
   Calendar,
   ChevronLeft,
@@ -88,20 +89,66 @@ interface AsistenciaDetalle {
 }
 
 export default function DiarioTab() {
-  const [selectedDate, setSelectedDate] = useState<string>(getFechaLocal());
-  const [loading, setLoading] = useState(true);
+  const {
+    diarioSnapshot: snap,
+    isDiarioCacheValid,
+    setDiarioSnapshot,
+  } = useAdminStore();
+
+  const isCacheValid = isDiarioCacheValid();
+
+  const [selectedDate, setSelectedDate] = useState<string>(
+    isCacheValid && snap ? snap.selectedDate : getFechaLocal()
+  );
+  const [loading, setLoading] = useState(!isCacheValid);
   const [isPagosModalOpen, setIsPagosModalOpen] = useState(false);
   const [isVentasModalOpen, setIsVentasModalOpen] = useState(false);
   const [isAltasModalOpen, setIsAltasModalOpen] = useState(false);
 
   // Estados de datos
-  const [altas, setAltas] = useState<AlumnoAlta[]>([]);
-  const [pagos, setPagos] = useState<PagoDetalle[]>([]);
-  const [ventas, setVentas] = useState<VentaDetalle[]>([]);
-  const [asistencias, setAsistencias] = useState<AsistenciaDetalle[]>([]);
+  const [altas, setAltas] = useState<AlumnoAlta[]>(
+    isCacheValid && snap ? snap.altas : []
+  );
+  const [pagos, setPagos] = useState<PagoDetalle[]>(
+    isCacheValid && snap ? snap.pagos : []
+  );
+  const [ventas, setVentas] = useState<VentaDetalle[]>(
+    isCacheValid && snap ? snap.ventas : []
+  );
+  const [asistencias, setAsistencias] = useState<AsistenciaDetalle[]>(
+    isCacheValid && snap ? snap.asistencias : []
+  );
 
   useEffect(() => {
+    if (isDiarioCacheValid() && snap && snap.selectedDate === selectedDate) {
+      return;
+    }
     loadDiarioData();
+  }, [selectedDate]);
+
+  // Sincronización en tiempo real con Supabase
+  useEffect(() => {
+    let active = true;
+    const channel = supabase
+      .channel("diario-realtime-changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "alumnos" }, () => {
+        if (active) loadDiarioData();
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "pagos" }, () => {
+        if (active) loadDiarioData();
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "ventas" }, () => {
+        if (active) loadDiarioData();
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "asistencias" }, () => {
+        if (active) loadDiarioData();
+      })
+      .subscribe();
+
+    return () => {
+      active = false;
+      supabase.removeChannel(channel);
+    };
   }, [selectedDate]);
 
   async function loadDiarioData() {
@@ -146,7 +193,17 @@ export default function DiarioTab() {
         .order("hora", { ascending: true });
 
       if (errorAsistencias) throw errorAsistencias;
-      setAsistencias((asistenciasData as unknown as AsistenciaDetalle[]) ?? []);
+      const finalAsistencias = (asistenciasData as unknown as AsistenciaDetalle[]) ?? [];
+      setAsistencias(finalAsistencias);
+
+      // Guardar snapshot en Zustand Store para persistencia en caché
+      setDiarioSnapshot({
+        selectedDate,
+        altas: (altasData as AlumnoAlta[]) ?? [],
+        pagos: (pagosData as unknown as PagoDetalle[]) ?? [],
+        ventas: (ventasData as unknown as VentaDetalle[]) ?? [],
+        asistencias: finalAsistencias,
+      });
 
     } catch (err) {
       console.error("Error al cargar datos del diario:", err);

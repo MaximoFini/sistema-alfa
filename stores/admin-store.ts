@@ -51,10 +51,49 @@ export interface EstadisticasSnapshot {
     nombre: string;
     inicial: string;
     clases: number;
+    genero?: string;
+  }[];
+  rankingTopMasc?: {
+    pos: number;
+    nombre: string;
+    inicial: string;
+    clases: number;
+    genero?: string;
+  }[];
+  rankingTopFem?: {
+    pos: number;
+    nombre: string;
+    inicial: string;
+    clases: number;
+    genero?: string;
   }[];
   mesesNuevosHistorial: { mes: string; nuevos: number }[];
   antiguedadMeses: number | null;
   prevMesLabel: string;
+  selectedYear?: number;
+  selectedMonth?: number;
+  cacheMap?: Record<string, { fetchedAt: number; snap: any }>;
+}
+
+export interface DiarioSnapshot {
+  selectedDate: string;
+  altas: any[];
+  pagos: any[];
+  ventas: any[];
+  asistencias: any[];
+}
+
+export interface ProductosSnapshot {
+  selectedYear: number;
+  selectedMonth: number;
+  productos: any[];
+  ventas: any[];
+}
+
+export interface FinanzasPageSnapshot {
+  selectedYear: number;
+  selectedMonth: number;
+  stats: any;
 }
 
 // ── Store interface ───────────────────────────────────────────────────────────
@@ -76,6 +115,24 @@ interface AdminStoreState {
   estadisticasLastFetched: number | null;
   setEstadisticasSnapshot: (snap: EstadisticasSnapshot) => void;
   isEstadisticasCacheValid: () => boolean;
+
+  // Diario cache
+  diarioSnapshot: DiarioSnapshot | null;
+  diarioLastFetched: number | null;
+  setDiarioSnapshot: (snap: DiarioSnapshot) => void;
+  isDiarioCacheValid: () => boolean;
+
+  // Productos cache
+  productosSnapshot: ProductosSnapshot | null;
+  productosLastFetched: number | null;
+  setProductosSnapshot: (snap: ProductosSnapshot) => void;
+  isProductosCacheValid: () => boolean;
+
+  // Finanzas Page cache
+  finanzasPageSnapshot: FinanzasPageSnapshot | null;
+  finanzasPageLastFetched: number | null;
+  setFinanzasPageSnapshot: (snap: FinanzasPageSnapshot) => void;
+  isFinanzasPageCacheValid: () => boolean;
 }
 
 // ── Store ─────────────────────────────────────────────────────────────────────
@@ -138,4 +195,31 @@ export const useAdminStore = create<AdminStoreState>((set, get) => ({
       estadisticasSnapshot: snap,
       estadisticasLastFetched: Date.now(),
     }),
+
+  // ── Diario ────────────────────────────────────────────────────────────────
+  diarioSnapshot: null,
+  diarioLastFetched: null,
+  setDiarioSnapshot: (snap) => set({ diarioSnapshot: snap, diarioLastFetched: Date.now() }),
+  isDiarioCacheValid: () => {
+    const { diarioLastFetched } = get();
+    return !!diarioLastFetched && Date.now() - diarioLastFetched < CACHE_DURATION;
+  },
+
+  // ── Productos ─────────────────────────────────────────────────────────────
+  productosSnapshot: null,
+  productosLastFetched: null,
+  setProductosSnapshot: (snap) => set({ productosSnapshot: snap, productosLastFetched: Date.now() }),
+  isProductosCacheValid: () => {
+    const { productosLastFetched } = get();
+    return !!productosLastFetched && Date.now() - productosLastFetched < CACHE_DURATION;
+  },
+
+  // ── Finanzas Page ─────────────────────────────────────────────────────────
+  finanzasPageSnapshot: null,
+  finanzasPageLastFetched: null,
+  setFinanzasPageSnapshot: (snap) => set({ finanzasPageSnapshot: snap, finanzasPageLastFetched: Date.now() }),
+  isFinanzasPageCacheValid: () => {
+    const { finanzasPageLastFetched } = get();
+    return !!finanzasPageLastFetched && Date.now() - finanzasPageLastFetched < CACHE_DURATION;
+  },
 }));

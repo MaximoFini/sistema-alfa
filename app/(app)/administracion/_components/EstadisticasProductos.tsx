@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
+import { useAdminStore } from "@/stores/admin-store";
 import {
   DollarSign,
   TrendingUp,
@@ -136,14 +137,30 @@ function MonthSelector({
 }
 
 export default function EstadisticasProductos() {
-  const [productos, setProductos] = useState<Producto[]>([]);
-  const [ventas, setVentas] = useState<Venta[]>([]);
-  const [loading, setLoading] = useState(true);
+  const {
+    productosSnapshot: snap,
+    isProductosCacheValid,
+    setProductosSnapshot,
+  } = useAdminStore();
+
+  const isCacheValid = isProductosCacheValid();
 
   // Navegación mensual
   const now = new Date();
-  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
-  const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState(
+    isCacheValid && snap ? snap.selectedYear : now.getFullYear()
+  );
+  const [selectedMonth, setSelectedMonth] = useState(
+    isCacheValid && snap ? snap.selectedMonth : now.getMonth() + 1
+  );
+
+  const [productos, setProductos] = useState<Producto[]>(
+    isCacheValid && snap ? snap.productos : []
+  );
+  const [ventas, setVentas] = useState<Venta[]>(
+    isCacheValid && snap ? snap.ventas : []
+  );
+  const [loading, setLoading] = useState(!isCacheValid);
   const [showHistorialModal, setShowHistorialModal] = useState(false);
 
   const currentYear = now.getFullYear();
@@ -152,7 +169,29 @@ export default function EstadisticasProductos() {
     selectedYear === currentYear && selectedMonth === currentMonth;
 
   useEffect(() => {
+    if (isProductosCacheValid() && snap && snap.selectedYear === selectedYear && snap.selectedMonth === selectedMonth) {
+      return;
+    }
     loadData();
+  }, [selectedYear, selectedMonth]);
+
+  // Sincronización en tiempo real con Supabase
+  useEffect(() => {
+    let active = true;
+    const channel = supabase
+      .channel("productos-realtime-changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "productos" }, () => {
+        if (active) loadData();
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "ventas" }, () => {
+        if (active) loadData();
+      })
+      .subscribe();
+
+    return () => {
+      active = false;
+      supabase.removeChannel(channel);
+    };
   }, [selectedYear, selectedMonth]);
 
   async function loadData() {
@@ -172,7 +211,16 @@ export default function EstadisticasProductos() {
         .gte("created_at", firstDay)
         .lte("created_at", lastDay);
 
-      if (ventasData) setVentas(ventasData as Venta[]);
+      const finalVentas = (ventasData as Venta[]) ?? [];
+      setVentas(finalVentas);
+
+      // Guardar snapshot en Zustand Store para persistencia en caché
+      setProductosSnapshot({
+        selectedYear,
+        selectedMonth,
+        productos: prodData || [],
+        ventas: finalVentas,
+      });
     } catch (err) {
       console.error("Error cargando estadísticas de productos:", err);
     } finally {

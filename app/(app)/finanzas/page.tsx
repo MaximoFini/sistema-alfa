@@ -34,6 +34,7 @@ import {
 import { useMonthlyExpenses } from "@/hooks/use-monthly-expenses";
 import ExpensesModal from "@/components/ExpensesModal";
 import { useAdminStore, FinancialStats } from "@/stores/admin-store";
+import { supabase } from "@/lib/supabase";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -191,14 +192,26 @@ function getPaymentMethodColor(medio: string): string {
 // ── Página ─────────────────────────────────────────────────────────────────────
 
 export default function FinanzasPage() {
+  const {
+    finanzasPageSnapshot: snap,
+    isFinanzasPageCacheValid,
+    setFinanzasPageSnapshot,
+  } = useAdminStore();
+
+  const isCacheValid = isFinanzasPageCacheValid();
+
   const [mounted, setMounted] = useState(false);
   const [showExpensesModal, setShowExpensesModal] = useState(false);
   const [showHistorialModal, setShowHistorialModal] = useState(false);
 
   // Selector de año y mes (por defecto: mes actual)
   const now = new Date();
-  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
-  const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState(
+    isCacheValid && snap ? snap.selectedYear : now.getFullYear()
+  );
+  const [selectedMonth, setSelectedMonth] = useState(
+    isCacheValid && snap ? snap.selectedMonth : now.getMonth() + 1
+  );
 
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth() + 1;
@@ -206,8 +219,10 @@ export default function FinanzasPage() {
     selectedYear === currentYear && selectedMonth === currentMonth;
 
   // Estados locales para estadísticas de finanzas correspondientes al período seleccionado
-  const [stats, setStats] = useState<FinancialStats | null>(null);
-  const [statsLoading, setStatsLoading] = useState(true);
+  const [stats, setStats] = useState<FinancialStats | null>(
+    isCacheValid && snap ? snap.stats : null
+  );
+  const [statsLoading, setStatsLoading] = useState(!isCacheValid);
 
   const handlePrevMonth = () => {
     if (selectedMonth === 1) {
@@ -251,6 +266,9 @@ export default function FinanzasPage() {
   // Fetch dinámico de estadísticas financieras por mes y año seleccionado
   useEffect(() => {
     if (!mounted) return;
+    if (isFinanzasPageCacheValid() && snap && snap.selectedYear === selectedYear && snap.selectedMonth === selectedMonth) {
+      return;
+    }
     
     let active = true;
     async function loadStats() {
@@ -263,6 +281,12 @@ export default function FinanzasPage() {
         const data = await response.json();
         if (active) {
           setStats(data);
+          // Guardar snapshot en Zustand Store
+          setFinanzasPageSnapshot({
+            selectedYear,
+            selectedMonth,
+            stats: data,
+          });
         }
       } catch (error) {
         console.error("Error loading monthly financial stats:", error);
@@ -275,6 +299,53 @@ export default function FinanzasPage() {
     loadStats();
     return () => {
       active = false;
+    };
+  }, [selectedYear, selectedMonth, mounted]);
+
+  // Sincronización en tiempo real con Supabase
+  useEffect(() => {
+    if (!mounted) return;
+    let active = true;
+
+    async function reloadStats() {
+      try {
+        const response = await fetch(
+          `/api/finanzas?year=${selectedYear}&month=${selectedMonth}`
+        );
+        if (!response.ok) throw new Error(`Error ${response.status}`);
+        const data = await response.json();
+        if (active) {
+          setStats(data);
+          setFinanzasPageSnapshot({
+            selectedYear,
+            selectedMonth,
+            stats: data,
+          });
+        }
+      } catch (error) {
+        console.error("Error reloading finanzas stats in realtime:", error);
+      }
+    }
+
+    const channel = supabase
+      .channel("finanzas-realtime-changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "pagos" }, () => {
+        if (active) reloadStats();
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "ventas" }, () => {
+        if (active) reloadStats();
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "monthly_expenses_config" }, () => {
+        if (active) reloadStats();
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "monthly_salaries_config" }, () => {
+        if (active) reloadStats();
+      })
+      .subscribe();
+
+    return () => {
+      active = false;
+      supabase.removeChannel(channel);
     };
   }, [selectedYear, selectedMonth, mounted]);
 

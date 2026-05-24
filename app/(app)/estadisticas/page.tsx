@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useAdminStore } from "@/stores/admin-store";
-import { ChevronDown, ChevronUp, X, Activity, DollarSign, Calendar, TrendingUp, Users } from "lucide-react";
+import { ChevronDown, ChevronUp, X, Activity, DollarSign, Calendar, TrendingUp, Users, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -30,6 +30,70 @@ import {
 const HORAS_FRANJA = Array.from({ length: 16 }, (_, i) => i + 7); // 07..22
 
 // ── Subcomponentes ─────────────────────────────────────────────────────────────
+
+const MONTH_NAMES = [
+  "Enero",
+  "Febrero",
+  "Marzo",
+  "Abril",
+  "Mayo",
+  "Junio",
+  "Julio",
+  "Agosto",
+  "Septiembre",
+  "Octubre",
+  "Noviembre",
+  "Diciembre",
+];
+
+function MonthSelector({
+  year,
+  month,
+  onPrev,
+  onNext,
+  isSeeding,
+  isCurrentMonth,
+}: {
+  year: number;
+  month: number;
+  onPrev: () => void;
+  onNext: () => void;
+  isSeeding: boolean;
+  isCurrentMonth: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <button
+        onClick={onPrev}
+        className="w-8 h-8 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 flex items-center justify-center transition-colors"
+        title="Mes anterior"
+      >
+        <ChevronLeft size={16} className="text-gray-600" />
+      </button>
+      <div className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-200 rounded-lg min-w-[160px] justify-center">
+        {isSeeding && (
+          <div className="w-3.5 h-3.5 rounded-full border-2 border-orange-500 border-t-transparent animate-spin mr-1.5 shrink-0" />
+        )}
+        <span className="text-sm font-semibold text-gray-800">
+          {MONTH_NAMES[month - 1]} {year}
+        </span>
+        {isCurrentMonth && (
+          <span className="text-[10px] font-semibold px-1.5 py-0.5 bg-orange-100 text-orange-600 rounded-full">
+            Actual
+          </span>
+        )}
+      </div>
+      <button
+        onClick={onNext}
+        disabled={isCurrentMonth}
+        className="w-8 h-8 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 flex items-center justify-center transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        title="Mes siguiente"
+      >
+        <ChevronRight size={16} className="text-gray-600" />
+      </button>
+    </div>
+  );
+}
 
 // ── Historial de alumnos activos ─────────────────────────────────────────────
 
@@ -1981,6 +2045,41 @@ export default function EstadisticasPage() {
     setEstadisticasSnapshot,
   } = useAdminStore();
 
+  // Selector de año y mes (por defecto: mes actual)
+  const now = new Date();
+  const [selectedYear, setSelectedYear] = useState(
+    snap && (snap as any).selectedYear ? (snap as any).selectedYear : now.getFullYear()
+  );
+  const [selectedMonth, setSelectedMonth] = useState(
+    snap && (snap as any).selectedMonth ? (snap as any).selectedMonth : now.getMonth() + 1
+  );
+
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+  const isCurrentMonth =
+    selectedYear === currentYear && selectedMonth === currentMonth;
+
+  const [statsLoading, setStatsLoading] = useState(false);
+
+  const handlePrevMonth = () => {
+    if (selectedMonth === 1) {
+      setSelectedYear((y: number) => y - 1);
+      setSelectedMonth(12);
+    } else {
+      setSelectedMonth((m: number) => m - 1);
+    }
+  };
+
+  const handleNextMonth = () => {
+    if (isCurrentMonth) return;
+    if (selectedMonth === 12) {
+      setSelectedYear((y: number) => y + 1);
+      setSelectedMonth(1);
+    } else {
+      setSelectedMonth((m: number) => m + 1);
+    }
+  };
+
   // Si el cache es válido (< 5 min), usar el snapshot como valores iniciales
   const isCacheValid = useMemo(
     () =>
@@ -2032,10 +2131,10 @@ export default function EstadisticasPage() {
   >(isCacheValid && snap ? snap.rankingTop5 : []);
   const [rankingTopMasc, setRankingTopMasc] = useState<
     { pos: number; nombre: string; inicial: string; clases: number; genero?: string }[]
-  >([]);
+  >(isCacheValid && snap && (snap as any).rankingTopMasc ? (snap as any).rankingTopMasc : []);
   const [rankingTopFem, setRankingTopFem] = useState<
     { pos: number; nombre: string; inicial: string; clases: number; genero?: string }[]
-  >([]);
+  >(isCacheValid && snap && (snap as any).rankingTopFem ? (snap as any).rankingTopFem : []);
   const [filtroGeneroRanking, setFiltroGeneroRanking] = useState<'todos' | 'Masculino' | 'Femenino'>('todos');
   // Historial de nuevos alumnos por mes (últimos 6 meses)
   const [mesesNuevosHistorial, setMesesNuevosHistorial] = useState<
@@ -2180,403 +2279,667 @@ export default function EstadisticasPage() {
     };
   }, [fetchRanking]);
 
+  // Helper de plazos claros para mostrar fechas exactas en cada métrica
+  const dateRangeLabel = useMemo(() => {
+    const start = new Date(selectedYear, selectedMonth - 1, 1);
+    const end = isCurrentMonth ? new Date() : new Date(selectedYear, selectedMonth, 0);
+    const formatDate = (d: Date) => d.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" });
+    return {
+      start: formatDate(start),
+      end: formatDate(end),
+      rawEnd: end,
+    };
+  }, [selectedYear, selectedMonth, isCurrentMonth]);
+
+  const formatDate = (d: Date) => d.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" });
+
   // ── Cargar métricas base (Fase 1) ────────────────────────────────────────────
   useEffect(() => {
     if (!settings) return;
 
-    const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0);
-    const hoyYear = hoy.getFullYear();
-    const hoyMonth = hoy.getMonth() + 1;
+    const cacheKey = `${selectedYear}-${selectedMonth}`;
+    const cached = snap?.cacheMap?.[cacheKey];
+    const isMonthCacheValid = cached && (Date.now() - cached.fetchedAt < 5 * 60 * 1000);
 
-    const primerDiaMes = new Date(hoyYear, hoy.getMonth(), 1);
-    const primerDiaMesStr = primerDiaMes.toISOString().split("T")[0];
-    const hoyStr = hoy.toISOString().split("T")[0];
+    if (isMonthCacheValid && cached) {
+      // Si la caché es 100% fresca, la cargamos en el estado y saltamos la llamada
+      const cSnap = cached.snap;
+      setAlumnosActivos(cSnap.alumnosActivos);
+      setNuevosEsteMes(cSnap.nuevosEsteMes);
+      setPromedioEdad(cSnap.promedioEdad);
+      setAlumnosEnRiesgo(cSnap.alumnosEnRiesgo);
+      setClientesInactivos(cSnap.clientesInactivos);
+      setClientesPerdidos(cSnap.clientesPerdidos);
+      setAntiguedadMeses(cSnap.antiguedadMeses);
+      setTasaRetencion(cSnap.tasaRetencion);
+      setTasaChurn(cSnap.tasaChurn);
+      setGeneroDataReal(cSnap.generoDataReal);
+      setAsistenciaHorarioReal(cSnap.asistenciaHorarioReal);
+      setRankingTop5(cSnap.rankingTop5);
+      setRankingTopMasc(cSnap.rankingTopMasc || []);
+      setRankingTopFem(cSnap.rankingTopFem || []);
+      setMesesNuevosHistorial(cSnap.mesesNuevosHistorial || []);
+      setRetencionHistorico(cSnap.retencionHistorico || []);
+      setPrevMesLabel(cSnap.prevMesLabel || "");
+      return;
+    }
 
-    import("@/lib/supabase").then(({ supabase }) => {
-      // ── 1. Alumnos activos (activo = TRUE, no es_prueba) ─────────────────────
-      supabase
-        .from("alumnos")
-        .select(
-          "id, nombre, activo, genero, edad_actual, fecha_registro, fecha_ultima_asistencia, fecha_proximo_vencimiento",
-        )
-        .eq("es_prueba", false)
-        .limit(5000)  // techo de seguridad para evitar queries sin límite
-        .then(({ data }) => {
-          if (!data) return;
+    let active = true;
 
-          // Fase 3: alumnos en riesgo → fijo 15 días
-          const DIAS_RIESGO_FIJO = 15;
-          const diasInact2 = settings.alert_2_days_no_attendance ?? 30;
-          const diasInact3 = settings.alert_3_days_no_attendance ?? 60;
-          const diasPerdidoAsist = 90; // Fase 3: clientes perdidos = sin asistencia > 90 días
+    async function loadData() {
+      // SWR: Si hay datos en caché (aunque estén expirados), los cargamos de inmediato
+      // para evitar loaders. Si no hay datos, mostramos cargando.
+      if (cached && active) {
+        const cSnap = cached.snap;
+        setAlumnosActivos(cSnap.alumnosActivos);
+        setNuevosEsteMes(cSnap.nuevosEsteMes);
+        setPromedioEdad(cSnap.promedioEdad);
+        setAlumnosEnRiesgo(cSnap.alumnosEnRiesgo);
+        setClientesInactivos(cSnap.clientesInactivos);
+        setClientesPerdidos(cSnap.clientesPerdidos);
+        setAntiguedadMeses(cSnap.antiguedadMeses);
+        setTasaRetencion(cSnap.tasaRetencion);
+        setTasaChurn(cSnap.tasaChurn);
+        setGeneroDataReal(cSnap.generoDataReal);
+        setAsistenciaHorarioReal(cSnap.asistenciaHorarioReal);
+        setRankingTop5(cSnap.rankingTop5);
+        setRankingTopMasc(cSnap.rankingTopMasc || []);
+        setRankingTopFem(cSnap.rankingTopFem || []);
+        setMesesNuevosHistorial(cSnap.mesesNuevosHistorial || []);
+        setRetencionHistorico(cSnap.retencionHistorico || []);
+        setPrevMesLabel(cSnap.prevMesLabel || "");
+      } else {
+        setStatsLoading(true);
+      }
 
-          const umbralRiesgo = new Date(hoy);
-          umbralRiesgo.setDate(hoy.getDate() - DIAS_RIESGO_FIJO);
-          const umbralInact2 = new Date(hoy);
-          umbralInact2.setDate(hoy.getDate() - diasInact2);
-          const umbralInact3 = new Date(hoy);
-          umbralInact3.setDate(hoy.getDate() - diasInact3);
-          const umbralPerdido = new Date(hoy);
-          umbralPerdido.setDate(hoy.getDate() - diasPerdidoAsist);
+      try {
+        const { supabase } = await import("@/lib/supabase");
 
-          let activos = 0;
-          let nuevos = 0;
-          const antiguedadesArr: number[] = [];
-          const vidasUtilesArr: number[] = [];
-          let enRiesgo = 0;
-          let inactivos = 0;
-          let perdidos = 0;
-          let hombresActivos = 0;
-          let mujeresActivos = 0;
-          const edadesActivos: number[] = [];
-          const alumnoNombreMap = new Map<string, string>();
+        if (!isCurrentMonth) {
+          // ── MODO HISTÓRICO: Recuperar estadísticas ya guardadas ──
+          const { data: row, error } = await supabase
+            .from("estadisticas_mensuales")
+            .select("*")
+            .eq("year", selectedYear)
+            .eq("month", selectedMonth)
+            .maybeSingle();
 
-          for (const a of data) {
-            // ── activo real de DB ──
-            const esActivo = (a as any).activo === true;
+          if (error) throw error;
 
-            if (esActivo) {
-              activos++;
-              if ((a as any).genero === "Masculino") hombresActivos++;
-              else if ((a as any).genero === "Femenino") mujeresActivos++;
-              if ((a as any).edad_actual != null)
-                edadesActivos.push((a as any).edad_actual as number);
-              // Antigüedad: meses desde fecha_registro hasta hoy
-              if ((a as any).fecha_registro) {
-                const reg = new Date((a as any).fecha_registro);
-                const mesesAntiguedad =
-                  (hoyYear - reg.getFullYear()) * 12 +
-                  (hoyMonth - 1 - reg.getMonth());
-                if (mesesAntiguedad >= 0) antiguedadesArr.push(mesesAntiguedad);
-              }
+          if (row) {
+            const countActivos = row.alumnos_activos ?? 0;
+            const pctH = row.pct_hombres != null ? Number(row.pct_hombres) : 0;
+            const pctM = row.pct_mujeres != null ? Number(row.pct_mujeres) : 0;
+
+            const computedGeneroDataReal = [
+              { name: "Hombres", value: Math.round((pctH * countActivos) / 100), color: "#DC2626" },
+              { name: "Mujeres", value: Math.round((pctM * countActivos) / 100), color: "#6b7280" },
+            ];
+
+            const computedRanking = (row.ranking_top5 || []) as any[];
+
+            // Cargar el historial de nuevos de los últimos 6 meses
+            const { data: nuevosRows } = await supabase
+              .from("estadisticas_mensuales")
+              .select("year, month, nuevos_este_mes")
+              .not("nuevos_este_mes", "is", null)
+              .order("year", { ascending: true })
+              .order("month", { ascending: true });
+
+            const computedMesesNuevosHistorial = (nuevosRows ?? []).slice(-6).map((r) => ({
+              mes: MESES_ABREV[(r.month as number) - 1],
+              nuevos: r.nuevos_este_mes as number,
+            }));
+
+            // Cargar retención histórica
+            const { data: retRows } = await supabase
+              .from("estadisticas_mensuales")
+              .select("year, month, tasa_retencion")
+              .not("tasa_retencion", "is", null)
+              .eq("year", selectedYear)
+              .order("month", { ascending: true });
+
+            const computedRetencionHistorico = (retRows ?? []).map((r) => ({
+              mes: MESES_ABREV[r.month - 1],
+              tasa: r.tasa_retencion as number,
+            }));
+
+            const computedPrevMesLabel = `${MESES_ABREV[selectedMonth === 1 ? 11 : selectedMonth - 2]} ${selectedMonth === 1 ? selectedYear - 1 : selectedYear}`;
+
+            if (active) {
+              setAlumnosActivos(row.alumnos_activos);
+              setNuevosEsteMes(row.nuevos_este_mes);
+              setPromedioEdad(row.promedio_edad != null ? Number(row.promedio_edad) : null);
+              setAlumnosEnRiesgo(null); // No aplica en el pasado
+              setClientesInactivos(row.clientes_inactivos);
+              setClientesPerdidos(row.clientes_perdidos);
+              setAntiguedadMeses(row.antiguedad_promedio != null ? Number(row.antiguedad_promedio) : null);
+              setTasaRetencion(row.tasa_retencion != null ? Math.round(Number(row.tasa_retencion)) : null);
+              setTasaChurn(row.tasa_churn != null ? Math.round(Number(row.tasa_churn)) : null);
+              setGeneroDataReal(computedGeneroDataReal);
+              setAsistenciaHorarioReal((row.asistencia_por_hora as any[]) || []);
+              setRankingTop5(computedRanking.slice(0, 10).map((r, idx) => ({ ...r, pos: r.pos || idx + 1 })));
+              setRankingTopMasc(computedRanking.filter(r => r.genero === "Masculino").slice(0, 10).map((r, idx) => ({ ...r, pos: idx + 1 })));
+              setRankingTopFem(computedRanking.filter(r => r.genero === "Femenino").slice(0, 10).map((r, idx) => ({ ...r, pos: idx + 1 })));
+              setMesesNuevosHistorial(computedMesesNuevosHistorial);
+              setRetencionHistorico(computedRetencionHistorico);
+              setPrevMesLabel(computedPrevMesLabel);
+
+              // Guardar en la caché
+              const newMonthSnap = {
+                alumnosActivos: row.alumnos_activos,
+                nuevosEsteMes: row.nuevos_este_mes,
+                promedioEdad: row.promedio_edad != null ? Number(row.promedio_edad) : null,
+                tasaRetencion: row.tasa_retencion != null ? Math.round(Number(row.tasa_retencion)) : null,
+                tasaChurn: row.tasa_churn != null ? Math.round(Number(row.tasa_churn)) : null,
+                alumnosEnRiesgo: null,
+                vidaUtilMeses,
+                clientesInactivos: row.clientes_inactivos,
+                clientesPerdidos: row.clientes_perdidos,
+                generoDataReal: computedGeneroDataReal,
+                retencionHistorico: computedRetencionHistorico,
+                asistenciaHorarioReal: (row.asistencia_por_hora as any[]) || [],
+                rankingTop5: computedRanking,
+                rankingTopMasc: computedRanking.filter(r => r.genero === "Masculino"),
+                rankingTopFem: computedRanking.filter(r => r.genero === "Femenino"),
+                mesesNuevosHistorial: computedMesesNuevosHistorial,
+                antiguedadMeses: row.antiguedad_promedio != null ? Number(row.antiguedad_promedio) : null,
+                prevMesLabel: computedPrevMesLabel,
+              };
+
+              const currentCacheMap = snap?.cacheMap || {};
+              const updatedCacheMap = {
+                ...currentCacheMap,
+                [cacheKey]: {
+                  fetchedAt: Date.now(),
+                  snap: newMonthSnap,
+                },
+              };
+
+              setEstadisticasSnapshot({
+                ...newMonthSnap,
+                selectedYear,
+                selectedMonth,
+                cacheMap: updatedCacheMap,
+              } as any);
             }
-
-            // Vida útil (Opción B): fecha_registro → fecha_proximo_vencimiento
-            if (
-              (a as any).fecha_registro &&
-              (a as any).fecha_proximo_vencimiento
-            ) {
-              const reg = new Date((a as any).fecha_registro);
-              const venc = new Date((a as any).fecha_proximo_vencimiento);
-              const meses =
-                (venc.getFullYear() - reg.getFullYear()) * 12 +
-                (venc.getMonth() - reg.getMonth());
-              if (meses > 0) vidasUtilesArr.push(meses);
+          } else {
+            // No hay registro guardado para este mes anterior, limpiar estados
+            if (active) {
+              setAlumnosActivos(null);
+              setNuevosEsteMes(null);
+              setPromedioEdad(null);
+              setAlumnosEnRiesgo(null);
+              setClientesInactivos(null);
+              setClientesPerdidos(null);
+              setAntiguedadMeses(null);
+              setTasaRetencion(null);
+              setTasaChurn(null);
+              setGeneroDataReal([]);
+              setAsistenciaHorarioReal([]);
+              setRankingTop5([]);
+              setRankingTopMasc([]);
+              setRankingTopFem([]);
             }
+          }
+          setStatsLoading(false);
+          return;
+        }
 
-            // Mapa para ranking
-            if (a.id && a.nombre) {
-              alumnoNombreMap.set(a.id, a.nombre);
-              alumnoNombreMapRef.current.set(a.id, a.nombre);
-            }
+        // ── MODO REALTIME (MES ACTUAL) ──
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
+        const hoyYear = hoy.getFullYear();
+        const hoyMonth = hoy.getMonth() + 1;
 
-            // Nuevos este mes
+        const primerDiaMes = new Date(hoyYear, hoy.getMonth(), 1);
+        const primerDiaMesStr = primerDiaMes.toISOString().split("T")[0];
+        const hoyStr = hoy.toISOString().split("T")[0];
+
+        // ── 1. Alumnos activos (activo = TRUE, no es_prueba) ─────────────────────
+        const { data: alumnosData, error: alumnosError } = await supabase
+          .from("alumnos")
+          .select("id, nombre, activo, genero, edad_actual, fecha_registro, fecha_ultima_asistencia, fecha_proximo_vencimiento")
+          .eq("es_prueba", false)
+          .limit(5000);
+
+        if (alumnosError) throw alumnosError;
+        if (!alumnosData) return;
+
+        // Fase 3: alumnos en riesgo → fijo 15 días
+        const DIAS_RIESGO_FIJO = 15;
+        const diasInact2 = settings?.alert_2_days_no_attendance ?? 30;
+        const diasInact3 = settings?.alert_3_days_no_attendance ?? 60;
+        const diasPerdidoAsist = 90; // Fase 3: clientes perdidos = sin asistencia > 90 días
+
+        const umbralRiesgo = new Date(hoy);
+        umbralRiesgo.setDate(hoy.getDate() - DIAS_RIESGO_FIJO);
+        const umbralInact2 = new Date(hoy);
+        umbralInact2.setDate(hoy.getDate() - diasInact2);
+        const umbralInact3 = new Date(hoy);
+        umbralInact3.setDate(hoy.getDate() - diasInact3);
+        const umbralPerdido = new Date(hoy);
+        umbralPerdido.setDate(hoy.getDate() - diasPerdidoAsist);
+
+        let activos = 0;
+        let nuevos = 0;
+        const antiguedadesArr: number[] = [];
+        const vidasUtilesArr: number[] = [];
+        let enRiesgo = 0;
+        let inactivos = 0;
+        let perdidos = 0;
+        let hombresActivos = 0;
+        let mujeresActivos = 0;
+        const edadesActivos: number[] = [];
+        const alumnoNombreMap = new Map<string, string>();
+
+        for (const a of alumnosData) {
+          const esActivo = (a as any).activo === true;
+
+          if (esActivo) {
+            activos++;
+            if ((a as any).genero === "Masculino") hombresActivos++;
+            else if ((a as any).genero === "Femenino") mujeresActivos++;
+            if ((a as any).edad_actual != null)
+              edadesActivos.push((a as any).edad_actual as number);
             if ((a as any).fecha_registro) {
-              const [y, m] = ((a as any).fecha_registro as string)
-                .split("-")
-                .map(Number);
-              if (y === hoyYear && m === hoyMonth) nuevos++;
+              const reg = new Date((a as any).fecha_registro);
+              const mesesAntiguedad =
+                (hoyYear - reg.getFullYear()) * 12 +
+                (hoyMonth - 1 - reg.getMonth());
+              if (mesesAntiguedad >= 0) antiguedadesArr.push(mesesAntiguedad);
             }
-
-            // Alumnos en riesgo: TODOS (activos e inactivos), última asistencia <= 15 días
-            // Los inactivos pueden estar recién caídos (tras 7 días sin renovar),
-            // por eso se evalúan también.
-            const ultAsist = (a as any).fecha_ultima_asistencia
-              ? new Date((a as any).fecha_ultima_asistencia)
-              : null;
-            if (ultAsist && ultAsist >= umbralRiesgo) enRiesgo++;
-
-            // Inactivos recuperables: sin asistencia entre 30 y 90 días
-            if (
-              ultAsist &&
-              ultAsist < umbralInact2 &&
-              ultAsist >= umbralPerdido
-            )
-              inactivos++;
-
-            // Perdidos: fecha_ultima_asistencia hace más de 90 días (Fase 3)
-            if (ultAsist && ultAsist < umbralPerdido) perdidos++;
-            else if (!ultAsist) perdidos++; // sin registro de asistencia también se considera perdido
           }
 
-          // ── setters ──
-          setAlumnosActivos(activos);
-          setNuevosEsteMes(nuevos);
-          setAlumnosEnRiesgo(enRiesgo);
-          setClientesInactivos(inactivos);
-          setClientesPerdidos(perdidos);
+          if (
+            (a as any).fecha_registro &&
+            (a as any).fecha_proximo_vencimiento
+          ) {
+            const reg = new Date((a as any).fecha_registro);
+            const venc = new Date((a as any).fecha_proximo_vencimiento);
+            const meses =
+              (venc.getFullYear() - reg.getFullYear()) * 12 +
+              (venc.getMonth() - reg.getMonth());
+            if (meses > 0) vidasUtilesArr.push(meses);
+          }
 
-          // Promedio edad (solo activos)
-          setPromedioEdad(
-            edadesActivos.length > 0
-              ? Math.round(
-                  (edadesActivos.reduce((a, b) => a + b, 0) /
-                    edadesActivos.length) *
-                    10,
-                ) / 10
-              : null,
-          );
+          if (a.id && a.nombre) {
+            alumnoNombreMap.set(a.id, a.nombre);
+            alumnoNombreMapRef.current.set(a.id, a.nombre);
+          }
 
-          // Antigüedad promedio (solo activos)
-          setAntiguedadMeses(
-            antiguedadesArr.length > 0
-              ? Math.round(
-                  (antiguedadesArr.reduce((a, b) => a + b, 0) /
-                    antiguedadesArr.length) *
-                    10,
-                ) / 10
-              : null,
-          );
+          if ((a as any).fecha_registro) {
+            const [y, m] = ((a as any).fecha_registro as string)
+              .split("-")
+              .map(Number);
+            if (y === hoyYear && m === hoyMonth) nuevos++;
+          }
 
-          // Vida útil promedio (Opción B: fecha_registro → fecha_proximo_vencimiento)
-          setVidaUtilMeses(
-            vidasUtilesArr.length > 0
-              ? Math.round(
-                  (vidasUtilesArr.reduce((a, b) => a + b, 0) /
-                    vidasUtilesArr.length) *
-                    10,
-                ) / 10
-              : null,
-          );
+          const ultAsist = (a as any).fecha_ultima_asistencia
+            ? new Date((a as any).fecha_ultima_asistencia)
+            : null;
+          if (ultAsist && ultAsist >= umbralRiesgo) enRiesgo++;
 
-          // Género (solo activos)
-          const totalGenActivos = hombresActivos + mujeresActivos;
-          setGeneroDataReal([
-            { name: "Hombres", value: hombresActivos, color: "#DC2626" },
-            { name: "Mujeres", value: mujeresActivos, color: "#6b7280" },
-          ]);
+          if (
+            ultAsist &&
+            ultAsist < umbralInact2 &&
+            ultAsist >= umbralPerdido
+          )
+            inactivos++;
 
-          // ── Retención/Churn: cargar del mes ANTERIOR desde DB ────────────────
-          const prevMonthVal = hoyMonth === 1 ? 12 : hoyMonth - 1;
-          const prevYearVal = hoyMonth === 1 ? hoyYear - 1 : hoyYear;
-          const MESES_NOMBRES = [
-            "Enero",
-            "Febrero",
-            "Marzo",
-            "Abril",
-            "Mayo",
-            "Junio",
-            "Julio",
-            "Agosto",
-            "Septiembre",
-            "Octubre",
-            "Noviembre",
-            "Diciembre",
-          ];
-          setPrevMesLabel(`${MESES_NOMBRES[prevMonthVal - 1]} ${prevYearVal}`);
+          if (ultAsist && ultAsist < umbralPerdido) perdidos++;
+          else if (!ultAsist) perdidos++;
+        }
 
-          supabase
-            .from("estadisticas_mensuales")
-            .select("tasa_retencion, tasa_churn")
-            .eq("year", prevYearVal)
-            .eq("month", prevMonthVal)
-            .maybeSingle()
-            .then(({ data: prevData }) => {
-              if (prevData?.tasa_retencion != null) {
-                const tr = Math.round(prevData.tasa_retencion as number);
-                const tc =
-                  prevData.tasa_churn != null
-                    ? Math.round(prevData.tasa_churn as number)
-                    : Math.max(100 - tr, 0);
-                setTasaRetencion(tr);
-                setTasaChurn(tc);
-                // Actualizar snapshot con tasas reales
-                setEstadisticasSnapshot({
-                  alumnosActivos: activos,
-                  nuevosEsteMes: nuevos,
-                  promedioEdad:
-                    edadesActivos.length > 0
-                      ? Math.round(
-                          (edadesActivos.reduce((a, b) => a + b, 0) /
-                            edadesActivos.length) *
-                            10,
-                        ) / 10
-                      : null,
-                  tasaRetencion: tr,
-                  tasaChurn: tc,
-                  alumnosEnRiesgo: enRiesgo,
-                  vidaUtilMeses:
-                    vidasUtilesArr.length > 0
-                      ? Math.round(
-                          (vidasUtilesArr.reduce((a, b) => a + b, 0) /
-                            vidasUtilesArr.length) *
-                            10,
-                        ) / 10
-                      : null,
-                  clientesInactivos: inactivos,
-                  clientesPerdidos: perdidos,
-                  generoDataReal: [
-                    { name: "Hombres", value: hombresActivos, color: "#DC2626" },
-                    { name: "Mujeres", value: mujeresActivos, color: "#6b7280" },
-                  ],
-                  retencionHistorico: [],
-                  asistenciaHorarioReal: [],
-                  rankingTop5: [],
-                  mesesNuevosHistorial: [],
-                  antiguedadMeses:
-                    antiguedadesArr.length > 0
-                      ? Math.round(
-                          (antiguedadesArr.reduce((a, b) => a + b, 0) /
-                            antiguedadesArr.length) *
-                            10,
-                        ) / 10
-                      : null,
-                  prevMesLabel: `${["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"][(hoyMonth === 1 ? 12 : hoyMonth - 1) - 1]} ${hoyMonth === 1 ? hoyYear - 1 : hoyYear}`,
-                });
-              } else {
-                setTasaRetencion(null);
-                setTasaChurn(null);
+        const totalGenActivos = hombresActivos + mujeresActivos;
+        const computedGeneroDataReal = [
+          { name: "Hombres", value: hombresActivos, color: "#DC2626" },
+          { name: "Mujeres", value: mujeresActivos, color: "#6b7280" },
+        ];
+
+        const computedPromedioEdad = edadesActivos.length > 0
+          ? Math.round(
+              (edadesActivos.reduce((a, b) => a + b, 0) /
+                edadesActivos.length) *
+                10,
+            ) / 10
+          : null;
+
+        const computedAntiguedadMeses = antiguedadesArr.length > 0
+          ? Math.round(
+              (antiguedadesArr.reduce((a, b) => a + b, 0) /
+                antiguedadesArr.length) *
+                10,
+            ) / 10
+          : null;
+
+        const computedVidaUtilMeses = vidasUtilesArr.length > 0
+          ? Math.round(
+              (vidasUtilesArr.reduce((a, b) => a + b, 0) /
+                vidasUtilesArr.length) *
+                10,
+            ) / 10
+          : null;
+
+        // ── 2. Retención/Churn: cargar del mes ANTERIOR desde DB ────────────────
+        const prevMonthVal = hoyMonth === 1 ? 12 : hoyMonth - 1;
+        const prevYearVal = hoyMonth === 1 ? hoyYear - 1 : hoyYear;
+        const MESES_NOMBRES = [
+          "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+          "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+        ];
+        const computedPrevMesLabel = `${MESES_NOMBRES[prevMonthVal - 1]} ${prevYearVal}`;
+
+        const { data: prevData } = await supabase
+          .from("estadisticas_mensuales")
+          .select("tasa_retencion, tasa_churn")
+          .eq("year", prevYearVal)
+          .eq("month", prevMonthVal)
+          .maybeSingle();
+
+        let computedTasaRetencion: number | null = null;
+        let computedTasaChurn: number | null = null;
+
+        if (prevData?.tasa_retencion != null) {
+          computedTasaRetencion = Math.round(prevData.tasa_retencion as number);
+          computedTasaChurn =
+            prevData.tasa_churn != null
+              ? Math.round(prevData.tasa_churn as number)
+              : Math.max(100 - computedTasaRetencion, 0);
+        }
+
+        // ── 3. Asistencias por horario ────────────────────────────────────────
+        const { data: asist } = await supabase
+          .from("asistencias")
+          .select("hora")
+          .gte("fecha", primerDiaMesStr)
+          .lte("fecha", hoyStr);
+
+        const conteoHora = new Map<number, number>();
+        for (const h of HORAS_FRANJA) conteoHora.set(h, 0);
+        for (const a of asist ?? []) {
+          if (!a.hora) continue;
+          const h = parseInt((a.hora as string).split(":")[0]);
+          if (h >= 7 && h <= 22)
+            conteoHora.set(h, (conteoHora.get(h) ?? 0) + 1);
+        }
+        const computedHorarioData = HORAS_FRANJA.map((h) => ({
+          horario: `${String(h).padStart(2, "0")}:00`,
+          alumnos: conteoHora.get(h) ?? 0,
+        }));
+
+        // ── 4. Cargar historial de retención (solo año actual) ────────────────
+        const { data: retRows } = await supabase
+          .from("estadisticas_mensuales")
+          .select("year, month, tasa_retencion")
+          .not("tasa_retencion", "is", null)
+          .eq("year", hoyYear)
+          .order("month", { ascending: true });
+
+        const computedRetencionHistorico = (retRows ?? []).map((r) => ({
+          mes: MESES_ABREV[r.month - 1],
+          tasa: r.tasa_retencion as number,
+        }));
+
+        // ── 5. Historial de nuevos por mes (últimos 6 meses completos) ────────
+        const { data: nuevosRows } = await supabase
+          .from("estadisticas_mensuales")
+          .select("year, month, nuevos_este_mes")
+          .not("nuevos_este_mes", "is", null)
+          .order("year", { ascending: true })
+          .order("month", { ascending: true });
+
+        const computedMesesNuevosHistorial = (nuevosRows ?? []).slice(-6).map((r) => ({
+          mes: MESES_ABREV[(r.month as number) - 1],
+          nuevos: r.nuevos_este_mes as number,
+        }));
+
+        // ── 6. Ranking de asistencias ──────────────────────────────────────────
+        let computedRankingTop5: any[] = [];
+        let computedRankingTopMasc: any[] = [];
+        let computedRankingTopFem: any[] = [];
+
+        try {
+          const { data: rankingData, error: rankingError } = await supabase
+            .rpc("get_ranking_asistencias_mes", {
+              p_year: hoyYear,
+              p_month: hoyMonth,
+              p_limit: 10,
+            });
+
+          let finalRankingData = rankingData;
+
+          if (rankingError || !rankingData) {
+            // Fallback: query directa si la RPC no existe aún o falla
+            const { data: fallbackAsistencias } = await supabase
+              .from("asistencias")
+              .select("alumno_id, alumnos!inner(nombre, genero)")
+              .gte("fecha", `${hoyYear}-${String(hoyMonth).padStart(2, "0")}-01`)
+              .lte("fecha", hoyStr)
+              .limit(2000);
+
+            if (fallbackAsistencias) {
+              const conteo = new Map<string, { nombre: string; count: number; genero: string }>();
+              for (const a of fallbackAsistencias as any[]) {
+                const id = a.alumno_id;
+                if (!id) continue;
+                const nombre = a.alumnos?.nombre || alumnoNombreMap.get(id) || "Alumno";
+                const genero = a.alumnos?.genero || "Masculino";
+                const prev = conteo.get(id);
+                conteo.set(id, { nombre, count: (prev?.count ?? 0) + 1, genero });
               }
-            });
+              const allEntries = [...conteo.entries()];
+              computedRankingTop5 = allEntries
+                .sort((a, b) => b[1].count - a[1].count)
+                .slice(0, 10)
+                .map(([, { nombre, count, genero }], i) => ({
+                  pos: i + 1,
+                  nombre,
+                  inicial: nombre.charAt(0).toUpperCase(),
+                  clases: count,
+                  genero,
+                }));
 
-          // ── 2. Asistencias por horario ────────────────────────────────────────
-          supabase
-            .from("asistencias")
-            .select("hora")
-            .gte("fecha", primerDiaMesStr)
-            .lte("fecha", hoyStr)
-            .then(({ data: asist }) => {
-              const conteoHora = new Map<number, number>();
-              for (const h of HORAS_FRANJA) conteoHora.set(h, 0);
-              for (const a of asist ?? []) {
-                if (!a.hora) continue;
-                const h = parseInt((a.hora as string).split(":")[0]);
-                if (h >= 7 && h <= 22)
-                  conteoHora.set(h, (conteoHora.get(h) ?? 0) + 1);
-              }
-              const horarioData = HORAS_FRANJA.map((h) => ({
-                horario: `${String(h).padStart(2, "0")}:00`,
-                alumnos: conteoHora.get(h) ?? 0,
+              computedRankingTopMasc = allEntries
+                .filter(([, val]) => val.genero === "Masculino")
+                .sort((a, b) => b[1].count - a[1].count)
+                .slice(0, 10)
+                .map(([, { nombre, count, genero }], i) => ({
+                  pos: i + 1,
+                  nombre,
+                  inicial: nombre.charAt(0).toUpperCase(),
+                  clases: count,
+                  genero,
+                }));
+
+              computedRankingTopFem = allEntries
+                .filter(([, val]) => val.genero === "Femenino")
+                .sort((a, b) => b[1].count - a[1].count)
+                .slice(0, 10)
+                .map(([, { nombre, count, genero }], i) => ({
+                  pos: i + 1,
+                  nombre,
+                  inicial: nombre.charAt(0).toUpperCase(),
+                  clases: count,
+                  genero,
+                }));
+            }
+          } else {
+            // Transformar resultado de RPC
+            const conteo = new Map<string, { nombre: string; count: number; genero: string }>();
+            for (const row of finalRankingData as any[]) {
+              conteo.set(row.alumno_id, {
+                nombre: row.nombre,
+                count: Number(row.total_clases),
+                genero: row.genero || "Masculino",
+              });
+            }
+            const allEntries = [...conteo.entries()];
+            computedRankingTop5 = allEntries
+              .sort((a, b) => b[1].count - a[1].count)
+              .slice(0, 10)
+              .map(([, { nombre, count, genero }], i) => ({
+                pos: i + 1,
+                nombre,
+                inicial: nombre.charAt(0).toUpperCase(),
+                clases: count,
+                genero,
               }));
-              setAsistenciaHorarioReal(horarioData);
 
-              // ── 3. Upsert snapshot del mes actual en estadisticas_mensuales ──
-              supabase
-                .from("estadisticas_mensuales")
-                .upsert(
-                  {
-                    year: hoyYear,
-                    month: hoyMonth,
-                    alumnos_activos: activos,
-                    nuevos_este_mes: nuevos,
-                    promedio_edad:
-                      edadesActivos.length > 0
-                        ? Math.round(
-                            (edadesActivos.reduce((a, b) => a + b, 0) /
-                              edadesActivos.length) *
-                              10,
-                          ) / 10
-                        : null,
-                    pct_hombres:
-                      totalGenActivos > 0
-                        ? Math.round((hombresActivos / totalGenActivos) * 100)
-                        : null,
-                    pct_mujeres:
-                      totalGenActivos > 0
-                        ? Math.round((mujeresActivos / totalGenActivos) * 100)
-                        : null,
-                    clientes_inactivos: inactivos,
-                    clientes_perdidos: perdidos,
-                    asistencia_por_hora: horarioData,
-                  },
-                  { onConflict: "year,month" },
-                )
-                .then(() => {
-                  // Cargar historial de retención (solo año actual)
-                  supabase
-                    .from("estadisticas_mensuales")
-                    .select("year, month, tasa_retencion")
-                    .not("tasa_retencion", "is", null)
-                    .eq("year", hoyYear)
-                    .order("month", { ascending: true })
-                    .then(({ data: rows }) => {
-                      setRetencionHistorico(
-                        (rows ?? []).map((r) => ({
-                          mes: MESES_ABREV[r.month - 1],
-                          tasa: r.tasa_retencion as number,
-                        })),
-                      );
-                    });
-                });
-            });
-
-          // ── 4. Historial de nuevos por mes (últimos 6 meses completos) ────────
-          supabase
-            .from("estadisticas_mensuales")
-            .select("year, month, nuevos_este_mes")
-            .not("nuevos_este_mes", "is", null)
-            .order("year", { ascending: true })
-            .order("month", { ascending: true })
-            .then(({ data: rows }) => {
-              const hist = (rows ?? []).slice(-6).map((r) => ({
-                mes: MESES_ABREV[(r.month as number) - 1],
-                nuevos: r.nuevos_este_mes as number,
+            computedRankingTopMasc = allEntries
+              .filter(([, val]) => val.genero === "Masculino")
+              .sort((a, b) => b[1].count - a[1].count)
+              .slice(0, 10)
+              .map(([, { nombre, count, genero }], i) => ({
+                pos: i + 1,
+                nombre,
+                inicial: nombre.charAt(0).toUpperCase(),
+                clases: count,
+                genero,
               }));
-              setMesesNuevosHistorial(hist);
-            });
 
-          // Ranking inicial
-          fetchRanking();
+            computedRankingTopFem = allEntries
+              .filter(([, val]) => val.genero === "Femenino")
+              .sort((a, b) => b[1].count - a[1].count)
+              .slice(0, 10)
+              .map(([, { nombre, count, genero }], i) => ({
+                pos: i + 1,
+                nombre,
+                inicial: nombre.charAt(0).toUpperCase(),
+                clases: count,
+                genero,
+              }));
+          }
+        } catch (rankErr) {
+          console.error("Error fetching ranking:", rankErr);
+        }
 
-          // Guardar snapshot en store para persistencia entre navegaciones
-          setEstadisticasSnapshot({
-            alumnosActivos: activos,
-            nuevosEsteMes: nuevos,
-            promedioEdad:
-              edadesActivos.length > 0
-                ? Math.round(
-                    (edadesActivos.reduce((a, b) => a + b, 0) /
-                      edadesActivos.length) *
-                      10,
-                  ) / 10
-                : null,
-            tasaRetencion: null, // se actualiza cuando llega la sub-query
-            tasaChurn: null,
-            alumnosEnRiesgo: enRiesgo,
-            vidaUtilMeses:
-              vidasUtilesArr.length > 0
-                ? Math.round(
-                    (vidasUtilesArr.reduce((a, b) => a + b, 0) /
-                      vidasUtilesArr.length) *
-                      10,
-                  ) / 10
-                : null,
-            clientesInactivos: inactivos,
-            clientesPerdidos: perdidos,
-            generoDataReal: [
-              { name: "Hombres", value: hombresActivos, color: "#DC2626" },
-              { name: "Mujeres", value: mujeresActivos, color: "#6b7280" },
-            ],
-            retencionHistorico: [],
-            asistenciaHorarioReal: [],
-            rankingTop5: [],
-            mesesNuevosHistorial: [],
-            antiguedadMeses:
-              antiguedadesArr.length > 0
-                ? Math.round(
-                    (antiguedadesArr.reduce((a, b) => a + b, 0) /
-                      antiguedadesArr.length) *
-                      10,
-                  ) / 10
-                : null,
-            prevMesLabel: `${["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"][(hoyMonth === 1 ? 12 : hoyMonth - 1) - 1]} ${hoyMonth === 1 ? hoyYear - 1 : hoyYear}`,
-          });
-        });
-    });
-  }, [settings, fetchRanking]);
+        // ── 7. Upsert snapshot del mes actual en estadisticas_mensuales ──
+        await supabase
+          .from("estadisticas_mensuales")
+          .upsert(
+            {
+              year: hoyYear,
+              month: hoyMonth,
+              alumnos_activos: activos,
+              nuevos_este_mes: nuevos,
+              promedio_edad: computedPromedioEdad,
+              pct_hombres:
+                totalGenActivos > 0
+                  ? Math.round((hombresActivos / totalGenActivos) * 100)
+                  : null,
+              pct_mujeres:
+                totalGenActivos > 0
+                  ? Math.round((mujeresActivos / totalGenActivos) * 100)
+                  : null,
+              clientes_inactivos: inactivos,
+              clientes_perdidos: perdidos,
+              asistencia_por_hora: computedHorarioData,
+              antiguedad_promedio: computedAntiguedadMeses,
+              ranking_top5: computedRankingTop5,
+            },
+            { onConflict: "year,month" },
+          );
+
+        if (!active) return;
+
+        // ── 8. Actualizar estados React del componente ───────────────────────
+        setAlumnosActivos(activos);
+        setNuevosEsteMes(nuevos);
+        setAlumnosEnRiesgo(enRiesgo);
+        setClientesInactivos(inactivos);
+        setClientesPerdidos(perdidos);
+        setPromedioEdad(computedPromedioEdad);
+        setAntiguedadMeses(computedAntiguedadMeses);
+        setVidaUtilMeses(computedVidaUtilMeses);
+        setGeneroDataReal(computedGeneroDataReal);
+        setPrevMesLabel(computedPrevMesLabel);
+        setTasaRetencion(computedTasaRetencion);
+        setTasaChurn(computedTasaChurn);
+        setAsistenciaHorarioReal(computedHorarioData);
+        setRetencionHistorico(computedRetencionHistorico);
+        setMesesNuevosHistorial(computedMesesNuevosHistorial);
+        setRankingTop5(computedRankingTop5);
+        setRankingTopMasc(computedRankingTopMasc);
+        setRankingTopFem(computedRankingTopFem);
+
+        // ── 9. Guardar SNAPSHOT COMPLETO en Zustand Store ─────────────────────
+        const newMonthSnap = {
+          alumnosActivos: activos,
+          nuevosEsteMes: nuevos,
+          promedioEdad: computedPromedioEdad,
+          tasaRetencion: computedTasaRetencion,
+          tasaChurn: computedTasaChurn,
+          alumnosEnRiesgo: enRiesgo,
+          vidaUtilMeses: computedVidaUtilMeses,
+          clientesInactivos: inactivos,
+          clientesPerdidos: perdidos,
+          generoDataReal: computedGeneroDataReal,
+          retencionHistorico: computedRetencionHistorico,
+          asistenciaHorarioReal: computedHorarioData,
+          rankingTop5: computedRankingTop5,
+          rankingTopMasc: computedRankingTopMasc,
+          rankingTopFem: computedRankingTopFem,
+          mesesNuevosHistorial: computedMesesNuevosHistorial,
+          antiguedadMeses: computedAntiguedadMeses,
+          prevMesLabel: computedPrevMesLabel,
+        };
+
+        const currentCacheMap = snap?.cacheMap || {};
+        const updatedCacheMap = {
+          ...currentCacheMap,
+          [cacheKey]: {
+            fetchedAt: Date.now(),
+            snap: newMonthSnap,
+          },
+        };
+
+        setEstadisticasSnapshot({
+          ...newMonthSnap,
+          selectedYear,
+          selectedMonth,
+          cacheMap: updatedCacheMap,
+        } as any);
+
+      } catch (err) {
+        console.error("Error loading statistics:", err);
+      } finally {
+        if (active) {
+          setStatsLoading(false);
+        }
+      }
+    }
+
+    loadData();
+
+    return () => {
+      active = false;
+    };
+  }, [settings, isCacheValid, snap, setEstadisticasSnapshot, selectedYear, selectedMonth, isCurrentMonth]);
 
   return (
     <div className="p-4 lg:p-6 w-full mx-auto flex flex-col gap-6 bg-[#FAFAFA] min-h-screen">
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center gap-3 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-          <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center border border-orange-100 shrink-0">
-            <Users size={20} className="text-orange-600" />
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center border border-orange-100 shrink-0">
+              <Users size={20} className="text-orange-600" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-gray-900 leading-tight">Estadísticas de Clientes</h1>
+              <p className="text-xs text-gray-400 mt-0.5">Métricas de retención, actividad y comportamiento de los alumnos.</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 leading-tight">Estadísticas de Clientes</h1>
-            <p className="text-xs text-gray-400 mt-0.5">Métricas de retención, actividad y comportamiento de los alumnos.</p>
+          <div className="flex items-center gap-3">
+            <MonthSelector
+              year={selectedYear}
+              month={selectedMonth}
+              onPrev={handlePrevMonth}
+              onNext={handleNextMonth}
+              isCurrentMonth={isCurrentMonth}
+              isSeeding={statsLoading}
+            />
           </div>
         </div>
 
@@ -2608,10 +2971,11 @@ export default function EstadisticasPage() {
         {/* Fila 1 — KPIs superiores */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <StatCard
-            label="Alumnos Activos (este mes)"
+            label={isCurrentMonth ? "Alumnos Activos (este mes)" : "Alumnos Activos"}
             value={alumnosActivos !== null ? String(alumnosActivos) : "—"}
             accent="#DC2626"
             onHistoryClick={() => setHistorialOpen(true)}
+            note={isCurrentMonth ? `Alumnos activos al día de hoy (${dateRangeLabel.end})` : `Alumnos activos al cierre de ${MONTH_NAMES[selectedMonth - 1]} (${dateRangeLabel.end})`}
             icon={
               <svg
                 width="16"
@@ -2629,15 +2993,16 @@ export default function EstadisticasPage() {
             }
           />
           <StatCard
-            label="Nuevos Este Mes"
+            label={isCurrentMonth ? "Nuevos Este Mes" : "Nuevos del Mes"}
             value={nuevosEsteMes !== null ? `+${nuevosEsteMes}` : "—"}
             accent="#DC2626"
             onHistoryClick={() => setNuevosHistorialOpen(true)}
+            note={`Registrados del ${dateRangeLabel.start} al ${dateRangeLabel.end}`}
             sub={(() => {
               const maxN = mesesNuevosHistorial.length
                 ? Math.max(...mesesNuevosHistorial.map((m) => m.nuevos), 1)
                 : 1;
-              const mesActualAbrev = MESES_ABREV[new Date().getMonth()];
+              const mesActualAbrev = MESES_ABREV[selectedMonth - 1];
               if (mesesNuevosHistorial.length === 0) return null;
               return (
                 <div className="flex items-end gap-1 mt-1">
@@ -2689,6 +3054,7 @@ export default function EstadisticasPage() {
             value={promedioEdad !== null ? String(promedioEdad) : "—"}
             sub="años"
             accent="#6b7280"
+            note={isCurrentMonth ? `Alumnos activos al día de hoy (${dateRangeLabel.end})` : `Alumnos activos al cierre de ${MONTH_NAMES[selectedMonth - 1]} (${dateRangeLabel.end})`}
             icon={
               <svg
                 width="16"
@@ -2711,31 +3077,31 @@ export default function EstadisticasPage() {
             label="Tasa de Retención"
             value={tasaRetencion !== null ? `${tasaRetencion}%` : "—"}
             color="#16a34a"
-            description={`Alumnos que renovaron vs inicio del mes. Datos de ${prevMesLabel || "mes anterior"}.`}
+            description={isCurrentMonth ? `Porcentaje de alumnos activos del mes anterior (${prevMesLabel}) que renovaron en el mes en curso.` : `Porcentaje de alumnos del mes de ${MONTH_NAMES[selectedMonth === 1 ? 11 : selectedMonth - 2]} ${selectedMonth === 1 ? selectedYear - 1 : selectedYear} que renovaron en ${MONTH_NAMES[selectedMonth - 1]} ${selectedYear}.`}
           />
           <MetricCard
             label="Tasa de Churn"
             value={tasaChurn !== null ? `${tasaChurn}%` : "—"}
             color="#DC2626"
-            description={`Alumnos que no continuaron. Datos de ${prevMesLabel || "mes anterior"}.`}
+            description={isCurrentMonth ? `Porcentaje de alumnos activos del mes anterior (${prevMesLabel}) que no renovaron en el mes en curso.` : `Porcentaje de alumnos del mes de ${MONTH_NAMES[selectedMonth === 1 ? 11 : selectedMonth - 2]} ${selectedMonth === 1 ? selectedYear - 1 : selectedYear} que no renovaron en ${MONTH_NAMES[selectedMonth - 1]} ${selectedYear}.`}
           />
           <MetricCard
             label="Vida Útil del Cliente"
             value={vidaUtilMeses !== null ? `${vidaUtilMeses} m` : "—"}
             color="#2563eb"
-            description="Promedio de meses pagados por alumno, calculado desde tabla de pagos."
+            description={isCurrentMonth ? "Promedio estimado de permanencia (meses pagados por alumno) al día de hoy." : `Promedio de permanencia acumulado al cierre de ${MONTH_NAMES[selectedMonth - 1]} ${selectedYear}.`}
           />
           <MetricCard
             label="Antigüedad Promedio"
             value={antiguedadMeses !== null ? `${antiguedadMeses} m` : "—"}
             color="#7c3aed"
-            description="Tiempo promedio (meses) que llevan los alumnos activos desde su fecha de registro."
+            description={isCurrentMonth ? `Antigüedad promedio de los alumnos activos al día de hoy (${dateRangeLabel.end}).` : `Antigüedad promedio de los alumnos activos al cierre de ${MONTH_NAMES[selectedMonth - 1]} ${selectedYear} (${dateRangeLabel.end}).`}
           />
           <MetricCard
             label="Alumnos en Riesgo"
             value={alumnosEnRiesgo !== null ? String(alumnosEnRiesgo) : "—"}
             color="#d97706"
-            description="Alumnos activos sin asistencia en los últimos 15 días."
+            description={isCurrentMonth ? "Alumnos activos sin asistencia registrada en los últimos 15 días." : "Indicador en tiempo real (no disponible en meses históricos)."}
           />
         </div>
 
@@ -2753,9 +3119,10 @@ export default function EstadisticasPage() {
                 Clientes Inactivos Recuperables
               </p>
               <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">
-                Alumnos con más de {settings?.alert_2_days_no_attendance || 30}{" "}
-                días sin asistir pero con menos de 90 días de baja. Potencial de
-                reactivación.
+                {isCurrentMonth 
+                  ? `Alumnos con más de ${settings?.alert_2_days_no_attendance || 30} días sin asistir al día de hoy (${dateRangeLabel.end}) y menos de 90 días. Potencial de reactivación.`
+                  : `Alumnos con más de ${settings?.alert_2_days_no_attendance || 30} días sin asistir al cierre de ${MONTH_NAMES[selectedMonth - 1]} ${selectedYear} (${dateRangeLabel.end}) y menos de 90 días.`
+                }
               </p>
             </div>
           </div>
@@ -2771,7 +3138,10 @@ export default function EstadisticasPage() {
                 Clientes Perdidos
               </p>
               <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">
-                Alumnos con más de 90 días sin asistir al gimnasio.
+                {isCurrentMonth
+                  ? `Alumnos activos al día de hoy (${dateRangeLabel.end}) sin asistencia registrada en más de 90 días.`
+                  : `Alumnos activos al cierre de ${MONTH_NAMES[selectedMonth - 1]} ${selectedYear} (${dateRangeLabel.end}) sin asistencia registrada por más de 90 días.`
+                }
               </p>
             </div>
           </div>
@@ -2780,27 +3150,32 @@ export default function EstadisticasPage() {
         {/* Ranking por asistencia */}
         <div className="bg-white rounded-2xl border border-gray-100 p-6">
           <div className="flex items-center justify-between mb-5">
-            <div className="flex items-center gap-2">
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#d97706"
-                strokeWidth="2"
-              >
-                <path d="M6 9H4a2 2 0 01-2-2V5h4" />
-                <path d="M18 9h2a2 2 0 002-2V5h-4" />
-                <path d="M12 17v4" />
-                <path d="M8 21h8" />
-                <path d="M6 5h12v6a6 6 0 01-12 0V5z" />
-              </svg>
-              <span className="text-xs font-semibold tracking-widest text-gray-500 uppercase">
-                Ranking
-              </span>
-              <span className="text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
-                Top 10 Asistencias
-              </span>
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-2">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#d97706"
+                  strokeWidth="2"
+                >
+                  <path d="M6 9H4a2 2 0 01-2-2V5h4" />
+                  <path d="M18 9h2a2 2 0 002-2V5h-4" />
+                  <path d="M12 17v4" />
+                  <path d="M8 21h8" />
+                  <path d="M6 5h12v6a6 6 0 01-12 0V5z" />
+                </svg>
+                <span className="text-xs font-semibold tracking-widest text-gray-500 uppercase">
+                  Ranking
+                </span>
+                <span className="text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
+                  Top 10 Asistencias
+                </span>
+              </div>
+              <p className="text-[10px] text-gray-400">
+                Basado en clases tomadas del {dateRangeLabel.start} al {dateRangeLabel.end}
+              </p>
             </div>
 
             <button
@@ -2924,9 +3299,16 @@ export default function EstadisticasPage() {
           {/* Género donut */}
           <div className="bg-white rounded-2xl border border-gray-100 p-6 flex flex-col gap-3">
             <div className="flex items-center justify-between">
-              <p className="font-semibold text-gray-900">
-                Distribución por Género
-              </p>
+              <div>
+                <p className="font-semibold text-gray-900">
+                  Distribución por Género
+                </p>
+                <p className="text-[10px] text-gray-400 mt-0.5">
+                  {isCurrentMonth 
+                    ? `Activos al día de hoy (${dateRangeLabel.end})` 
+                    : `Consolidado al cierre (${dateRangeLabel.end})`}
+                </p>
+              </div>
               <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => setGeneroHistorialOpen(true)}
@@ -3035,10 +3417,15 @@ export default function EstadisticasPage() {
           </div>
           {/* Retención mensual */}
           <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 p-6">
-            <div className="flex items-center justify-between mb-1">
-              <p className="font-semibold text-gray-900">
-                Tasa de Retención Mensual
-              </p>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="font-semibold text-gray-900">
+                  Tasa de Retención Mensual
+                </p>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  Evolución acumulada del año {selectedYear} — se renueva cada enero
+                </p>
+              </div>
               <button
                 onClick={() => setRetencionHistorialOpen(true)}
                 className="text-xs text-gray-400 hover:text-gray-700 font-semibold flex items-center gap-1.5 transition-colors"
@@ -3057,9 +3444,6 @@ export default function EstadisticasPage() {
                 Ver historial
               </button>
             </div>
-            <p className="text-xs text-gray-400 mb-4">
-              Año {new Date().getFullYear()} — se renueva cada enero
-            </p>
             {mounted && retencionHistorico.length > 0 ? (
               <ResponsiveContainer width="100%" height={180}>
                 <LineChart data={retencionHistorico}>
@@ -3113,7 +3497,7 @@ export default function EstadisticasPage() {
                 Asistencia por Horario
               </p>
               <p className="text-xs text-gray-400">
-                Total de asistencias por franja horaria — mes actual
+                Total de asistencias por franja horaria — {isCurrentMonth ? "mes actual" : `${MONTH_NAMES[selectedMonth - 1]} ${selectedYear}`}
               </p>
             </div>
             <button
