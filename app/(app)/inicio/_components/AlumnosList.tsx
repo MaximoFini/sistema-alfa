@@ -302,6 +302,14 @@ function NuevoAlumnoModal({
     if (!pagoForm.fechaInicio)
       e.fechaInicio = "La fecha de inicio es requerida";
     if (!pagoForm.medioPago) e.medioPago = "El medio de pago es requerido";
+
+    if (
+      pagoForm.medioPago.toLowerCase().includes("transferencia") &&
+      !pagoForm.aliasTransferencia.trim()
+    ) {
+      e.aliasTransferencia = "El alias/CBU de destino es obligatorio para transferencias";
+    }
+
     return e;
   }
 
@@ -330,66 +338,65 @@ function NuevoAlumnoModal({
 
     setGuardando(true);
 
-    // Verificar si ya existe un alumno con el mismo DNI
-    const { data: dniExistente, error: checkError } = await supabase
-      .from("alumnos")
-      .select("id")
-      .eq("dni", form.dni.trim())
-      .maybeSingle();
-
-    if (checkError) {
-      setGuardando(false);
-      triggerHapticFeedback(HapticPresets.error);
-      alert("Error al verificar el DNI: " + checkError.message);
-      return;
-    }
-
-    if (dniExistente) {
-      setGuardando(false);
-      setErrors({ dni: "Ya existe un alumno registrado con este DNI" });
-      triggerHapticFeedback(HapticPresets.warning);
-      return;
-    }
-
-    triggerHapticFeedback(HapticPresets.medium);
-
-    if (goToStep2) {
-      setGuardando(false);
-      // Avanzar al paso 2 de inmediato en el cliente, sin tocar la base de datos aún (0 RTT)
-      setStep(2);
-    } else {
-      // Guardado tradicional sin cobro (1 RTT)
-      const edadCalculada = calcularEdad(form.fechaNacimiento);
-
-      const { error } = await supabase
+    try {
+      // Verificar si ya existe un alumno con el mismo DNI
+      const { data: dniExistente, error: checkError } = await supabase
         .from("alumnos")
-        .insert({
-          nombre: form.nombre.trim(),
-          dni: form.dni.trim(),
-          domicilio: form.domicilio.trim(),
-          telefono: form.telefono.trim(),
-          fecha_nacimiento: form.fechaNacimiento,
-          fecha_registro: form.fechaRegistro,
-          genero: form.genero,
-          edad_actual: edadCalculada,
-          cuis_completado: esMenorDeEdad ? form.cuisCompletado : false,
-          cuis_clases_presentadas: 0,
-          email: form.email.trim() || null,
-          telefono_emergencia: form.telefonoEmergencia.trim() || null,
-          observaciones: form.observaciones.trim() || null,
-        });
+        .select("id")
+        .eq("dni", form.dni.trim())
+        .maybeSingle();
 
-      setGuardando(false);
+      if (checkError) {
+        throw new Error("Error al verificar el DNI: " + checkError.message);
+      }
 
-      if (error) {
-        triggerHapticFeedback(HapticPresets.error);
-        alert("Error al guardar el alumno: " + error.message);
+      if (dniExistente) {
+        setErrors({ dni: "Ya existe un alumno registrado con este DNI" });
+        triggerHapticFeedback(HapticPresets.warning);
         return;
       }
 
-      triggerHapticFeedback(HapticPresets.success);
-      onGuardado();
-      onClose();
+      triggerHapticFeedback(HapticPresets.medium);
+
+      if (goToStep2) {
+        // Avanzar al paso 2 de inmediato en el cliente, sin tocar la base de datos aún (0 RTT)
+        setStep(2);
+      } else {
+        // Guardado tradicional sin cobro (1 RTT)
+        const edadCalculada = calcularEdad(form.fechaNacimiento);
+
+        const { error } = await supabase
+          .from("alumnos")
+          .insert({
+            nombre: form.nombre.trim(),
+            dni: form.dni.trim(),
+            domicilio: form.domicilio.trim(),
+            telefono: form.telefono.trim(),
+            fecha_nacimiento: form.fechaNacimiento,
+            fecha_registro: form.fechaRegistro,
+            genero: form.genero,
+            edad_actual: edadCalculada,
+            cuis_completado: esMenorDeEdad ? form.cuisCompletado : false,
+            cuis_clases_presentadas: 0,
+            email: form.email.trim() || null,
+            telefono_emergencia: form.telefonoEmergencia.trim() || null,
+            observaciones: form.observaciones.trim() || null,
+          });
+
+        if (error) {
+          throw new Error("Error al guardar el alumno: " + error.message);
+        }
+
+        triggerHapticFeedback(HapticPresets.success);
+        onGuardado();
+        onClose();
+      }
+    } catch (err: any) {
+      console.error("Error al guardar alumno Paso 1:", err);
+      triggerHapticFeedback(HapticPresets.error);
+      alert(err.message || "Error inesperado al registrar los datos personales del alumno");
+    } finally {
+      setGuardando(false);
     }
   }
 
@@ -404,82 +411,89 @@ function NuevoAlumnoModal({
     triggerHapticFeedback(HapticPresets.medium);
     setGuardando(true);
 
-    // Verificar si ya existe un alumno con el mismo DNI (doble seguridad)
-    const { data: dniExistente, error: checkError } = await supabase
-      .from("alumnos")
-      .select("id")
-      .eq("dni", form.dni.trim())
-      .maybeSingle();
+    try {
+      // Verificar si ya existe un alumno con el mismo DNI (doble seguridad)
+      const { data: dniExistente, error: checkError } = await supabase
+        .from("alumnos")
+        .select("id")
+        .eq("dni", form.dni.trim())
+        .maybeSingle();
 
-    if (checkError) {
-      setGuardando(false);
-      triggerHapticFeedback(HapticPresets.error);
-      alert("Error al verificar el DNI: " + checkError.message);
-      return;
-    }
-
-    if (dniExistente) {
-      setGuardando(false);
-      setStep(1); // Volver al paso 1 para mostrar el error
-      setErrors({ dni: "Ya existe un alumno registrado con este DNI" });
-      triggerHapticFeedback(HapticPresets.warning);
-      return;
-    }
-
-    let fechaProximoVencimiento = null;
-    const planElegido = subscriptionPlans.find(
-      (p) => p.name === pagoForm.actividad,
-    );
-    if (planElegido && planElegido.duration_days) {
-      const [y, m, d] = pagoForm.fechaInicio.split("-").map(Number);
-      const fecha = new Date(y, m - 1, d);
-      fecha.setDate(fecha.getDate() + planElegido.duration_days);
-      const yyyy = fecha.getFullYear();
-      const mm = String(fecha.getMonth() + 1).padStart(2, "0");
-      const dd = String(fecha.getDate()).padStart(2, "0");
-      fechaProximoVencimiento = `${yyyy}-${mm}-${dd}`;
-    }
-
-    const edadCalculada = calcularEdad(form.fechaNacimiento);
-
-    // Guardado unificado de alumno + pago atómico mediante la RPC (1 RTT)
-    const { error: rpcError } = await supabase.rpc(
-      "crear_alumno_con_cobro",
-      {
-        p_nombre: form.nombre.trim(),
-        p_dni: form.dni.trim(),
-        p_domicilio: form.domicilio.trim(),
-        p_telefono: form.telefono.trim(),
-        p_fecha_nacimiento: form.fechaNacimiento,
-        p_fecha_registro: form.fechaRegistro,
-        p_genero: form.genero,
-        p_edad_actual: edadCalculada,
-        p_actividad: pagoForm.actividad,
-        p_precio: Number(pagoForm.precio),
-        p_fecha_cobro: pagoForm.fechaCobro,
-        p_medio_pago: pagoForm.medioPago,
-        p_fecha_inicio: pagoForm.fechaInicio,
-        p_fecha_vencimiento: fechaProximoVencimiento,
-        p_cuis_completado: esMenorDeEdad ? form.cuisCompletado : false,
-        p_email: form.email.trim() || null,
-        p_tarjeta: pagoForm.tarjeta || null,
-        p_alias_transferencia: pagoForm.aliasTransferencia.trim() || null,
-        p_telefono_emergencia: form.telefonoEmergencia.trim() || null,
-        p_observaciones: form.observaciones.trim() || null,
+      if (checkError) {
+        throw new Error("Error al verificar el DNI: " + checkError.message);
       }
-    );
 
-    setGuardando(false);
+      if (dniExistente) {
+        setStep(1); // Volver al paso 1 para mostrar el error
+        setErrors({ dni: "Ya existe un alumno registrado con este DNI" });
+        triggerHapticFeedback(HapticPresets.warning);
+        return;
+      }
 
-    if (rpcError) {
+      let fechaProximoVencimiento = null;
+      const planElegido = subscriptionPlans.find(
+        (p) => p.name === pagoForm.actividad,
+      );
+      if (planElegido && planElegido.duration_days) {
+        if (!pagoForm.fechaInicio) {
+          throw new Error("La fecha de inicio es requerida");
+        }
+        const parts = pagoForm.fechaInicio.split("-");
+        if (parts.length !== 3) {
+          throw new Error("El formato de la fecha de inicio es inválido");
+        }
+        const [y, m, d] = parts.map(Number);
+        const fecha = new Date(y, m - 1, d);
+        fecha.setDate(fecha.getDate() + planElegido.duration_days);
+        const yyyy = fecha.getFullYear();
+        const mm = String(fecha.getMonth() + 1).padStart(2, "0");
+        const dd = String(fecha.getDate()).padStart(2, "0");
+        fechaProximoVencimiento = `${yyyy}-${mm}-${dd}`;
+      }
+
+      const edadCalculada = calcularEdad(form.fechaNacimiento);
+
+      // Guardado unificado de alumno + pago atómico mediante la RPC (1 RTT)
+      const { error: rpcError } = await supabase.rpc(
+        "crear_alumno_con_cobro",
+        {
+          p_nombre: form.nombre.trim(),
+          p_dni: form.dni.trim(),
+          p_domicilio: form.domicilio.trim(),
+          p_telefono: form.telefono.trim(),
+          p_fecha_nacimiento: form.fechaNacimiento,
+          p_fecha_registro: form.fechaRegistro,
+          p_genero: form.genero,
+          p_edad_actual: edadCalculada,
+          p_actividad: pagoForm.actividad,
+          p_precio: Number(pagoForm.precio),
+          p_fecha_cobro: pagoForm.fechaCobro,
+          p_medio_pago: pagoForm.medioPago,
+          p_fecha_inicio: pagoForm.fechaInicio,
+          p_fecha_vencimiento: fechaProximoVencimiento,
+          p_cuis_completado: esMenorDeEdad ? form.cuisCompletado : false,
+          p_email: form.email.trim() || null,
+          p_tarjeta: pagoForm.tarjeta || null,
+          p_alias_transferencia: pagoForm.aliasTransferencia.trim() || null,
+          p_telefono_emergencia: form.telefonoEmergencia.trim() || null,
+          p_observaciones: form.observaciones.trim() || null,
+        }
+      );
+
+      if (rpcError) {
+        throw new Error("Error al registrar alumno con cobro: " + rpcError.message);
+      }
+
+      triggerHapticFeedback(HapticPresets.success);
+      onGuardado();
+      onClose();
+    } catch (err: any) {
+      console.error("Error al registrar alumno con cobro:", err);
       triggerHapticFeedback(HapticPresets.error);
-      alert("Error al registrar alumno con cobro: " + rpcError.message);
-      return;
+      alert(err.message || "Error inesperado al crear el alumno y registrar el cobro");
+    } finally {
+      setGuardando(false);
     }
-
-    triggerHapticFeedback(HapticPresets.success);
-    onGuardado();
-    onClose();
   }
 
   return (
@@ -950,15 +964,24 @@ function NuevoAlumnoModal({
               {pagoForm.medioPago.toLowerCase().includes("transferencia") && (
                 <div className="flex flex-col gap-2">
                   <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
-                    Alias / CBU de destino
+                    Alias / CBU de destino *
                   </label>
                   <input
                     type="text"
                     placeholder="Ej: gimnasio.alfa.mp"
                     value={pagoForm.aliasTransferencia}
                     onChange={(e) => setPagoField("aliasTransferencia", e.target.value)}
-                    className="border border-gray-200 rounded-lg px-4 py-3 text-base md:text-sm outline-none min-h-[44px] focus:border-red-400 focus:ring-2 focus:ring-red-50"
+                    className={`border rounded-lg px-4 py-3 text-base md:text-sm outline-none min-h-[44px] focus:ring-2 focus:ring-red-50 ${
+                      errors.aliasTransferencia
+                        ? "border-red-500 focus:border-red-500"
+                        : "border-gray-200 focus:border-red-400"
+                    }`}
                   />
+                  {errors.aliasTransferencia && (
+                    <span className="text-xs text-red-500">
+                      {errors.aliasTransferencia}
+                    </span>
+                  )}
                 </div>
               )}
 

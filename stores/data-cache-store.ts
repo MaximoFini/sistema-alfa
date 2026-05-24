@@ -298,8 +298,8 @@ export const useDataCacheStore = create<DataCacheState>((set, get) => ({
       return;
     }
 
-    // Ya cargando esta clave
-    if (state.alumnosLoadingKeys[cacheKey]) return;
+    // Ya cargando esta clave (solo bloquear si no es forceRefresh)
+    if (!forceRefresh && state.alumnosLoadingKeys[cacheKey]) return;
 
     set((s) => ({
       alumnosLoadingKeys: { ...s.alumnosLoadingKeys, [cacheKey]: true },

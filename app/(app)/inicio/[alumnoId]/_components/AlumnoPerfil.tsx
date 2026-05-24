@@ -68,6 +68,8 @@ export default function AlumnoPerfil({
   const router = useRouter();
   const [convirtiendo, setConvirtiendo] = useState(false);
   const [alumno, setAlumno] = useState(alumnoInicial);
+  const [showConvertModal, setShowConvertModal] = useState(false);
+  const [autoOpenPaymentModal, setAutoOpenPaymentModal] = useState(false);
   const esPrueba = alumno.es_prueba === true;
 
   // Sync state when prop updates (e.g. from router.refresh or other server fetches)
@@ -81,15 +83,12 @@ export default function AlumnoPerfil({
   }
 
   async function handleConvertir() {
-    if (
-      !confirm(
-        "¿Estás seguro de convertir este prospecto en alumno regular? Deberás registrar su primer pago a continuación.",
-      )
-    ) {
-      return;
-    }
-
     setConvirtiendo(true);
+
+    // Cambios optimistas e inmediatos
+    setAlumno((prev) => ({ ...prev, es_prueba: false }));
+    setAutoOpenPaymentModal(true);
+    setShowConvertModal(false);
 
     // Actualizar es_prueba a false
     const { error } = await supabase
@@ -97,9 +96,10 @@ export default function AlumnoPerfil({
       .update({ es_prueba: false })
       .eq("id", alumno.id);
 
+    setConvirtiendo(false);
+
     if (error) {
       alert("Error al convertir el alumno: " + error.message);
-      setConvirtiendo(false);
       return;
     }
 
@@ -111,7 +111,7 @@ export default function AlumnoPerfil({
     <div className="min-h-screen bg-background">
       {/* Banner de Clase de Prueba */}
       {esPrueba && (
-        <div className="bg-gradient-to-r from-orange-500 to-orange-600 px-4 md:px-8 py-4 flex items-center justify-between gap-4">
+        <div className="bg-[#fb923c] px-4 md:px-8 py-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Sparkles size={24} className="text-white shrink-0" />
             <div>
@@ -127,7 +127,7 @@ export default function AlumnoPerfil({
             </div>
           </div>
           <button
-            onClick={handleConvertir}
+            onClick={() => setShowConvertModal(true)}
             disabled={convirtiendo}
             className="inline-flex items-center gap-2 px-4 py-2 bg-white hover:bg-orange-50 text-orange-600 text-sm font-bold rounded-lg transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
           >
@@ -189,11 +189,57 @@ export default function AlumnoPerfil({
                 alumnoId={alumno.id}
                 pagosIniciales={pagos}
                 onAlumnoActualizado={handleAlumnoActualizado}
+                autoOpenModal={autoOpenPaymentModal}
               />
             </div>
           </section>
         </div>
       </div>
+
+      {/* Modal de Confirmación de Conversión */}
+      {showConvertModal && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] transition-opacity"
+            onClick={() => setShowConvertModal(false)}
+          />
+          {/* Modal Card */}
+          <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[101] bg-card p-6 rounded-2xl shadow-2xl border border-border w-[90vw] max-w-md flex flex-col gap-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-orange-100 dark:bg-orange-950 text-[#fb923c] rounded-xl shrink-0">
+                <Sparkles size={24} />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-bold text-foreground">
+                  Convertir a Alumno Regular
+                </h3>
+                <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
+                  ¿Estás seguro de convertir este prospecto en alumno regular? Deberás registrar su primer pago a continuación.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 mt-2">
+              <button
+                type="button"
+                onClick={() => setShowConvertModal(false)}
+                className="px-4 py-2 text-sm font-semibold rounded-xl bg-muted hover:bg-muted/80 text-foreground border border-border transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConvertir}
+                disabled={convirtiendo}
+                className="px-4 py-2 text-sm font-semibold rounded-xl bg-[#fb923c] hover:bg-[#fb923c]/90 text-white shadow-sm transition-colors disabled:opacity-50"
+              >
+                {convirtiendo ? "Convirtiendo..." : "Confirmar"}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

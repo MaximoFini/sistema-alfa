@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Calendar,
   Banknote,
@@ -28,6 +28,7 @@ interface Props {
   alumnoId: string;
   pagosIniciales: Pago[];
   onAlumnoActualizado?: (datosActualizados: any) => void;
+  autoOpenModal?: boolean;
 }
 
 function formatFecha(dateStr: string | null): string {
@@ -65,9 +66,17 @@ export default function TabPagos({
   alumnoId,
   pagosIniciales,
   onAlumnoActualizado,
+  autoOpenModal,
 }: Props) {
   const [pagos, setPagos] = useState<Pago[]>(pagosIniciales);
   const [modalAbierto, setModalAbierto] = useState(false);
+
+  // Hook to automatically open the modal if autoOpenModal is true
+  useEffect(() => {
+    if (autoOpenModal) {
+      setModalAbierto(true);
+    }
+  }, [autoOpenModal]);
 
   // Refrescar pagos desde la base de datos
   async function refrescarPagos() {
@@ -91,7 +100,7 @@ export default function TabPagos({
       const { data: alumnoActualizado } = await supabase
         .from("alumnos")
         .select(
-          "clases_gracia_disponibles, clases_gracia_usadas, fecha_proximo_vencimiento, actividad_proximo_vencimiento, fecha_ultimo_inicio, abono_ultima_inscripcion",
+          "clases_gracia_disponibles, clases_gracia_usadas, fecha_proximo_vencimiento, actividad_proximo_vencimiento, fecha_ultimo_inicio, abono_ultima_inscripcion, es_prueba",
         )
         .eq("id", alumnoId)
         .single();

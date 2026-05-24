@@ -616,6 +616,12 @@ function VentaModal({
       return;
     }
 
+    const esTransferencia = form.medio_pago.toLowerCase().includes("transferencia");
+    if (esTransferencia && !aliasTransferencia.trim()) {
+      setError("El alias/CBU de destino es obligatorio para transferencias");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -845,7 +851,7 @@ function VentaModal({
           {form.medio_pago.toLowerCase().includes("transferencia") && (
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Alias / CBU de destino
+                Alias / CBU de destino *
               </label>
               <input
                 type="text"

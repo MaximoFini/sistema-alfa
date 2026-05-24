@@ -169,6 +169,13 @@ export default function RegistrarCobroModal({
       e.fechaInicio = "La fecha de inicio es requerida";
     if (!pagoForm.medioPago) e.medioPago = "El medio de pago es requerido";
 
+    if (
+      pagoForm.medioPago.toLowerCase().includes("transferencia") &&
+      !aliasTransferencia.trim()
+    ) {
+      e.aliasTransferencia = "El alias/CBU de destino es obligatorio para transferencias";
+    }
+
     // Validar que la fecha de inicio no esté en el medio de otro plan
     if (pagoForm.fechaInicio) {
       const fechaInicio = new Date(pagoForm.fechaInicio);
@@ -202,67 +209,75 @@ export default function RegistrarCobroModal({
     triggerHapticFeedback(HapticPresets.medium);
     setGuardando(true);
 
-    let fechaProximoVencimiento = null;
-    const planElegido = subscriptionPlans.find(
-      (p) => p.name === pagoForm.actividad,
-    );
+    try {
+      let fechaProximoVencimiento = null;
+      const planElegido = subscriptionPlans.find(
+        (p) => p.name === pagoForm.actividad,
+      );
 
-    if (planElegido && planElegido.duration_days) {
-      const [y, m, d] = pagoForm.fechaInicio.split("-").map(Number);
-      const fecha = new Date(y, m - 1, d);
-      fecha.setDate(fecha.getDate() + planElegido.duration_days);
-      const yyyy = fecha.getFullYear();
-      const mm = String(fecha.getMonth() + 1).padStart(2, "0");
-      const dd = String(fecha.getDate()).padStart(2, "0");
-      fechaProximoVencimiento = `${yyyy}-${mm}-${dd}`;
-    }
+      if (planElegido && planElegido.duration_days) {
+        if (!pagoForm.fechaInicio) {
+          throw new Error("La fecha de inicio es requerida");
+        }
+        const parts = pagoForm.fechaInicio.split("-");
+        if (parts.length !== 3) {
+          throw new Error("El formato de la fecha de inicio es inválido");
+        }
+        const [y, m, d] = parts.map(Number);
+        const fecha = new Date(y, m - 1, d);
+        fecha.setDate(fecha.getDate() + planElegido.duration_days);
+        const yyyy = fecha.getFullYear();
+        const mm = String(fecha.getMonth() + 1).padStart(2, "0");
+        const dd = String(fecha.getDate()).padStart(2, "0");
+        fechaProximoVencimiento = `${yyyy}-${mm}-${dd}`;
+      }
 
-    const { error: errorPago } = await supabase.from("pagos").insert({
-      alumno_id: alumnoId,
-      actividad: pagoForm.actividad,
-      precio: Number(pagoForm.precio),
-      fecha_cobro: pagoForm.fechaCobro,
-      medio_pago: pagoForm.medioPago,
-      fecha_inicio: pagoForm.fechaInicio,
-      fecha_vencimiento: fechaProximoVencimiento,
-      tarjeta: tarjeta || null,
-      alias_transferencia: aliasTransferencia.trim() || null,
-    });
+      const { error: errorPago } = await supabase.from("pagos").insert({
+        alumno_id: alumnoId,
+        actividad: pagoForm.actividad,
+        precio: Number(pagoForm.precio),
+        fecha_cobro: pagoForm.fechaCobro,
+        medio_pago: pagoForm.medioPago,
+        fecha_inicio: pagoForm.fechaInicio,
+        fecha_vencimiento: fechaProximoVencimiento,
+        tarjeta: tarjeta || null,
+        alias_transferencia: aliasTransferencia.trim() || null,
+      });
 
-    if (errorPago) {
+      if (errorPago) {
+        throw new Error("Error al registrar cobro: " + errorPago.message);
+      }
+
+      // Actualizar alumno con el nuevo plan (y reiniciar counter de gracia)
+      const { error: errorUpdate } = await supabase
+        .from("alumnos")
+        .update({
+          abono_ultima_inscripcion: pagoForm.actividad,
+          fecha_proximo_vencimiento: fechaProximoVencimiento,
+          actividad_proximo_vencimiento: pagoForm.actividad,
+          fecha_ultimo_inicio: pagoForm.fechaInicio,
+          // Resetear clases de gracia al renovar el plan
+          clases_gracia_disponibles: 0,
+          clases_gracia_usadas: 0,
+        })
+        .eq("id", alumnoId);
+
+      if (errorUpdate) {
+        throw new Error("Error al actualizar alumno: " + errorUpdate.message);
+      }
+
+      triggerHapticFeedback(HapticPresets.success);
+
+      setAliasTransferencia("");
+      onGuardado();
+      onClose();
+    } catch (err: any) {
+      console.error("Error al registrar cobro:", err);
+      triggerHapticFeedback(HapticPresets.error);
+      alert(err.message || "Error inesperado al registrar el cobro");
+    } finally {
       setGuardando(false);
-      triggerHapticFeedback(HapticPresets.error);
-      alert("Error al registrar cobro: " + errorPago.message);
-      return;
     }
-
-    // Actualizar alumno con el nuevo plan (y reiniciar counter de gracia)
-    const { error: errorUpdate } = await supabase
-      .from("alumnos")
-      .update({
-        abono_ultima_inscripcion: pagoForm.actividad,
-        fecha_proximo_vencimiento: fechaProximoVencimiento,
-        actividad_proximo_vencimiento: pagoForm.actividad,
-        fecha_ultimo_inicio: pagoForm.fechaInicio,
-        // Resetear clases de gracia al renovar el plan
-        clases_gracia_disponibles: 0,
-        clases_gracia_usadas: 0,
-      })
-      .eq("id", alumnoId);
-
-    setGuardando(false);
-
-    if (errorUpdate) {
-      triggerHapticFeedback(HapticPresets.error);
-      alert("Error al actualizar alumno: " + errorUpdate.message);
-      return;
-    }
-
-    triggerHapticFeedback(HapticPresets.success);
-
-    setAliasTransferencia("");
-    onGuardado();
-    onClose();
   }
 
   return (
@@ -442,15 +457,27 @@ export default function RegistrarCobroModal({
           {pagoForm.medioPago.toLowerCase().includes("transferencia") && (
             <div className="flex flex-col gap-2">
               <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
-                Alias / CBU de destino
+                Alias / CBU de destino *
               </label>
               <input
                 type="text"
                 placeholder="Ej: gimnasio.alfa.mp"
                 value={aliasTransferencia}
-                onChange={(e) => setAliasTransferencia(e.target.value)}
-                className="border border-gray-200 rounded-lg px-4 py-3 text-base md:text-sm outline-none min-h-[44px] focus:border-red-400 focus:ring-2 focus:ring-red-50"
+                onChange={(e) => {
+                  setAliasTransferencia(e.target.value);
+                  setErrors((prev) => ({ ...prev, aliasTransferencia: "" }));
+                }}
+                className={`border rounded-lg px-4 py-3 text-base md:text-sm outline-none min-h-[44px] focus:ring-2 focus:ring-red-50 ${
+                  errors.aliasTransferencia
+                    ? "border-red-500 focus:border-red-500"
+                    : "border-gray-200 focus:border-red-400"
+                }`}
               />
+              {errors.aliasTransferencia && (
+                <span className="text-xs text-red-500">
+                  {errors.aliasTransferencia}
+                </span>
+              )}
             </div>
           )}
 
