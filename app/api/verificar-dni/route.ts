@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     // Buscar alumno por DNI
     const { data: alumno, error: alumnoError } = await supabase
       .from("alumnos")
-      .select("id, nombre, activo, es_prueba, actividad_interes, actividad_proximo_vencimiento, clases_gracia_disponibles, clases_gracia_usadas, fecha_proximo_vencimiento, fecha_nacimiento, cuis_completado, cuis_clases_presentadas")
+      .select("id, nombre, activo, es_prueba, actividad_interes, actividad_proximo_vencimiento, clases_gracia_disponibles, clases_gracia_usadas, fecha_proximo_vencimiento, fecha_nacimiento, cus_completado, cus_clases_presentadas")
       .eq("dni", dni)
       .single();
 
@@ -130,14 +130,19 @@ export async function POST(request: NextRequest) {
 
     // 1. Determinar el estado ANTES de registrar asistencia
     //    (necesitamos saber si el ingreso está permitido)
-    const { estado, clasesGracia, razonBloqueo, fechaInicioPlan } =
+    const { estado, clasesGracia, razonBloqueo, fechaInicioPlan, planActivo } =
       await determinarEstado(alumno, supabase);
+
+    const esMenorDeEdad = alumno.fecha_nacimiento
+      ? calcularEdad(alumno.fecha_nacimiento) < 18
+      : false;
 
     // 2. Solo registrar asistencia si el ingreso está permitido
     const ingresoPermitido =
       estado === "al-dia" ||
       estado === "advertencia" ||
-      estado === "periodo_gracia";
+      estado === "periodo_gracia" ||
+      (estado === "vencido" && razonBloqueo === "cus_vencido");
 
     if (ingresoPermitido) {
       const now = new Date();
@@ -154,70 +159,46 @@ export async function POST(request: NextRequest) {
       const horaLocal = `${hours}:${minutes}:${seconds}`;
       const fechaISO = `${fechaLocal}T${horaLocal}`;
 
-      // Calcular si es menor de edad y si debemos incrementar cuis_clases_presentadas
-      const esMenorDeEdad = alumno.fecha_nacimiento
-        ? calcularEdad(alumno.fecha_nacimiento) < 18
-        : false;
-
       const updateData: any = { fecha_ultima_asistencia: fechaISO };
-      let nuevoCuisClasesPresentadas = alumno.cuis_clases_presentadas ?? 0;
-      if (esMenorDeEdad && alumno.cuis_completado === false) {
-        nuevoCuisClasesPresentadas += 1;
-        updateData.cuis_clases_presentadas = nuevoCuisClasesPresentadas;
+      let nuevoCusClasesPresentadas = alumno.cus_clases_presentadas ?? 0;
+      if (esMenorDeEdad && alumno.cus_completado === false) {
+        nuevoCusClasesPresentadas += 1;
+        updateData.cus_clases_presentadas = nuevoCusClasesPresentadas;
       }
 
-      // Actualizar fecha_ultima_asistencia
-      const { error: updateError } = await supabase
-        .from("alumnos")
-        .update(updateData)
-        .eq("id", alumno.id);
-
-      if (updateError) {
-        console.error("Error updating fecha_ultima_asistencia:", updateError);
-      }
-
-      // Crear registro en tabla asistencias
-      const { error: asistenciaError } = await supabase
-        .from("asistencias")
-        .insert({
-          alumno_id: alumno.id,
-          fecha: fechaISO,
-          hora: horaLocal,
-        });
-
-      if (asistenciaError) {
-        console.error("Error registering asistencia:", asistenciaError);
-      }
-
-      // Si es período de gracia, incrementar el contador de clases usadas
+      // Si es período de gracia, incrementar el contador de clases usadas directamente en el mismo update
       if (estado === "periodo_gracia") {
-        const { error: graciaError } = await supabase
-          .from("alumnos")
-          .update({
-            clases_gracia_usadas: (alumno.clases_gracia_usadas ?? 0) + 1,
-          })
-          .eq("id", alumno.id);
+        updateData.clases_gracia_usadas = (alumno.clases_gracia_usadas ?? 0) + 1;
+      }
 
-        if (graciaError) {
-          console.error("Error updating clases_gracia_usadas:", graciaError);
-        }
+      // Ejecutar actualización del alumno e inserción de asistencia en paralelo
+      const [updateResult, asistenciaResult] = await Promise.all([
+        supabase
+          .from("alumnos")
+          .update(updateData)
+          .eq("id", alumno.id),
+        supabase
+          .from("asistencias")
+          .insert({
+            alumno_id: alumno.id,
+            fecha: fechaISO,
+            hora: horaLocal,
+          })
+      ]);
+
+      if (updateResult.error) {
+        console.error("Error updating alumno:", updateResult.error);
+      }
+      if (asistenciaResult.error) {
+        console.error("Error registering asistencia:", asistenciaResult.error);
       }
     }
 
-    // 3. Obtener información del plan activo (si existe)
-    const { data: planActivo } = await supabase
-      .from("pagos")
-      .select("actividad, fecha_vencimiento")
-      .eq("alumno_id", alumno.id)
-      .lte("fecha_inicio", getFechaLocal())
-      .gte("fecha_vencimiento", getFechaLocal())
-      .order("fecha_vencimiento", { ascending: false })
-      .limit(1)
-      .single();
+    // 3. El plan activo ya fue obtenido y filtrado en memoria dentro de determinarEstado
 
-    const esMenorDeEdad = alumno.fecha_nacimiento
-      ? calcularEdad(alumno.fecha_nacimiento) < 18
-      : false;
+    const finalCusClases = ingresoPermitido && esMenorDeEdad && alumno.cus_completado === false
+      ? (alumno.cus_clases_presentadas ?? 0) + 1
+      : (alumno.cus_clases_presentadas ?? 0);
 
     return NextResponse.json({
       found: true,
@@ -238,10 +219,11 @@ export async function POST(request: NextRequest) {
         clasesGracia: clasesGracia ?? undefined,
         razonBloqueo: razonBloqueo,
         esMenorDeEdad,
-        cuisCompletado: alumno.cuis_completado,
-        cuisClasesPresentadas: ingresoPermitido && esMenorDeEdad && alumno.cuis_completado === false
-          ? (alumno.cuis_clases_presentadas ?? 0) + 1
-          : (alumno.cuis_clases_presentadas ?? 0),
+        cusCompletado: alumno.cus_completado,
+        cusClasesPresentadas: finalCusClases,
+        clasesCusMargen: esMenorDeEdad && alumno.cus_completado === false
+          ? Math.max(0, 3 - finalCusClases)
+          : undefined,
       },
     });
   } catch (error) {
@@ -261,6 +243,7 @@ async function determinarEstado(
   clasesGracia?: { usadas: number; disponibles: number };
   razonBloqueo?: "sin_plan" | "plan_no_iniciado" | "cus_vencido";
   fechaInicioPlan?: string;
+  planActivo?: any;
 }> {
   const hoy = getFechaLocal(); // YYYY-MM-DD
 
@@ -269,7 +252,7 @@ async function determinarEstado(
     ? calcularEdad(alumno.fecha_nacimiento) < 18
     : false;
 
-  if (esMenorDeEdad && alumno.cuis_completado === false && (alumno.cuis_clases_presentadas ?? 0) >= 3) {
+  if (esMenorDeEdad && alumno.cus_completado === false && (alumno.cus_clases_presentadas ?? 0) >= 3) {
     return {
       estado: "vencido",
       razonBloqueo: "cus_vencido",
@@ -279,7 +262,7 @@ async function determinarEstado(
   // Una sola query trae todos los planes — filtramos con JS
   const { data: todosLosPlanes, error: errorPlanes } = await supabase
     .from("pagos")
-    .select("fecha_inicio, fecha_vencimiento")
+    .select("fecha_inicio, fecha_vencimiento, actividad")
     .eq("alumno_id", alumno.id)
     .order("fecha_inicio", { ascending: true })
     .limit(50); // máximo razonable
@@ -294,13 +277,40 @@ async function determinarEstado(
     return { estado: "vencido", razonBloqueo: "sin_plan" };
   }
 
-  // Plan próximo (futuro o el más reciente)
-  const planProximo =
-    todosLosPlanes.find((p: any) => p.fecha_inicio >= hoy) ||
-    todosLosPlanes[todosLosPlanes.length - 1];
+  // 1. Filtrar planes activos hoy (en JS, sin segunda query)
+  const planesActivos = todosLosPlanes.filter(
+    (p: any) => p.fecha_inicio <= hoy && p.fecha_vencimiento >= hoy
+  );
 
-  // Plan con inicio futuro → bloqueado con razón
-  if (planProximo && planProximo.fecha_inicio > hoy) {
+  // Ordenar por fecha_vencimiento DESC para obtener el plan con mayor vigencia
+  const planesActivosOrdenados = [...planesActivos].sort(
+    (a: any, b: any) => new Date(b.fecha_vencimiento).getTime() - new Date(a.fecha_vencimiento).getTime()
+  );
+  const planActivo = planesActivosOrdenados[0] || null;
+
+  // 2. Si tiene plan activo → verificar si está próximo a vencer
+  if (planActivo) {
+    const vencimiento = new Date(planActivo.fecha_vencimiento);
+    const hoyDate = new Date(hoy);
+    const diasRestantes =
+      (vencimiento.getTime() - hoyDate.getTime()) / (1000 * 60 * 60 * 24);
+
+    if (esMenorDeEdad && alumno.cus_completado === false && (alumno.cus_clases_presentadas ?? 0) < 3) {
+      return { estado: "advertencia", planActivo };
+    }
+
+    if (diasRestantes <= 7) {
+      return { estado: "advertencia", planActivo };
+    }
+
+    return { estado: "al-dia", planActivo };
+  }
+
+  // 3. Si no tiene plan activo hoy, verificar si tiene un plan futuro agendado
+  const planesFuturos = todosLosPlanes.filter((p: any) => p.fecha_inicio > hoy);
+  if (planesFuturos.length > 0) {
+    // El plan futuro más cercano (ordenado por fecha_inicio asc)
+    const planProximo = planesFuturos[0];
     return {
       estado: "vencido",
       razonBloqueo: "plan_no_iniciado",
@@ -308,43 +318,42 @@ async function determinarEstado(
     };
   }
 
-  // Filtrar planes activos hoy (en JS, sin segunda query)
-  const planesActivos = todosLosPlanes.filter(
-    (p: any) => p.fecha_inicio <= hoy && p.fecha_vencimiento >= hoy
-  );
+  // 4. Si no tiene plan activo ni plan futuro → verificar período de gracia (planes vencidos)
+  const disponibles: number = alumno.clases_gracia_disponibles ?? 0;
+  const usadas: number = alumno.clases_gracia_usadas ?? 0;
 
-  // Sin planes activos hoy → verificar período de gracia
-  if (planesActivos.length === 0) {
-    const disponibles: number = alumno.clases_gracia_disponibles ?? 0;
-    const usadas: number = alumno.clases_gracia_usadas ?? 0;
-
-    if (disponibles > 0 && usadas < disponibles) {
+  if (disponibles > 0 && usadas < disponibles) {
+    if (esMenorDeEdad && alumno.cus_completado === false && (alumno.cus_clases_presentadas ?? 0) < 3) {
       return {
-        estado: "periodo_gracia",
+        estado: "advertencia",
         clasesGracia: { usadas: usadas + 1, disponibles },
       };
     }
-    return { estado: "vencido" };
+    return {
+      estado: "periodo_gracia",
+      clasesGracia: { usadas: usadas + 1, disponibles },
+    };
   }
 
-  // Tiene plan activo → verificar si está próximo a vencer
-  const planActivo = planesActivos[0];
-  const vencimiento = new Date(planActivo.fecha_vencimiento);
-  const hoyDate = new Date(hoy);
-  const diasRestantes =
-    (vencimiento.getTime() - hoyDate.getTime()) / (1000 * 60 * 60 * 24);
-
-  if (diasRestantes <= 7) {
-    return { estado: "advertencia" };
-  }
-
-  return { estado: "al-dia" };
+  return { estado: "vencido" };
 }
 
 function formatearFecha(fecha: string): string {
-  const date = new Date(fecha);
-  const dia = String(date.getDate()).padStart(2, "0");
-  const mes = String(date.getMonth() + 1).padStart(2, "0");
-  const anio = date.getFullYear();
-  return `${dia}/${mes}/${anio}`;
+  if (!fecha) return "Sin fecha";
+  const clean = fecha.split("T")[0];
+  const parts = clean.split("-");
+  if (parts.length === 3) {
+    const [y, m, d] = parts;
+    return `${d}/${m}/${y}`;
+  }
+  // Fallback a parser standard con UTC para evitar desfases de zona horaria
+  try {
+    const date = new Date(fecha);
+    const dia = String(date.getUTCDate()).padStart(2, "0");
+    const mes = String(date.getUTCMonth() + 1).padStart(2, "0");
+    const anio = date.getUTCFullYear();
+    return `${dia}/${mes}/${anio}`;
+  } catch {
+    return fecha;
+  }
 }

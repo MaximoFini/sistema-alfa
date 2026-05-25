@@ -29,8 +29,8 @@ interface Alumno {
   clases_gracia_usadas: number;
   es_prueba?: boolean | null;
   actividad_interes?: string | null;
-  cuis_completado: boolean;
-  cuis_clases_presentadas: number;
+  cus_completado: boolean;
+  cus_clases_presentadas: number;
   email: string | null;
   telefono_emergencia: string | null;
   observaciones: string | null;
@@ -187,6 +187,7 @@ export default function AlumnoPerfil({
               </h2>
               <TabPagos
                 alumnoId={alumno.id}
+                alumnoNombre={alumno.nombre ?? ""}
                 pagosIniciales={pagos}
                 onAlumnoActualizado={handleAlumnoActualizado}
                 autoOpenModal={autoOpenPaymentModal}

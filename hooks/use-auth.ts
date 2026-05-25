@@ -24,7 +24,7 @@ export function useAuth() {
       return authPromise;
     }
 
-    // Si ya tenemos datos en caché, retornarlos inmediatamente
+    // Si ya tenemos datos en caché en memoria y tiene un usuario válido, retornarla
     if (cachedAuthState && cachedAuthState.user) {
       return cachedAuthState;
     }
@@ -44,16 +44,48 @@ export function useAuth() {
           return newState;
         }
 
-        // Solo consultar el rol si no lo tenemos en caché
-        const { data: profile } = await supabase
+        // --- SISTEMA SWR Y PERSISTENCIA DE ROL ---
+        // Intentar obtener rol de localStorage si existe
+        let cachedRole: UserRole | null = null;
+        const isClient = typeof window !== "undefined";
+        const storageKey = `auth-role-${user.id}`;
+        
+        if (isClient) {
+          cachedRole = localStorage.getItem(storageKey) as UserRole | null;
+        }
+
+        // Si tenemos un rol persistido localmente, aceleramos el estado reactivo
+        // para evitar parpadeos en la UI mientras revalidamos con la base de datos
+        if (cachedRole) {
+          cachedAuthState = {
+            user,
+            role: cachedRole,
+            loading: false,
+          };
+        }
+
+        // Consultar el rol en vivo de la base de datos para revalidación
+        const { data: profile, error: profileError } = await supabase
           .from("profiles")
           .select("role")
           .eq("id", user.id)
           .single();
 
+        let activeRole = cachedRole;
+
+        if (!profileError && profile?.role) {
+          activeRole = profile.role as UserRole;
+          // Actualizar localStorage con el rol fresco
+          if (isClient) {
+            localStorage.setItem(storageKey, activeRole);
+          }
+        } else if (profileError) {
+          console.warn("Could not revalidate user role from database, falling back to cache:", profileError);
+        }
+
         const newState = {
           user,
-          role: (profile?.role as UserRole) || null,
+          role: activeRole,
           loading: false,
         };
 
@@ -80,16 +112,40 @@ export function useAuth() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
+      const currentUserId = cachedAuthState?.user?.id;
+      const newUserId = session?.user?.id;
+
       if (event === "SIGNED_IN" && session?.user) {
-        // Invalidar caché al hacer login
-        cachedAuthState = null;
-        authPromise = null;
-        const newState = await loadAuthState();
-        setAuthState(newState);
+        // De-duplicación: Solo invalidar y re-consultar si el usuario cambió
+        if (currentUserId !== newUserId) {
+          cachedAuthState = null;
+          authPromise = null;
+          const newState = await loadAuthState();
+          setAuthState(newState);
+        }
       } else if (event === "SIGNED_OUT") {
-        // Limpiar caché al hacer logout
+        // Limpiar caché en memoria al hacer logout
         cachedAuthState = null;
         authPromise = null;
+        
+        // Limpiar todo el localStorage relacionado con roles por seguridad
+        if (typeof window !== "undefined") {
+          if (currentUserId) {
+            localStorage.removeItem(`auth-role-${currentUserId}`);
+          }
+          try {
+            for (let i = 0; i < localStorage.length; i++) {
+              const key = localStorage.key(i);
+              if (key && key.startsWith("auth-role-")) {
+                localStorage.removeItem(key);
+                i--;
+              }
+            }
+          } catch (e) {
+            console.error("Error clearing local storage:", e);
+          }
+        }
+        
         setAuthState({ user: null, role: null, loading: false });
       }
     });
@@ -117,3 +173,4 @@ export function invalidateAuthCache() {
   cachedAuthState = null;
   authPromise = null;
 }
+

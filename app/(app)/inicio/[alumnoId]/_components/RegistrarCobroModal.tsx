@@ -125,6 +125,10 @@ export default function RegistrarCobroModal({
       fechaInicioSugerida = `${yyyy}-${mm}-${dd}`;
     }
 
+    if (fechaInicioSugerida < today) {
+      fechaInicioSugerida = today;
+    }
+
     setPagoForm((prev) => ({
       ...prev,
       fechaCobro: today,
@@ -176,21 +180,31 @@ export default function RegistrarCobroModal({
       e.aliasTransferencia = "El alias/CBU de destino es obligatorio para transferencias";
     }
 
-    // Validar que la fecha de inicio no esté en el medio de otro plan
+    // Validar que la fecha de inicio no esté en el medio de otro plan y que no sea menor al día actual
     if (pagoForm.fechaInicio) {
-      const fechaInicio = new Date(pagoForm.fechaInicio);
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, "0");
+      const day = String(now.getDate()).padStart(2, "0");
+      const today = `${year}-${month}-${day}`;
 
-      for (const pago of pagosExistentes) {
-        const inicioExistente = new Date(pago.fecha_inicio);
-        const vencimientoExistente = new Date(pago.fecha_vencimiento);
+      if (pagoForm.fechaInicio < today) {
+        e.fechaInicio = "La fecha de inicio del plan no puede ser menor que el día actual";
+      } else {
+        const fechaInicio = new Date(pagoForm.fechaInicio);
 
-        // Verificar si la nueva fecha de inicio está dentro del rango de un plan existente
-        if (
-          fechaInicio > inicioExistente &&
-          fechaInicio < vencimientoExistente
-        ) {
-          e.fechaInicio = `Esta fecha está dentro del plan "${pago.actividad}" (${formatFecha(pago.fecha_inicio)} - ${formatFecha(pago.fecha_vencimiento)})`;
-          break;
+        for (const pago of pagosExistentes) {
+          const inicioExistente = new Date(pago.fecha_inicio);
+          const vencimientoExistente = new Date(pago.fecha_vencimiento);
+
+          // Verificar si la nueva fecha de inicio está dentro del rango de un plan existente
+          if (
+            fechaInicio > inicioExistente &&
+            fechaInicio < vencimientoExistente
+          ) {
+            e.fechaInicio = `Esta fecha está dentro del plan "${pago.actividad}" (${formatFecha(pago.fecha_inicio)} - ${formatFecha(pago.fecha_vencimiento)})`;
+            break;
+          }
         }
       }
     }
@@ -259,6 +273,7 @@ export default function RegistrarCobroModal({
           // Resetear clases de gracia al renovar el plan
           clases_gracia_disponibles: 0,
           clases_gracia_usadas: 0,
+          es_prueba: false,
         })
         .eq("id", alumnoId);
 

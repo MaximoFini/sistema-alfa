@@ -13,7 +13,7 @@ CREATE OR REPLACE FUNCTION crear_alumno_con_cobro(
   p_medio_pago text,
   p_fecha_inicio date,
   p_fecha_vencimiento date,
-  p_cuis_completado boolean DEFAULT false,
+  p_cus_completado boolean DEFAULT false,
   p_email text DEFAULT NULL,
   p_tarjeta text DEFAULT NULL,
   p_alias_transferencia text DEFAULT NULL,
@@ -39,8 +39,8 @@ BEGIN
     actividad_proximo_vencimiento,
     fecha_ultimo_inicio,
     activo,
-    cuis_completado,
-    cuis_clases_presentadas,
+    cus_completado,
+    cus_clases_presentadas,
     email,
     telefono_emergencia,
     observaciones
@@ -58,7 +58,7 @@ BEGIN
     p_actividad,
     p_fecha_inicio,
     TRUE, -- Queda activo inmediatamente al registrar cobro inicial
-    p_cuis_completado,
+    p_cus_completado,
     0,
     p_email,
     p_telefono_emergencia,

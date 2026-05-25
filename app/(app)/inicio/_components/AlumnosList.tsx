@@ -99,7 +99,7 @@ interface FormData {
   dni: string;
   genero: string;
   email: string;
-  cuisCompletado: boolean;
+  cusCompletado: boolean;
   telefonoEmergencia: string;
   observaciones: string;
 }
@@ -144,7 +144,7 @@ function NuevoAlumnoModal({
     dni: "",
     genero: "",
     email: "",
-    cuisCompletado: false,
+    cusCompletado: false,
     telefonoEmergencia: "",
     observaciones: "",
   });
@@ -189,7 +189,13 @@ function NuevoAlumnoModal({
 
   function setField(field: keyof FormData, value: string) {
     setForm((f) => ({ ...f, [field]: value }));
-    setErrors((e) => ({ ...e, [field]: "" }));
+    setErrors((e) => {
+      const nextErrors = { ...e, [field]: "" };
+      if (field === "telefono" || field === "telefonoEmergencia") {
+        nextErrors.telefonoEmergencia = "";
+      }
+      return nextErrors;
+    });
   }
 
   function setPagoField(field: keyof PagoForm, value: string) {
@@ -289,8 +295,15 @@ function NuevoAlumnoModal({
     if (!form.domicilio.trim()) e.domicilio = "La dirección es requerida";
     if (!form.telefono.trim()) e.telefono = "El teléfono es requerido";
     if (!form.genero) e.genero = "El género es requerido";
-    if (!form.telefonoEmergencia.trim())
+    if (!form.telefonoEmergencia.trim()) {
       e.telefonoEmergencia = "El contacto de emergencia es requerido";
+    } else {
+      const cleanTel = form.telefono.replace(/\D/g, "");
+      const cleanEmerg = form.telefonoEmergencia.replace(/\D/g, "");
+      if (cleanTel && cleanEmerg && cleanTel === cleanEmerg) {
+        e.telefonoEmergencia = "El contacto de emergencia no puede ser igual al teléfono del alumno";
+      }
+    }
     return e;
   }
 
@@ -299,8 +312,19 @@ function NuevoAlumnoModal({
     if (!pagoForm.actividad) e.actividad = "La actividad es requerida";
     if (!pagoForm.precio) e.precio = "El precio es requerido";
     if (!pagoForm.fechaCobro) e.fechaCobro = "La fecha de cobro es requerida";
-    if (!pagoForm.fechaInicio)
+    if (!pagoForm.fechaInicio) {
       e.fechaInicio = "La fecha de inicio es requerida";
+    } else {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, "0");
+      const day = String(now.getDate()).padStart(2, "0");
+      const today = `${year}-${month}-${day}`;
+
+      if (pagoForm.fechaInicio < today) {
+        e.fechaInicio = "La fecha de inicio del plan no puede ser menor que el día actual";
+      }
+    }
     if (!pagoForm.medioPago) e.medioPago = "El medio de pago es requerido";
 
     if (
@@ -339,16 +363,27 @@ function NuevoAlumnoModal({
     setGuardando(true);
 
     try {
-      // Verificar si ya existe un alumno con el mismo DNI
-      const { data: dniExistente, error: checkError } = await supabase
+      // Verificar si ya existe un alumno con el mismo DNI (con timeout y sin maybeSingle para evitar hangs)
+      const fetchPromise = supabase
         .from("alumnos")
         .select("id")
         .eq("dni", form.dni.trim())
-        .maybeSingle();
+        .limit(1);
+
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Límite de tiempo superado al verificar el DNI (4s)")), 4000)
+      );
+
+      const { data: dniData, error: checkError } = await Promise.race([
+        fetchPromise,
+        timeoutPromise,
+      ]);
 
       if (checkError) {
         throw new Error("Error al verificar el DNI: " + checkError.message);
       }
+
+      const dniExistente = dniData && dniData.length > 0;
 
       if (dniExistente) {
         setErrors({ dni: "Ya existe un alumno registrado con este DNI" });
@@ -376,8 +411,8 @@ function NuevoAlumnoModal({
             fecha_registro: form.fechaRegistro,
             genero: form.genero,
             edad_actual: edadCalculada,
-            cuis_completado: esMenorDeEdad ? form.cuisCompletado : false,
-            cuis_clases_presentadas: 0,
+            cus_completado: esMenorDeEdad ? form.cusCompletado : false,
+            cus_clases_presentadas: 0,
             email: form.email.trim() || null,
             telefono_emergencia: form.telefonoEmergencia.trim() || null,
             observaciones: form.observaciones.trim() || null,
@@ -412,16 +447,27 @@ function NuevoAlumnoModal({
     setGuardando(true);
 
     try {
-      // Verificar si ya existe un alumno con el mismo DNI (doble seguridad)
-      const { data: dniExistente, error: checkError } = await supabase
+      // Verificar si ya existe un alumno con el mismo DNI (doble seguridad con timeout y sin maybeSingle)
+      const fetchPromise = supabase
         .from("alumnos")
         .select("id")
         .eq("dni", form.dni.trim())
-        .maybeSingle();
+        .limit(1);
+
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Límite de tiempo superado al verificar el DNI (4s)")), 4000)
+      );
+
+      const { data: dniData, error: checkError } = await Promise.race([
+        fetchPromise,
+        timeoutPromise,
+      ]);
 
       if (checkError) {
         throw new Error("Error al verificar el DNI: " + checkError.message);
       }
+
+      const dniExistente = dniData && dniData.length > 0;
 
       if (dniExistente) {
         setStep(1); // Volver al paso 1 para mostrar el error
@@ -471,7 +517,7 @@ function NuevoAlumnoModal({
           p_medio_pago: pagoForm.medioPago,
           p_fecha_inicio: pagoForm.fechaInicio,
           p_fecha_vencimiento: fechaProximoVencimiento,
-          p_cuis_completado: esMenorDeEdad ? form.cuisCompletado : false,
+          p_cus_completado: esMenorDeEdad ? form.cusCompletado : false,
           p_email: form.email.trim() || null,
           p_tarjeta: pagoForm.tarjeta || null,
           p_alias_transferencia: pagoForm.aliasTransferencia.trim() || null,
@@ -600,7 +646,7 @@ function NuevoAlumnoModal({
                     setField("fechaNacimiento", e.target.value);
                     // Reset CUS si deja de ser menor
                     if (calcularEdad(e.target.value) >= 18) {
-                      setForm((f) => ({ ...f, cuisCompletado: false }));
+                      setForm((f) => ({ ...f, cusCompletado: false }));
                     }
                   }}
                   className="border border-gray-200 rounded-lg px-4 py-3 text-base md:text-sm outline-none min-h-[44px] focus:border-red-400 focus:ring-2 focus:ring-red-50"
@@ -753,12 +799,12 @@ function NuevoAlumnoModal({
                     {/* Estado actual */}
                     <div
                       className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold ${
-                        form.cuisCompletado
+                        form.cusCompletado
                           ? "bg-green-100 text-green-800"
                           : "bg-amber-100 text-amber-800"
                       }`}
                     >
-                      {form.cuisCompletado ? (
+                      {form.cusCompletado ? (
                         <>
                           <ShieldCheck size={13} className="text-green-600 shrink-0" />
                           CUS entregado — no hay clases pendientes
@@ -781,20 +827,20 @@ function NuevoAlumnoModal({
                       <div className="relative shrink-0">
                         <input
                           type="checkbox"
-                          checked={form.cuisCompletado}
+                          checked={form.cusCompletado}
                           onChange={(e) =>
-                            setForm((f) => ({ ...f, cuisCompletado: e.target.checked }))
+                            setForm((f) => ({ ...f, cusCompletado: e.target.checked }))
                           }
                           className="sr-only"
                         />
                         <div
                           className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${
-                            form.cuisCompletado
+                            form.cusCompletado
                               ? "bg-green-500 border-green-500"
                               : "bg-white border-amber-300 group-hover:border-amber-400"
                           }`}
                         >
-                          {form.cuisCompletado && (
+                          {form.cusCompletado && (
                             <ShieldCheck size={12} className="text-white" strokeWidth={3} />
                           )}
                         </div>
@@ -1094,7 +1140,7 @@ function AlumnoCard({ alumno }: { alumno: AlumnoConUI }) {
             {/* Badge CUS Pendiente — solo para menores sin CUS */}
             {alumno.edad_actual != null &&
               alumno.edad_actual < 18 &&
-              alumno.cuis_completado === false && (
+              alumno.cus_completado === false && (
                 <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-800 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-full shrink-0 animate-pulse">
                   <AlertTriangle size={10} className="text-amber-600" />
                   CUS Pendiente

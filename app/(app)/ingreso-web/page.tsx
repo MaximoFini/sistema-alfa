@@ -25,8 +25,8 @@ type Result =
       yaUsoClasePrueba?: boolean;
       razonBloqueo?: "sin_plan" | "plan_no_iniciado" | "cus_vencido";
       esMenorDeEdad?: boolean;
-      cuisCompletado?: boolean;
-      cuisClasesPresentadas?: number;
+      cusCompletado?: boolean;
+      cusClasesPresentadas?: number;
     }
   | "not-found"
   | null;
@@ -145,9 +145,36 @@ function IngresoWebPageContent() {
   const inputRef = useRef<HTMLInputElement>(null);
   const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Auto-focus input on mount
+  // Auto-focus input and maintain focus for physical scanners
   useEffect(() => {
-    inputRef.current?.focus();
+    const focusInput = () => {
+      // Evita enfocar si ya está enfocado o si hay otro input activo (medida de seguridad)
+      if (document.activeElement?.tagName !== "INPUT" || document.activeElement === inputRef.current) {
+        inputRef.current?.focus();
+      }
+    };
+
+    focusInput();
+
+    // Reenfocar al hacer clic en cualquier parte vacía de la pantalla
+    const handleDocumentClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      // No interferir si el clic fue en un botón, enlace u otro input
+      if (target.closest("button") || target.closest("a") || target.closest("input")) {
+        return;
+      }
+      focusInput();
+    };
+
+    // Verificar y forzar el foco periódicamente cada 3 segundos
+    const intervalId = setInterval(focusInput, 3000);
+
+    document.addEventListener("click", handleDocumentClick);
+
+    return () => {
+      clearInterval(intervalId);
+      document.removeEventListener("click", handleDocumentClick);
+    };
   }, []);
 
   // Auto-abrir vista de cliente en nueva pestaña al cargar la página
@@ -287,6 +314,21 @@ function IngresoWebPageContent() {
           `Tu plan comienza el ${result.vencimiento}. Volvé en esa fecha.` as any,
       };
     }
+    // Caso especial: alumno menor de edad con CUS en período de margen (permitido - verde)
+    else if (
+      result !== null &&
+      result !== "not-found" &&
+      result.esMenorDeEdad &&
+      result.cusCompletado === false &&
+      result.cusClasesPresentadas != null &&
+      result.cusClasesPresentadas <= 3
+    ) {
+      theme = {
+        ...clientEstadoTheme["al-dia"],
+        label: "ACCESO CONDICIONADO" as any,
+        sublabel: "Ingreso autorizado. Recordá presentar tu Certificado de Salud." as any,
+      };
+    }
     // Caso especial: alumno menor de edad con CUS vencido
     else if (
       result !== null &&
@@ -295,9 +337,9 @@ function IngresoWebPageContent() {
     ) {
       theme = {
         ...clientEstadoTheme.vencido,
-        label: "FALTA CUS OBLIGATORIO" as any,
+        label: "ACCESO CONDICIONADO" as any,
         sublabel:
-          "El plazo de entrega del Certificado Único de Salud (CUS) ha vencido. Presentalo en secretaría para ingresar." as any,
+          "Falta CUS obligatorio. Presentalo en secretaría para poder ingresar." as any,
       };
     }
 
@@ -556,7 +598,7 @@ function IngresoWebPageContent() {
                       )}
 
                       {/* Recordatorio de CUS para menores */}
-                      {result.esMenorDeEdad && result.cuisCompletado === false && result.cuisClasesPresentadas != null && result.cuisClasesPresentadas <= 3 && (
+                      {result.esMenorDeEdad && result.cusCompletado === false && (
                         <div
                           className="mt-6 rounded-2xl px-10 py-6 flex flex-col items-center gap-2 shadow-xl border border-white/25"
                           style={{ backgroundColor: "rgba(251, 146, 60, 0.25)" }}
@@ -571,9 +613,11 @@ function IngresoWebPageContent() {
                             Al ser menor, debés presentar tu Certificado de Salud.
                           </p>
                           <p className="text-sm md:text-base text-orange-100 font-semibold">
-                            {3 - result.cuisClasesPresentadas > 0 
-                              ? `Te quedan ${3 - result.cuisClasesPresentadas} clases de plazo para entregarlo en secretaría.`
-                              : "¡Esta es la última clase de plazo para entregarlo!"}
+                            {result.cusClasesPresentadas != null && result.cusClasesPresentadas > 3
+                              ? "Plazo de margen de 3 clases vencido. Debés presentarlo en secretaría de forma obligatoria."
+                              : result.cusClasesPresentadas != null && 3 - result.cusClasesPresentadas > 0
+                                ? `Te quedan ${3 - result.cusClasesPresentadas} clases de plazo para entregarlo en secretaría.`
+                                : "¡Esta es la última clase de plazo para entregarlo!"}
                           </p>
                         </div>
                       )}
@@ -823,11 +867,24 @@ function IngresoWebPageContent() {
                     description: `El plan de este alumno comienza el ${result.vencimiento}.`,
                   };
                 }
+                // Caso especial: alumno menor de edad con CUS en período de margen (permitido - advertencia)
+                else if (
+                  result.esMenorDeEdad &&
+                  result.cusCompletado === false &&
+                  result.cusClasesPresentadas != null &&
+                  result.cusClasesPresentadas <= 3
+                ) {
+                  cfg = {
+                    ...cfg,
+                    label: "ACCESO CONDICIONADO",
+                    description: "Alumno menor con CUS pendiente. Ingreso permitido condicionado.",
+                  };
+                }
                 // Caso especial: alumno menor de edad con CUS vencido
                 else if (result.razonBloqueo === "cus_vencido") {
                   cfg = {
                     ...cfg,
-                    label: "FALTA CUS OBLIGATORIO",
+                    label: "ACCESO CONDICIONADO",
                     description:
                       "El alumno es menor de edad y superó el plazo de 3 clases sin entregar el Certificado Único de Salud (CUS). Ingreso bloqueado.",
                   };
@@ -866,15 +923,17 @@ function IngresoWebPageContent() {
                     </p>
 
                     {/* Alerta de CUS para el recepcionista */}
-                    {result.esMenorDeEdad && result.cuisCompletado === false && result.cuisClasesPresentadas != null && result.cuisClasesPresentadas <= 3 && (
+                    {result.esMenorDeEdad && result.cusCompletado === false && (
                       <div className="w-full mt-4 p-4 bg-orange-50 border border-orange-200 rounded-xl text-center flex flex-col gap-1.5 shadow-sm">
                         <p className="text-sm font-bold text-orange-700 uppercase tracking-wide">
                           ⚠️ Recordatorio CUS Pendiente
                         </p>
                         <p className="text-xs md:text-sm text-orange-800 font-bold">
-                          {3 - result.cuisClasesPresentadas > 0 
-                            ? `Le quedan ${3 - result.cuisClasesPresentadas} clases de plazo para presentarlo.`
-                            : "¡Última clase de plazo para presentarlo!"}
+                          {result.cusClasesPresentadas != null && result.cusClasesPresentadas > 3
+                            ? "Plazo de margen de 3 clases vencido. Debés presentarlo en secretaría de forma obligatoria."
+                            : result.cusClasesPresentadas != null && 3 - result.cusClasesPresentadas > 0
+                              ? `Le quedan ${3 - result.cusClasesPresentadas} clases de plazo para presentarlo.`
+                              : "¡Última clase de plazo para presentarlo!"}
                         </p>
                       </div>
                     )}

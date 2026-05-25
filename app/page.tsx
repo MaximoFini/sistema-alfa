@@ -69,6 +69,11 @@ export default function LoginPage() {
       // Login exitoso
       triggerHapticFeedback(HapticPresets.success);
       
+      // Guardar el rol en localStorage para que useAuth lo cargue instantáneamente al redirigir (0ms)
+      if (typeof window !== "undefined" && validation.role) {
+        localStorage.setItem(`auth-role-${userId}`, validation.role);
+      }
+      
       // Esperar un momento para que las cookies se sincronicen
       await new Promise((resolve) => setTimeout(resolve, 300));
       

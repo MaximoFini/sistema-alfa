@@ -20,7 +20,6 @@ import {
   X,
   ChevronDown,
   Gift,
-  RotateCcw,
   AlertTriangle,
   ShieldCheck,
   ShieldAlert,
@@ -45,8 +44,8 @@ interface Alumno {
   fecha_nacimiento: string | null;
   clases_gracia_disponibles: number;
   clases_gracia_usadas: number;
-  cuis_completado: boolean;
-  cuis_clases_presentadas: number;
+  cus_completado: boolean;
+  cus_clases_presentadas: number;
   email: string | null;
   telefono_emergencia: string | null;
   observaciones: string | null;
@@ -143,18 +142,18 @@ export default function PanelInfoPersonal({
   );
 
   // CUS state
-  const [cuisCompletado, setCuisCompletado] = useState(alumno.cuis_completado);
-  const [cuisClasesPresentadas, setCuisClasesPresentadas] = useState(
-    alumno.cuis_clases_presentadas,
+  const [cusCompletado, setCusCompletado] = useState(alumno.cus_completado);
+  const [cusClasesPresentadas, setCusClasesPresentadas] = useState(
+    alumno.cus_clases_presentadas,
   );
-  const [marcandoCuis, setMarcandoCuis] = useState(false);
+  const [marcandoCus, setMarcandoCus] = useState(false);
 
   // Sync state when alumno prop updates (e.g. from server fetch)
   useEffect(() => {
     setClasesGraciaDisponibles(alumno.clases_gracia_disponibles);
     setClasesGraciaUsadas(alumno.clases_gracia_usadas);
-    setCuisCompletado(alumno.cuis_completado);
-    setCuisClasesPresentadas(alumno.cuis_clases_presentadas);
+    setCusCompletado(alumno.cus_completado);
+    setCusClasesPresentadas(alumno.cus_clases_presentadas);
   }, [alumno]);
 
   const deleteTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -215,6 +214,14 @@ export default function PanelInfoPersonal({
     if (!formData.fecha_nacimiento)
       e.fecha_nacimiento = "La fecha de nacimiento es requerida";
     if (!formData.genero) e.genero = "El género es requerido";
+
+    if (formData.telefonoEmergencia.trim()) {
+      const cleanTel = formData.telefono.replace(/\D/g, "");
+      const cleanEmerg = formData.telefonoEmergencia.replace(/\D/g, "");
+      if (cleanTel && cleanEmerg && cleanTel === cleanEmerg) {
+        e.telefonoEmergencia = "El contacto de emergencia no puede ser igual al teléfono del alumno";
+      }
+    }
 
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -355,59 +362,36 @@ export default function PanelInfoPersonal({
     router.refresh();
   }
 
-  async function handleReiniciarGracia() {
+
+  async function handleMarcarCusCompletado() {
     triggerHapticFeedback(HapticPresets.medium);
-    setOtorgandoGracia(true);
-    const { error } = await supabase
-      .from("alumnos")
-      .update({
-        clases_gracia_disponibles: 0,
-        clases_gracia_usadas: 0,
-      })
-      .eq("id", alumno.id);
-
-    if (error) {
-      setOtorgandoGracia(false);
-      triggerHapticFeedback(HapticPresets.error);
-      alert("Error al reiniciar: " + error.message);
-      return;
-    }
-
-    triggerHapticFeedback(HapticPresets.success);
-    // Optistic UI update for instant feedback
-    setClasesGraciaDisponibles(0);
-    setClasesGraciaUsadas(0);
+    
+    // UI Optimista: Update locally first
+    setCusCompletado(true);
     if (onAlumnoActualizado) {
-      onAlumnoActualizado({
-        clases_gracia_disponibles: 0,
-        clases_gracia_usadas: 0,
-      });
+      onAlumnoActualizado({ cus_completado: true });
     }
-    setOtorgandoGracia(false);
-    router.refresh();
-  }
+    setMarcandoCus(true);
 
-  async function handleMarcarCuisCompletado() {
-    triggerHapticFeedback(HapticPresets.medium);
-    setMarcandoCuis(true);
     const { error } = await supabase
       .from("alumnos")
-      .update({ cuis_completado: true })
+      .update({ cus_completado: true })
       .eq("id", alumno.id);
 
+    setMarcandoCus(false);
+
     if (error) {
-      setMarcandoCuis(false);
+      // Revert on error
+      setCusCompletado(false);
+      if (onAlumnoActualizado) {
+        onAlumnoActualizado({ cus_completado: false });
+      }
       triggerHapticFeedback(HapticPresets.error);
       alert("Error al actualizar CUS: " + error.message);
       return;
     }
 
     triggerHapticFeedback(HapticPresets.success);
-    setCuisCompletado(true);
-    if (onAlumnoActualizado) {
-      onAlumnoActualizado({ cuis_completado: true });
-    }
-    setMarcandoCuis(false);
     router.refresh();
   }
 
@@ -562,14 +546,6 @@ export default function PanelInfoPersonal({
                       : "Agotadas"}
                   </span>
                 </div>
-                <button
-                  onClick={handleReiniciarGracia}
-                  disabled={otorgandoGracia}
-                  className="flex items-center justify-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-                >
-                  <RotateCcw size={12} />
-                  Reiniciar contador
-                </button>
               </>
             ) : (
               <button
@@ -590,7 +566,7 @@ export default function PanelInfoPersonal({
         {alumno.edad_actual != null && alumno.edad_actual < 18 && (
           <div
             className={`w-full mt-2 p-4 rounded-2xl border flex flex-col gap-3 transition-all ${
-              cuisCompletado
+              cusCompletado
                 ? "bg-green-50/50 border-green-200"
                 : "bg-orange-50/50 border-orange-200 shadow-sm"
             }`}
@@ -598,57 +574,57 @@ export default function PanelInfoPersonal({
             <div className="flex items-start justify-between gap-2">
               <div className="flex flex-col gap-1">
                 <div className="flex items-center gap-1.5">
-                  <ShieldAlert className={cuisCompletado ? "hidden" : "text-orange-500"} size={16} />
-                  <ShieldCheck className={cuisCompletado ? "text-green-600" : "hidden"} size={16} />
-                  <h4 className={`text-sm font-bold ${cuisCompletado ? 'text-green-700' : 'text-orange-700'}`}>
+                  <ShieldAlert className={cusCompletado ? "hidden" : "text-orange-500"} size={16} />
+                  <ShieldCheck className={cusCompletado ? "text-green-600" : "hidden"} size={16} />
+                  <h4 className={`text-sm font-bold ${cusCompletado ? 'text-green-700' : 'text-orange-700'}`}>
                     Certificado Médico
                   </h4>
                 </div>
                 <p className="text-xs text-muted-foreground leading-tight">
-                  {cuisCompletado 
+                  {cusCompletado 
                     ? "Presentado correctamente." 
                     : "Requerido para menores de edad."}
                 </p>
               </div>
               
               <span className={`shrink-0 inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-bold px-2.5 py-1 rounded-full ${
-                cuisCompletado 
+                cusCompletado 
                   ? "bg-green-100 text-green-700" 
                   : "bg-orange-100 text-orange-700"
               }`}>
-                {cuisCompletado ? "Entregado" : "Pendiente"}
+                {cusCompletado ? "Entregado" : "Pendiente"}
               </span>
             </div>
 
-            {!cuisCompletado && (
+            {!cusCompletado && (
               <>
                 <div className="flex flex-col gap-1.5 mt-1">
                   <div className="flex items-center justify-between text-xs font-medium">
                     <span className="text-orange-800/80">Clases de margen usadas</span>
-                    <span className={cuisClasesPresentadas >= 3 ? "text-red-600 font-bold" : "text-orange-700 font-bold"}>
-                      {cuisClasesPresentadas} / 3
+                    <span className={cusClasesPresentadas >= 3 ? "text-red-600 font-bold" : "text-orange-700 font-bold"}>
+                      {cusClasesPresentadas} / 3
                     </span>
                   </div>
                   <div className="h-2 w-full bg-orange-200/50 rounded-full overflow-hidden">
                     <div 
-                      className={`h-full rounded-full transition-all duration-500 ${cuisClasesPresentadas >= 3 ? 'bg-red-500' : 'bg-orange-500'}`}
-                      style={{ width: `${Math.min((cuisClasesPresentadas / 3) * 100, 100)}%` }}
+                      className={`h-full rounded-full transition-all duration-500 ${cusClasesPresentadas >= 3 ? 'bg-red-500' : 'bg-orange-500'}`}
+                      style={{ width: `${Math.min((cusClasesPresentadas / 3) * 100, 100)}%` }}
                     />
                   </div>
-                  <p className={`text-[10px] text-right font-semibold ${cuisClasesPresentadas >= 3 ? 'text-red-500' : 'text-orange-600/80'}`}>
-                    {3 - cuisClasesPresentadas > 0 
-                      ? `Quedan ${3 - cuisClasesPresentadas} clases` 
+                  <p className={`text-[10px] text-right font-semibold ${cusClasesPresentadas >= 3 ? 'text-red-500' : 'text-orange-600/80'}`}>
+                    {3 - cusClasesPresentadas > 0 
+                      ? `Quedan ${3 - cusClasesPresentadas} clases` 
                       : "Plazo vencido"}
                   </p>
                 </div>
                 
                 <button
-                  onClick={handleMarcarCuisCompletado}
-                  disabled={marcandoCuis}
+                  onClick={handleMarcarCusCompletado}
+                  disabled={marcandoCus}
                   className="mt-1 flex items-center justify-center gap-2 w-full py-2.5 bg-orange-500 text-white text-sm font-bold rounded-xl hover:bg-orange-600 hover:shadow-md transition-all disabled:opacity-60 disabled:hover:shadow-none"
                 >
                   <ShieldCheck size={16} />
-                  {marcandoCuis ? "Registrando..." : "Marcar como entregado"}
+                  {marcandoCus ? "Registrando..." : "Marcar como entregado"}
                 </button>
               </>
             )}
@@ -781,7 +757,7 @@ export default function PanelInfoPersonal({
                   value={formData.telefono}
                   onChange={(e) => {
                     setFormData({ ...formData, telefono: e.target.value });
-                    setErrors({ ...errors, telefono: "" });
+                    setErrors({ ...errors, telefono: "", telefonoEmergencia: "" });
                   }}
                   className="border border-border rounded-lg px-4 py-3 text-sm bg-background text-foreground outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/10"
                 />
@@ -801,9 +777,15 @@ export default function PanelInfoPersonal({
                   value={formData.telefonoEmergencia}
                   onChange={(e) => {
                     setFormData({ ...formData, telefonoEmergencia: e.target.value });
+                    setErrors({ ...errors, telefonoEmergencia: "" });
                   }}
                   className="border border-border rounded-lg px-4 py-3 text-sm bg-background text-foreground outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/10"
                 />
+                {errors.telefonoEmergencia && (
+                  <span className="text-xs text-red-500">
+                    {errors.telefonoEmergencia}
+                  </span>
+                )}
               </div>
 
               <div className="flex flex-col gap-2">

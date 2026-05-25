@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   Calendar,
   Banknote,
@@ -8,7 +9,9 @@ import {
   XCircle,
   Plus,
   Clock,
+  Trash2,
 } from "lucide-react";
+import { triggerHapticFeedback, HapticPresets } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 import { ModalWithHistory } from "@/components/ModalWithHistory";
 import RegistrarCobroModal from "./RegistrarCobroModal";
@@ -26,6 +29,7 @@ interface Pago {
 
 interface Props {
   alumnoId: string;
+  alumnoNombre: string;
   pagosIniciales: Pago[];
   onAlumnoActualizado?: (datosActualizados: any) => void;
   autoOpenModal?: boolean;
@@ -64,12 +68,17 @@ function getMedioPagoClass(medio: string): string {
 
 export default function TabPagos({
   alumnoId,
+  alumnoNombre,
   pagosIniciales,
   onAlumnoActualizado,
   autoOpenModal,
 }: Props) {
+  const router = useRouter();
   const [pagos, setPagos] = useState<Pago[]>(pagosIniciales);
   const [modalAbierto, setModalAbierto] = useState(false);
+  const [showConfirmBajaModal, setShowConfirmBajaModal] = useState(false);
+  const [pagoParaBaja, setPagoParaBaja] = useState<Pago | null>(null);
+  const [procesandoBaja, setProcesandoBaja] = useState(false);
 
   // Hook to automatically open the modal if autoOpenModal is true
   useEffect(() => {
@@ -88,6 +97,103 @@ export default function TabPagos({
 
     if (data) {
       setPagos(data);
+    }
+  }
+
+  function handleConfirmarBaja(pago: Pago) {
+    triggerHapticFeedback(HapticPresets.medium);
+    setPagoParaBaja(pago);
+    setShowConfirmBajaModal(true);
+  }
+
+  async function handleDarDeBaja() {
+    if (!pagoParaBaja) return;
+
+    triggerHapticFeedback(HapticPresets.heavy);
+    setProcesandoBaja(true);
+
+    try {
+      // 1. Eliminar el pago
+      const { error: deleteError } = await supabase
+        .from("pagos")
+        .delete()
+        .eq("id", pagoParaBaja.id);
+
+      if (deleteError) {
+        throw new Error("Error al eliminar el pago: " + deleteError.message);
+      }
+
+      // 2. Obtener los pagos restantes del alumno ordenados por fecha de vencimiento desc
+      const { data: pagosRestantes, error: fetchError } = await supabase
+        .from("pagos")
+        .select("*")
+        .eq("alumno_id", alumnoId)
+        .order("fecha_vencimiento", { ascending: false });
+
+      if (fetchError) {
+        throw new Error("Error al obtener pagos restantes: " + fetchError.message);
+      }
+
+      // 3. Recalcular campos del alumno
+      let updateData: any = {};
+      if (pagosRestantes && pagosRestantes.length > 0) {
+        const latestPago = pagosRestantes[0];
+        updateData = {
+          abono_ultima_inscripcion: latestPago.actividad,
+          fecha_proximo_vencimiento: latestPago.fecha_vencimiento,
+          actividad_proximo_vencimiento: latestPago.actividad,
+          fecha_ultimo_inicio: latestPago.fecha_inicio,
+        };
+      } else {
+        updateData = {
+          abono_ultima_inscripcion: null,
+          fecha_proximo_vencimiento: null,
+          actividad_proximo_vencimiento: null,
+          fecha_ultimo_inicio: null,
+        };
+      }
+
+      // 4. Actualizar alumno en la base de datos
+      const { error: errorUpdate } = await supabase
+        .from("alumnos")
+        .update(updateData)
+        .eq("id", alumnoId);
+
+      if (errorUpdate) {
+        throw new Error("Error al actualizar datos del alumno: " + errorUpdate.message);
+      }
+
+      // 5. Actualizar el estado local de pagos
+      setPagos(pagosRestantes || []);
+
+      // 6. Notificar al componente padre que actualice el estado del alumno
+      if (onAlumnoActualizado) {
+        const { data: alumnoActualizado } = await supabase
+          .from("alumnos")
+          .select(
+            "clases_gracia_disponibles, clases_gracia_usadas, fecha_proximo_vencimiento, actividad_proximo_vencimiento, fecha_ultimo_inicio, abono_ultima_inscripcion, es_prueba",
+          )
+          .eq("id", alumnoId)
+          .single();
+
+        if (alumnoActualizado) {
+          onAlumnoActualizado(alumnoActualizado);
+        }
+      }
+
+      triggerHapticFeedback(HapticPresets.success);
+      setShowConfirmBajaModal(false);
+      setPagoParaBaja(null);
+      
+      // 7. Refrescar la página
+      router.refresh();
+
+    } catch (err: any) {
+      console.error("Error al dar de baja el plan:", err);
+      triggerHapticFeedback(HapticPresets.error);
+      alert(err.message || "Error inesperado al dar de baja el plan");
+    } finally {
+      setProcesandoBaja(false);
     }
   }
 
@@ -268,6 +374,19 @@ export default function TabPagos({
                       </span>
                     </div>
                   </div>
+
+                  {/* Botón de dar de baja para planes vigentes o próximos */}
+                  {(estado === "vigente" || estado === "proximo") && (
+                    <div className="pt-2 flex justify-end border-t border-border/40 mt-1">
+                      <button
+                        onClick={() => handleConfirmarBaja(pago)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-500/10 text-red-500 hover:bg-red-500/15 text-xs font-bold rounded-lg transition-colors border border-red-500/10"
+                      >
+                        <Trash2 size={12} />
+                        Dar de baja
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -287,6 +406,61 @@ export default function TabPagos({
           onGuardado={handleCobroGuardado}
         />
       </ModalWithHistory>
+
+      {/* Modal de Confirmación de Baja */}
+      {showConfirmBajaModal && pagoParaBaja && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] transition-opacity"
+            onClick={() => {
+              if (!procesandoBaja) {
+                setShowConfirmBajaModal(false);
+                setPagoParaBaja(null);
+              }
+            }}
+          />
+          {/* Modal Card */}
+          <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[101] bg-card p-6 rounded-2xl shadow-2xl border border-border w-[90vw] max-w-md flex flex-col gap-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2.5 bg-red-500/10 text-red-500 rounded-xl shrink-0 mt-0.5">
+                <Trash2 size={22} />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-base font-bold text-foreground">
+                  Dar de Baja Plan
+                </h3>
+                <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
+                  ¿Estás seguro de dar de baja el plan <span className="font-bold text-foreground">"{pagoParaBaja.actividad}"</span> del alumno <span className="font-bold text-foreground">"{alumnoNombre}"</span>?
+                  Esta acción eliminará de forma permanente el registro del cobro y liberará las fechas en el sistema.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 mt-2 pt-2 border-t border-border/40">
+              <button
+                type="button"
+                disabled={procesandoBaja}
+                onClick={() => {
+                  setShowConfirmBajaModal(false);
+                  setPagoParaBaja(null);
+                }}
+                className="px-4 py-2 text-xs font-bold rounded-xl bg-muted hover:bg-muted/80 text-foreground border border-border transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleDarDeBaja}
+                disabled={procesandoBaja}
+                className="px-4 py-2 text-xs font-bold rounded-xl bg-red-500 hover:bg-red-600 text-white shadow-sm transition-colors disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {procesandoBaja ? "Procesando..." : "Confirmar Baja"}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </>
   );
 }
