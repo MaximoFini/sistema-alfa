@@ -26,7 +26,7 @@ import { useBusinessSalariesStore } from "./use-business-salaries-store";
 import { useAcceptedCardsStore } from "./use-accepted-cards-store";
 import { useProductCategoriesStore } from "./use-product-categories-store";
 import { supabase } from "@/lib/supabase";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 
 /**
  * useAdminSettingsStore — hook de compatibilidad retroactiva.
@@ -45,7 +45,7 @@ export function useAdminSettingsStore() {
   const acceptedCards = useAcceptedCardsStore();
   const productCategories = useProductCategoriesStore();
 
-  return {
+  return useMemo(() => ({
     // ─── System Settings ────────────────────────────────────────────────────
     settings: systemSettings.settings,
     settingsLoading: systemSettings.settingsLoading,
@@ -136,7 +136,88 @@ export function useAdminSettingsStore() {
       acceptedCards.invalidateCards();
       productCategories.invalidateProductCategories();
     },
-  };
+  }), [
+    // ─── System Settings ───
+    systemSettings.settings,
+    systemSettings.settingsLoading,
+    systemSettings.settingsLastFetched,
+    systemSettings.fetchSettings,
+    systemSettings.updateSettings,
+    // ─── Subscription Plans ───
+    subscriptionPlans.planes,
+    subscriptionPlans.planesLoading,
+    subscriptionPlans.planesLastFetched,
+    subscriptionPlans.fetchPlanes,
+    subscriptionPlans.togglePlan,
+    subscriptionPlans.updatePlan,
+    subscriptionPlans.addPlan,
+    subscriptionPlans.deletePlan,
+    // ─── Payment Methods ───
+    paymentMethods.metodos,
+    paymentMethods.metodosLoading,
+    paymentMethods.metodosLastFetched,
+    paymentMethods.fetchMetodos,
+    paymentMethods.toggleMetodo,
+    paymentMethods.updateMetodo,
+    paymentMethods.addMetodo,
+    paymentMethods.deleteMetodo,
+    // ─── System Users ───
+    systemUsers.usuarios,
+    systemUsers.usuariosLoading,
+    systemUsers.usuariosLastFetched,
+    systemUsers.fetchUsuarios,
+    systemUsers.toggleUserActive,
+    systemUsers.toggleUserAdmin,
+    systemUsers.updateUser,
+    systemUsers.addUser,
+    systemUsers.deleteUser,
+    systemUsers.generatePassword,
+    // ─── Business Expenses ───
+    businessExpenses.expenses,
+    businessExpenses.expensesLoading,
+    businessExpenses.expensesLastFetched,
+    businessExpenses.fetchExpenses,
+    businessExpenses.toggleExpense,
+    businessExpenses.updateExpense,
+    businessExpenses.addExpense,
+    businessExpenses.deleteExpense,
+    // ─── Business Salaries ───
+    businessSalaries.salaries,
+    businessSalaries.salariesLoading,
+    businessSalaries.salariesLastFetched,
+    businessSalaries.fetchSalaries,
+    businessSalaries.toggleSalary,
+    businessSalaries.updateSalary,
+    businessSalaries.addSalary,
+    businessSalaries.deleteSalary,
+    // ─── Accepted Cards ───
+    acceptedCards.cards,
+    acceptedCards.cardsLoading,
+    acceptedCards.cardsLastFetched,
+    acceptedCards.fetchCards,
+    acceptedCards.toggleCard,
+    acceptedCards.updateCard,
+    acceptedCards.addCard,
+    acceptedCards.deleteCard,
+    // ─── Product Categories ───
+    productCategories.productCategories,
+    productCategories.productCategoriesLoading,
+    productCategories.productCategoriesLastFetched,
+    productCategories.fetchProductCategories,
+    productCategories.toggleProductCategory,
+    productCategories.updateProductCategory,
+    productCategories.addProductCategory,
+    productCategories.deleteProductCategory,
+    // ─── Invalidate ───
+    systemSettings.invalidateSettings,
+    subscriptionPlans.invalidatePlanes,
+    paymentMethods.invalidateMetodos,
+    systemUsers.invalidateUsuarios,
+    businessExpenses.invalidateExpenses,
+    businessSalaries.invalidateSalaries,
+    acceptedCards.invalidateCards,
+    productCategories.invalidateProductCategories,
+  ]);
 }
 
 // Compatibility: also expose getState() as a static method proxy

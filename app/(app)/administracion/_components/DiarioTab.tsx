@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAdminStore } from "@/stores/admin-store";
 import {
@@ -119,39 +119,9 @@ export default function DiarioTab() {
     isCacheValid && snap ? snap.asistencias : []
   );
 
-  useEffect(() => {
-    if (isDiarioCacheValid() && snap && snap.selectedDate === selectedDate) {
-      return;
-    }
-    loadDiarioData();
-  }, [selectedDate]);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Sincronización en tiempo real con Supabase
-  useEffect(() => {
-    let active = true;
-    const channel = supabase
-      .channel("diario-realtime-changes")
-      .on("postgres_changes", { event: "*", schema: "public", table: "alumnos" }, () => {
-        if (active) loadDiarioData();
-      })
-      .on("postgres_changes", { event: "*", schema: "public", table: "pagos" }, () => {
-        if (active) loadDiarioData();
-      })
-      .on("postgres_changes", { event: "*", schema: "public", table: "ventas" }, () => {
-        if (active) loadDiarioData();
-      })
-      .on("postgres_changes", { event: "*", schema: "public", table: "asistencias" }, () => {
-        if (active) loadDiarioData();
-      })
-      .subscribe();
-
-    return () => {
-      active = false;
-      supabase.removeChannel(channel);
-    };
-  }, [selectedDate]);
-
-  async function loadDiarioData() {
+  const loadDiarioData = useCallback(async () => {
     setLoading(true);
     try {
       // 1. Altas de alumnos
@@ -210,7 +180,47 @@ export default function DiarioTab() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [selectedDate, setDiarioSnapshot]);
+
+  const debouncedLoad = useCallback(() => {
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    debounceTimerRef.current = setTimeout(() => {
+      loadDiarioData();
+    }, 300);
+  }, [loadDiarioData]);
+
+  useEffect(() => {
+    if (isDiarioCacheValid() && snap && snap.selectedDate === selectedDate) {
+      return;
+    }
+    loadDiarioData();
+  }, [selectedDate, loadDiarioData]);
+
+  // Sincronización en tiempo real con Supabase
+  useEffect(() => {
+    let active = true;
+    const channel = supabase
+      .channel("diario-realtime-changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "alumnos" }, () => {
+        if (active) debouncedLoad();
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "pagos" }, () => {
+        if (active) debouncedLoad();
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "ventas" }, () => {
+        if (active) debouncedLoad();
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "asistencias" }, () => {
+        if (active) debouncedLoad();
+      })
+      .subscribe();
+
+    return () => {
+      active = false;
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      supabase.removeChannel(channel);
+    };
+  }, [selectedDate, debouncedLoad]);
 
   // Desplazar fecha
   function shiftDate(days: number) {

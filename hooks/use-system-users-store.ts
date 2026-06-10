@@ -124,25 +124,29 @@ export const useSystemUsersStore = create<SystemUsersState>((set, get) => ({
 
   addUser: async (user) => {
     try {
-      const { data, error } = await supabase
-        .from("system_users")
-        .insert({
+      const response = await fetch("/api/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           username: user.username,
           email: user.email,
-          password_hash: user.password, // En producción, esto debe hashearse en el servidor
-          is_admin: false,
-          is_active: true,
-        })
-        .select()
-        .single();
+          password: user.password,
+          isAdmin: false,
+        }),
+      });
 
-      if (error) throw error;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Error al crear el usuario");
+      }
+
+      const data = await response.json();
 
       const state = get();
       set({
         usuarios: [
           ...state.usuarios,
-          { id: data.id, username: data.username, email: data.email, is_admin: data.is_admin, is_active: data.is_active },
+          { id: data.id, username: data.username, email: data.email, is_admin: data.is_admin ?? false, is_active: data.is_active ?? true },
         ],
       });
     } catch (error) {
@@ -168,18 +172,21 @@ export const useSystemUsersStore = create<SystemUsersState>((set, get) => ({
 
   generatePassword: async (userId) => {
     const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%";
-    let password = "";
-    for (let i = 0; i < 12; i++) {
-      password += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
+    const array = new Uint32Array(12);
+    crypto.getRandomValues(array);
+    const password = Array.from(array, (x) => chars[x % chars.length]).join("");
 
     try {
-      const { error } = await supabase
-        .from("system_users")
-        .update({ password_hash: password }) // En producción, hashear en servidor
-        .eq("id", userId);
+      const response = await fetch("/api/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, newPassword: password }),
+      });
 
-      if (error) throw error;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Error al actualizar la contraseña");
+      }
 
       return password;
     } catch (error) {

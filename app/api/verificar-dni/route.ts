@@ -1,6 +1,29 @@
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextRequest, NextResponse } from "next/server";
 
+type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
+
+interface AlumnoDB {
+  id: string;
+  nombre: string;
+  activo: boolean;
+  es_prueba: boolean;
+  actividad_interes: string | null;
+  actividad_proximo_vencimiento: string | null;
+  clases_gracia_disponibles: number | null;
+  clases_gracia_usadas: number | null;
+  fecha_proximo_vencimiento: string | null;
+  fecha_nacimiento: string | null;
+  cus_completado: boolean | null;
+  cus_clases_presentadas: number | null;
+}
+
+interface PlanDB {
+  fecha_inicio: string;
+  fecha_vencimiento: string;
+  actividad: string | null;
+}
+
 type Estado =
   | "al-dia"
   | "vencido"
@@ -52,14 +75,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ found: false }, { status: 200 });
     }
 
+    const alumnoTyped = alumno as AlumnoDB;
+
     // Verificar si es un usuario de prueba
-    if (alumno.es_prueba === true) {
+    if (alumnoTyped.es_prueba === true) {
       // Verificar si ya usó su clase de prueba (ya tiene asistencias registradas)
       const { data: asistenciasExistentes, error: asistenciasError } =
         await supabase
           .from("asistencias")
           .select("id")
-          .eq("alumno_id", alumno.id)
+          .eq("alumno_id", alumnoTyped.id)
           .limit(1);
 
       if (asistenciasError) {
@@ -78,10 +103,10 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({
           found: true,
           alumno: {
-            nombre: alumno.nombre,
+            nombre: alumnoTyped.nombre,
             estado: "vencido" as Estado,
             vencimiento: "Clase de Prueba Utilizada",
-            actividad: alumno.actividad_interes || "Clase de Prueba",
+            actividad: alumnoTyped.actividad_interes || "Clase de Prueba",
             esPrueba: true,
             yaUsoClasePrueba: true,
           },
@@ -107,11 +132,11 @@ export async function POST(request: NextRequest) {
       await supabase
         .from("alumnos")
         .update({ fecha_ultima_asistencia: fechaISO })
-        .eq("id", alumno.id);
+        .eq("id", alumnoTyped.id);
 
       // Crear registro en tabla asistencias
       await supabase.from("asistencias").insert({
-        alumno_id: alumno.id,
+        alumno_id: alumnoTyped.id,
         fecha: fechaISO,
         hora: horaLocal,
       });
@@ -119,10 +144,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         found: true,
         alumno: {
-          nombre: alumno.nombre,
+          nombre: alumnoTyped.nombre,
           estado: "prueba" as Estado,
           vencimiento: "Clase de Prueba",
-          actividad: alumno.actividad_interes || "Clase de Prueba",
+          actividad: alumnoTyped.actividad_interes || "Clase de Prueba",
           esPrueba: true,
         },
       });
@@ -131,10 +156,10 @@ export async function POST(request: NextRequest) {
     // 1. Determinar el estado ANTES de registrar asistencia
     //    (necesitamos saber si el ingreso está permitido)
     const { estado, clasesGracia, razonBloqueo, fechaInicioPlan, planActivo } =
-      await determinarEstado(alumno, supabase);
+      await determinarEstado(alumnoTyped, supabase);
 
-    const esMenorDeEdad = alumno.fecha_nacimiento
-      ? calcularEdad(alumno.fecha_nacimiento) < 18
+    const esMenorDeEdad = alumnoTyped.fecha_nacimiento
+      ? calcularEdad(alumnoTyped.fecha_nacimiento) < 18
       : false;
 
     // 2. Solo registrar asistencia si el ingreso está permitido
@@ -159,16 +184,16 @@ export async function POST(request: NextRequest) {
       const horaLocal = `${hours}:${minutes}:${seconds}`;
       const fechaISO = `${fechaLocal}T${horaLocal}`;
 
-      const updateData: any = { fecha_ultima_asistencia: fechaISO };
-      let nuevoCusClasesPresentadas = alumno.cus_clases_presentadas ?? 0;
-      if (esMenorDeEdad && alumno.cus_completado === false) {
+      const updateData: Record<string, string | number> = { fecha_ultima_asistencia: fechaISO };
+      let nuevoCusClasesPresentadas = alumnoTyped.cus_clases_presentadas ?? 0;
+      if (esMenorDeEdad && alumnoTyped.cus_completado === false) {
         nuevoCusClasesPresentadas += 1;
         updateData.cus_clases_presentadas = nuevoCusClasesPresentadas;
       }
 
       // Si es período de gracia, incrementar el contador de clases usadas directamente en el mismo update
       if (estado === "periodo_gracia") {
-        updateData.clases_gracia_usadas = (alumno.clases_gracia_usadas ?? 0) + 1;
+        updateData.clases_gracia_usadas = (alumnoTyped.clases_gracia_usadas ?? 0) + 1;
       }
 
       // Ejecutar actualización del alumno e inserción de asistencia en paralelo
@@ -176,11 +201,11 @@ export async function POST(request: NextRequest) {
         supabase
           .from("alumnos")
           .update(updateData)
-          .eq("id", alumno.id),
+          .eq("id", alumnoTyped.id),
         supabase
           .from("asistencias")
           .insert({
-            alumno_id: alumno.id,
+            alumno_id: alumnoTyped.id,
             fecha: fechaISO,
             hora: horaLocal,
           })
@@ -196,14 +221,14 @@ export async function POST(request: NextRequest) {
 
     // 3. El plan activo ya fue obtenido y filtrado en memoria dentro de determinarEstado
 
-    const finalCusClases = ingresoPermitido && esMenorDeEdad && alumno.cus_completado === false
-      ? (alumno.cus_clases_presentadas ?? 0) + 1
-      : (alumno.cus_clases_presentadas ?? 0);
+    const finalCusClases = ingresoPermitido && esMenorDeEdad && alumnoTyped.cus_completado === false
+      ? (alumnoTyped.cus_clases_presentadas ?? 0) + 1
+      : (alumnoTyped.cus_clases_presentadas ?? 0);
 
     return NextResponse.json({
       found: true,
       alumno: {
-        nombre: alumno.nombre,
+        nombre: alumnoTyped.nombre,
         estado,
         vencimiento: planActivo?.fecha_vencimiento
           ? formatearFecha(planActivo.fecha_vencimiento)
@@ -215,13 +240,13 @@ export async function POST(request: NextRequest) {
                 ? "Falta CUS obligatorio"
                 : "Sin fecha",
         actividad:
-          planActivo?.actividad || alumno.actividad_proximo_vencimiento,
+          planActivo?.actividad || alumnoTyped.actividad_proximo_vencimiento,
         clasesGracia: clasesGracia ?? undefined,
         razonBloqueo: razonBloqueo,
         esMenorDeEdad,
-        cusCompletado: alumno.cus_completado,
+        cusCompletado: alumnoTyped.cus_completado,
         cusClasesPresentadas: finalCusClases,
-        clasesCusMargen: esMenorDeEdad && alumno.cus_completado === false
+        clasesCusMargen: esMenorDeEdad && alumnoTyped.cus_completado === false
           ? Math.max(0, 3 - finalCusClases)
           : undefined,
       },
@@ -236,14 +261,14 @@ export async function POST(request: NextRequest) {
 }
 
 async function determinarEstado(
-  alumno: any,
-  supabase: any,
+  alumno: AlumnoDB,
+  supabase: SupabaseServerClient,
 ): Promise<{
   estado: Estado;
   clasesGracia?: { usadas: number; disponibles: number };
   razonBloqueo?: "sin_plan" | "plan_no_iniciado" | "cus_vencido";
   fechaInicioPlan?: string;
-  planActivo?: any;
+  planActivo?: PlanDB;
 }> {
   const hoy = getFechaLocal(); // YYYY-MM-DD
 
@@ -278,13 +303,13 @@ async function determinarEstado(
   }
 
   // 1. Filtrar planes activos hoy (en JS, sin segunda query)
-  const planesActivos = todosLosPlanes.filter(
-    (p: any) => p.fecha_inicio <= hoy && p.fecha_vencimiento >= hoy
+  const planesActivos = (todosLosPlanes as PlanDB[]).filter(
+    (p) => p.fecha_inicio <= hoy && p.fecha_vencimiento >= hoy
   );
 
   // Ordenar por fecha_vencimiento DESC para obtener el plan con mayor vigencia
   const planesActivosOrdenados = [...planesActivos].sort(
-    (a: any, b: any) => new Date(b.fecha_vencimiento).getTime() - new Date(a.fecha_vencimiento).getTime()
+    (a, b) => new Date(b.fecha_vencimiento).getTime() - new Date(a.fecha_vencimiento).getTime()
   );
   const planActivo = planesActivosOrdenados[0] || null;
 
@@ -307,7 +332,7 @@ async function determinarEstado(
   }
 
   // 3. Si no tiene plan activo hoy, verificar si tiene un plan futuro agendado
-  const planesFuturos = todosLosPlanes.filter((p: any) => p.fecha_inicio > hoy);
+  const planesFuturos = (todosLosPlanes as PlanDB[]).filter((p) => p.fecha_inicio > hoy);
   if (planesFuturos.length > 0) {
     // El plan futuro más cercano (ordenado por fecha_inicio asc)
     const planProximo = planesFuturos[0];

@@ -131,6 +131,43 @@ interface DataCacheState {
 
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
 
+// Raw DB row types for Supabase query results
+interface RawPlanRow {
+  id: string;
+  coach_id: string;
+  title: string;
+  description: string | null;
+  start_date: string;
+  end_date: string;
+  total_days: number;
+  days_per_week: number;
+  total_weeks: number;
+  plan_type: string | null;
+  difficulty_level: string | null;
+  is_template: boolean;
+  is_archived: boolean;
+  created_at: string;
+  training_plan_assignments?: { count: number }[];
+}
+
+interface RawAlumnoRow {
+  id: string;
+  nombre: string | null;
+  edad_actual: number | null;
+  fecha_registro: string | null;
+  dni: string | null;
+  es_prueba?: boolean | null;
+  actividad_interes?: string | null;
+  activo?: boolean | null;
+  cus_completado?: boolean | null;
+  cus_clases_presentadas?: number | null;
+  fecha_ultima_asistencia?: string | null;
+  // Fields from alumnos_por_orden_llegada RPC
+  ult_fecha?: string | null;
+  ult_hora?: string | null;
+  total_count?: number | string;
+}
+
 export const useDataCacheStore = create<DataCacheState>((set, get) => ({
   // Initial state
   categories: [],
@@ -229,8 +266,8 @@ export const useDataCacheStore = create<DataCacheState>((set, get) => ({
       if (error) throw error;
 
       // Transform data to include assignedCount
-      const plans: TrainingPlanSummary[] = (plansData || []).map(
-        (plan: any) => ({
+      const plans: TrainingPlanSummary[] = (plansData as RawPlanRow[] || []).map(
+        (plan) => ({
           id: plan.id,
           coach_id: plan.coach_id,
           title: plan.title,
@@ -350,7 +387,7 @@ export const useDataCacheStore = create<DataCacheState>((set, get) => ({
           1,
           Math.ceil(totalRegistros / POR_PAGINA_ALUMNOS),
         );
-        const alumnos: AlumnoRow[] = (fallbackData ?? []).map((row: any) => ({
+        const alumnos: AlumnoRow[] = (fallbackData as RawAlumnoRow[] ?? []).map((row) => ({
           id: row.id,
           nombre: row.nombre,
           edad_actual: row.edad_actual,
@@ -385,7 +422,7 @@ export const useDataCacheStore = create<DataCacheState>((set, get) => ({
         Math.ceil(totalRegistros / POR_PAGINA_ALUMNOS),
       );
 
-      const alumnos: AlumnoRow[] = (alumnosRaw ?? []).map((row: any) => ({
+      const alumnos: AlumnoRow[] = (alumnosRaw as RawAlumnoRow[] ?? []).map((row) => ({
         id: row.id,
         nombre: row.nombre,
         edad_actual: row.edad_actual,

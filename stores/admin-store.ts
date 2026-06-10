@@ -72,28 +72,94 @@ export interface EstadisticasSnapshot {
   prevMesLabel: string;
   selectedYear?: number;
   selectedMonth?: number;
-  cacheMap?: Record<string, { fetchedAt: number; snap: any }>;
+  cacheMap?: Record<string, { fetchedAt: number; snap: EstadisticasSnapshot }>;
+}
+
+// Inline types for DiarioSnapshot entries
+export interface DiarioAlta {
+  id: string;
+  nombre: string;
+  dni: string;
+  created_at: string;
+}
+
+export interface DiarioPago {
+  id: string;
+  actividad: string;
+  precio: number;
+  medio_pago: string;
+  tarjeta: string | null;
+  alias_transferencia: string | null;
+  alumnos: { nombre: string; dni: string } | null;
+}
+
+export interface DiarioVenta {
+  id: string;
+  cantidad: number;
+  precio_unitario: number;
+  medio_pago: string;
+  tarjeta: string | null;
+  alias_transferencia: string | null;
+  talle_vendido: string | null;
+  created_at: string;
+  productos: { nombre: string; stock: number; stock_minimo: number } | null;
+}
+
+export interface DiarioAsistencia {
+  id: string;
+  hora: string;
+  fecha: string;
+  alumnos: { nombre: string; dni: string; es_prueba: boolean } | null;
 }
 
 export interface DiarioSnapshot {
   selectedDate: string;
-  altas: any[];
-  pagos: any[];
-  ventas: any[];
-  asistencias: any[];
+  altas: DiarioAlta[];
+  pagos: DiarioPago[];
+  ventas: DiarioVenta[];
+  asistencias: DiarioAsistencia[];
+}
+
+// Inline types for ProductosSnapshot entries
+export interface ProductosProducto {
+  id: string;
+  nombre: string;
+  precio_venta: number;
+  precio_costo: number;
+  stock: number;
+  stock_minimo: number;
+  activo: boolean;
+  categoria: string;
+}
+
+export interface ProductosVenta {
+  id: string;
+  producto_id: string;
+  cantidad: number;
+  precio_unitario: number;
+  precio_costo_unitario: number;
+  total: number;
+  ganancia: number;
+  notas: string | null;
+  talle_vendido: string | null;
+  created_at: string;
+  medio_pago?: string | null;
+  tarjeta?: string | null;
+  alias_transferencia?: string | null;
+  productos?: { nombre: string };
 }
 
 export interface ProductosSnapshot {
   selectedYear: number;
   selectedMonth: number;
-  productos: any[];
-  ventas: any[];
+  productos: ProductosProducto[];
+  ventas: ProductosVenta[];
 }
 
 export interface FinanzasPageSnapshot {
   selectedYear: number;
   selectedMonth: number;
-  stats: any;
+  stats: FinancialStats;
 }
 
 // ── Store interface ───────────────────────────────────────────────────────────

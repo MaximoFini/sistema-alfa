@@ -24,6 +24,11 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAdminSettings } from "@/hooks/use-admin-settings";
+import type { Plan } from "@/hooks/use-subscription-plans-store";
+import type { PaymentMethod } from "@/hooks/use-payment-methods-store";
+import type { SystemUser } from "@/hooks/use-system-users-store";
+import type { AcceptedCard } from "@/hooks/use-accepted-cards-store";
+import type { ProductCategory } from "@/hooks/use-product-categories-store";
 
 const PASTEL_COLORS = [
   { id: "sky", name: "Celeste", bg: "bg-sky-100/60", border: "border-sky-200/60", text: "text-sky-700", dot: "#38bdf8" },
@@ -264,11 +269,11 @@ export default function AjustesPage() {
   const loading =
     settingsLoading || planesLoading || metodosLoading || usuariosLoading || cardsLoading || productCategoriesLoading;
 
-  async function togglePlan(plan: any) {
+  async function togglePlan(plan: Plan) {
     await togglePlanStore(plan.id);
   }
 
-  function startEdit(plan: any) {
+  function startEdit(plan: Plan) {
     setEditingId(plan.id);
     setEditNombre(plan.nombre);
     setEditPrecio(String(plan.precio));
@@ -304,11 +309,11 @@ export default function AjustesPage() {
   }
 
   // ─── Payment Methods Logic ──────────────────────────────────────────────────
-  async function toggleMetodo(metodo: any) {
+  async function toggleMetodo(metodo: PaymentMethod) {
     await toggleMetodoStore(metodo.id);
   }
 
-  function startEditMetodo(metodo: any) {
+  function startEditMetodo(metodo: PaymentMethod) {
     setEditingMetodoId(metodo.id);
     setEditMetodoNombre(metodo.nombre);
   }
@@ -333,11 +338,11 @@ export default function AjustesPage() {
   }
 
   // ─── Cards Logic ─────────────────────────────────────────────────────────────
-  async function toggleCard(card: any) {
+  async function toggleCard(card: AcceptedCard) {
     await toggleCardStore(card.id);
   }
 
-  function startEditCard(card: any) {
+  function startEditCard(card: AcceptedCard) {
     setEditingCardId(card.id);
     setEditCardName(card.name);
   }
@@ -362,11 +367,11 @@ export default function AjustesPage() {
   }
 
   // ─── Product Categories Logic ────────────────────────────────────────────────
-  async function toggleProductCategory(category: any) {
+  async function toggleProductCategory(category: ProductCategory) {
     await toggleProductCategoryStore(category.id);
   }
 
-  function startEditCategory(category: any) {
+  function startEditCategory(category: ProductCategory) {
     setEditingCategoryId(category.id);
     setEditCategoryName(category.name);
     setEditCategoryColor(category.color || "purple");
@@ -393,15 +398,15 @@ export default function AjustesPage() {
   }
 
   // ─── Users Logic ─────────────────────────────────────────────────────────────
-  async function toggleUserActive(user: any) {
+  async function toggleUserActive(user: SystemUser) {
     await toggleUserActiveStore(user.id);
   }
 
-  async function toggleUserAdmin(user: any) {
+  async function toggleUserAdmin(user: SystemUser) {
     await toggleUserAdminStore(user.id);
   }
 
-  function startEditUser(user: any) {
+  function startEditUser(user: SystemUser) {
     setEditingUserId(user.id);
     setEditUserName(user.username);
     setEditUserEmail(user.email);
@@ -489,17 +494,14 @@ export default function AjustesPage() {
     await deleteUserStore(id);
   }
 
-  function generatePassword() {
-    const chars =
-      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
-    let password = "";
-    for (let i = 0; i < 12; i++) {
-      password += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return password;
+  function generatePassword(length: number = 12): string {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%';
+    const array = new Uint32Array(length);
+    crypto.getRandomValues(array);
+    return Array.from(array, (x) => chars[x % chars.length]).join('');
   }
 
-  async function resetUserPassword(user: any) {
+  async function resetUserPassword(user: SystemUser) {
     const newPassword = generatePassword();
     setGeneratingPassword(user.id);
 

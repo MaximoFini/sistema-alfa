@@ -32,11 +32,10 @@ export function useAuth() {
     // Crear nueva consulta
     authPromise = (async () => {
       try {
-        // Obtener usuario de la sesión local (no hace request al servidor)
+        // Obtener usuario validado contra el servidor (no confía solo en localStorage)
         const {
-          data: { session },
-        } = await supabase.auth.getSession();
-        const user = session?.user || null;
+          data: { user },
+        } = await supabase.auth.getUser();
 
         if (!user) {
           const newState = { user: null, role: null, loading: false };
