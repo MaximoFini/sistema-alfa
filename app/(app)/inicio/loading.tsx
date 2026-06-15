@@ -9,7 +9,7 @@ export default function InicioLoading() {
         <img
           src="/logo-sin-fondo-completo.webp"
           alt=""
-          className="w-[80vw] md:w-[450px] opacity-[0.35] object-contain ml-0 md:translate-x-[128px]"
+          className="w-[80vw] md:w-[450px] opacity-[0.06] object-contain ml-0"
         />
       </div>
 

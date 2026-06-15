@@ -21,7 +21,14 @@ interface SystemUsersState {
   toggleUserActive: (userId: string) => Promise<void>;
   toggleUserAdmin: (userId: string) => Promise<void>;
   updateUser: (userId: string, updates: { username: string; email: string }) => Promise<void>;
-  addUser: (user: { username: string; email: string; password: string }) => Promise<void>;
+  addUser: (user: { username: string; email: string; password: string }) => Promise<{
+    id: string;
+    username: string;
+    email: string;
+    is_admin: boolean;
+    is_active: boolean;
+    canLogin?: boolean;
+  }>;
   deleteUser: (userId: string) => Promise<void>;
   generatePassword: (userId: string) => Promise<string>;
   invalidateUsuarios: () => void;
@@ -146,11 +153,19 @@ export const useSystemUsersStore = create<SystemUsersState>((set, get) => ({
       set({
         usuarios: [
           ...state.usuarios,
-          { id: data.id, username: data.username, email: data.email, is_admin: data.is_admin ?? false, is_active: data.is_active ?? true },
+          {
+            id: data.id,
+            username: data.username,
+            email: data.email,
+            is_admin: data.is_admin ?? false,
+            is_active: data.is_active ?? true,
+          },
         ],
       });
+      return data;
     } catch (error) {
       console.error("Error adding user:", error);
+      throw error;
     }
   },
 

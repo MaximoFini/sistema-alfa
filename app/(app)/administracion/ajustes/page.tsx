@@ -29,6 +29,16 @@ import type { PaymentMethod } from "@/hooks/use-payment-methods-store";
 import type { SystemUser } from "@/hooks/use-system-users-store";
 import type { AcceptedCard } from "@/hooks/use-accepted-cards-store";
 import type { ProductCategory } from "@/hooks/use-product-categories-store";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const PASTEL_COLORS = [
   { id: "sky", name: "Celeste", bg: "bg-sky-100/60", border: "border-sky-200/60", text: "text-sky-700", dot: "#38bdf8" },
@@ -265,6 +275,8 @@ export default function AjustesPage() {
   const [generatingPassword, setGeneratingPassword] = useState<string | null>(
     null,
   );
+  const [showPasswordLengthModal, setShowPasswordLengthModal] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<SystemUser | null>(null);
 
   const loading =
     settingsLoading || planesLoading || metodosLoading || usuariosLoading || cardsLoading || productCategoriesLoading;
@@ -447,50 +459,36 @@ export default function AjustesPage() {
     if (!newUserName.trim() || !newUserEmail.trim() || !newUserPassword.trim())
       return;
 
+    if (newUserPassword.length < 6) {
+      setShowPasswordLengthModal(true);
+      return;
+    }
+
     try {
-      const response = await fetch("/api/users", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username: newUserName.trim(),
-          email: newUserEmail.trim(),
-          password: newUserPassword.trim(),
-          isAdmin: false,
-        }),
+      const data = await addUserStore({
+        username: newUserName.trim(),
+        email: newUserEmail.trim(),
+        password: newUserPassword.trim(),
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        alert(error.error || "Error al crear el usuario");
-        return;
-      }
-
-      const data = await response.json();
-
-      if (data.canLogin === false) {
+      if (data && data.canLogin === false) {
         alert(
           "⚠️ Usuario creado en la tabla de gestión, pero NO podrá hacer login.\n\n" +
             "Para habilitar el login, configura SUPABASE_SERVICE_ROLE_KEY en las variables de entorno.",
         );
       }
 
-      await addUserStore({
-        username: newUserName.trim(),
-        email: newUserEmail.trim(),
-        password: newUserPassword.trim(),
-      });
       setNewUserName("");
       setNewUserEmail("");
       setNewUserPassword("");
       setShowNewUser(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert("Error al crear el usuario");
+      alert(error?.message || "Error al crear el usuario");
     }
   }
 
   async function deleteUser(id: string) {
-    if (!confirm("¿Estás seguro de que deseas eliminar este usuario?")) return;
     await deleteUserStore(id);
   }
 
@@ -1010,7 +1008,7 @@ export default function AjustesPage() {
                           </Tooltip>
                           <Tooltip label="Eliminar usuario">
                             <button
-                              onClick={() => deleteUser(usuario.id)}
+                              onClick={() => setUserToDelete(usuario)}
                               className="p-1.5 text-gray-400 hover:text-red-500 transition-colors"
                             >
                               <Trash2 size={13} />
@@ -1439,6 +1437,51 @@ export default function AjustesPage() {
           </Section>
         </div>
       </div>
+
+      {/* Modales custom */}
+      <AlertDialog open={showPasswordLengthModal} onOpenChange={setShowPasswordLengthModal}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>⚠️ Contraseña muy corta</AlertDialogTitle>
+            <AlertDialogDescription>
+              La contraseña debe tener al menos 6 caracteres.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setShowPasswordLengthModal(false)}>
+              Entendido
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!userToDelete} onOpenChange={(open) => { if (!open) setUserToDelete(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro de que deseas eliminar este usuario?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer y el usuario{" "}
+              <strong className="text-gray-900 font-semibold">{userToDelete?.username}</strong> ({userToDelete?.email}) perderá el acceso al sistema.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setUserToDelete(null)}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (userToDelete) {
+                  await deleteUser(userToDelete.id);
+                  setUserToDelete(null);
+                }
+              }}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

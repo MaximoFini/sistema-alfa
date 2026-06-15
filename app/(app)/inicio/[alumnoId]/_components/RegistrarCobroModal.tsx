@@ -295,6 +295,77 @@ export default function RegistrarCobroModal({
     }
   }
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLFormElement>) => {
+    if (e.key === "Enter") {
+      // Si el elemento actual es un textarea, dejamos que Enter funcione normalmente
+      if (e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      // Evitamos el comportamiento por defecto de enviar el formulario
+      e.preventDefault();
+
+      const formElement = e.currentTarget;
+      const elements = Array.from(formElement.elements) as HTMLElement[];
+
+      // Filtramos solo los elementos interactivos visibles/editables que queremos navegar
+      const focusable = elements.filter((el) => {
+        const nodeName = el.nodeName.toLowerCase();
+
+        // Si está deshabilitado o tiene tabIndex negativo, no es enfocable
+        if ((el as any).disabled || el.tabIndex === -1) {
+          return false;
+        }
+
+        // Si es un input, select o textarea
+        if (["input", "select", "textarea"].includes(nodeName)) {
+          if (el instanceof HTMLInputElement) {
+            // Evitamos inputs ocultos o inputs de sólo lectura
+            if (el.type === "hidden" || el.readOnly) {
+              return false;
+            }
+          }
+          return true;
+        }
+
+        // Si es un botón, solo queremos enfocar los botones principales
+        if (nodeName === "button") {
+          const text = el.textContent?.toLowerCase() || "";
+          const isCancel =
+            text.includes("cancelar") ||
+            text.includes("volver atrás") ||
+            el.getAttribute("aria-label") === "Cerrar";
+          return !isCancel;
+        }
+
+        return false;
+      });
+
+      const currentIndex = focusable.indexOf(e.target as HTMLElement);
+      if (currentIndex !== -1 && currentIndex < focusable.length - 1) {
+        // Enfocamos el siguiente elemento
+        const nextEl = focusable[currentIndex + 1];
+        nextEl.focus();
+
+        // Si el siguiente elemento es un select, abrimos sus opciones
+        if (nextEl instanceof HTMLSelectElement) {
+          try {
+            (nextEl as any).showPicker?.();
+          } catch (err) {
+            console.warn("showPicker not supported or failed:", err);
+          }
+        }
+      } else if (currentIndex === focusable.length - 1) {
+        // Si es el último elemento enfocable (que sería el botón principal de guardar), hacemos clic
+        const lastEl = focusable[currentIndex];
+        if (lastEl instanceof HTMLButtonElement) {
+          lastEl.click();
+        }
+      }
+    }
+  };
+
+
   return (
     <>
       {/* Backdrop */}
@@ -330,6 +401,11 @@ export default function RegistrarCobroModal({
             <p className="text-xs text-gray-400 mt-0.5">
               Asigná una actividad y registra el pago.
             </p>
+            <div className="mt-1">
+              <span className="inline-block text-[10px] font-medium text-red-600 bg-red-50 border border-red-100 rounded px-1.5 py-0.5">
+                ENTER para navegación rápida
+              </span>
+            </div>
           </div>
           <button
             onClick={handleClose}
@@ -346,6 +422,7 @@ export default function RegistrarCobroModal({
             e.preventDefault();
             handleGuardar();
           }}
+          onKeyDown={handleKeyDown}
           className="px-4 md:px-6 py-5 flex flex-col gap-4 overflow-y-auto"
         >
           {/* Alerta del plan vigente */}

@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 
+// ─── Module state ─────────────────────────────────────────────────────────────
+const seedingLocks = new Set<string>();
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface MonthlyExpense {
@@ -148,91 +151,175 @@ export function useMonthlyExpenses(year: number, month: number) {
           prevMonthsList.push({ year: py, month: pm });
         }
 
-        // Query batch: trae expenses de hasta 6 meses anteriores de una vez
-        if (needsSeedExpenses) {
-          const { data: prevExpensesData } = await supabase
+        const expenseLockKey = `${year}-${month}-expenses`;
+        const salaryLockKey = `${year}-${month}-salaries`;
+
+        // Seeding expenses
+        if (needsSeedExpenses && !seedingLocks.has(expenseLockKey)) {
+          seedingLocks.add(expenseLockKey);
+          try {
+            // Count query check
+            const { count, error: countError } = await supabase
+              .from("monthly_expenses_config")
+              .select("*", { count: "exact", head: true })
+              .eq("year", year)
+              .eq("month", month);
+
+            if (!countError && (count === null || count === 0)) {
+              // Query batch: trae expenses de hasta 6 meses anteriores de una vez
+              const { data: prevExpensesData } = await supabase
+                .from("monthly_expenses_config")
+                .select("*")
+                .in(
+                  "year",
+                  [...new Set(prevMonthsList.map((m) => m.year))]
+                )
+                .order("year", { ascending: false })
+                .order("month", { ascending: false });
+
+              let seeded = false;
+              if (prevExpensesData && prevExpensesData.length > 0) {
+                // Encontrar el mes más reciente con datos
+                for (const pm of prevMonthsList) {
+                  const monthData = prevExpensesData.filter(
+                    (e: any) => e.year === pm.year && e.month === pm.month
+                  );
+                  if (monthData.length > 0) {
+                    finalExpenses = await seedExpensesFromRows(monthData);
+                    seeded = true;
+                    break;
+                  }
+                }
+              }
+
+              // Si aún no hay datos, intentar desde las tablas base
+              if (!seeded) {
+                const { data } = await supabase
+                  .from("business_expenses")
+                  .select("name, amount, is_active, category, description")
+                  .order("name", { ascending: true });
+                if (data && data.length > 0) {
+                  const sourceExpenses = data.map((d: any) => ({
+                    ...d,
+                    id: "",
+                    year,
+                    month,
+                  }));
+                  finalExpenses = await seedExpensesFromRows(sourceExpenses);
+                }
+              }
+            } else {
+              // Ya fueron sembrados por otra petición, los leemos de la base de datos
+              const { data: refetched } = await supabase
+                .from("monthly_expenses_config")
+                .select("*")
+                .eq("year", year)
+                .eq("month", month)
+                .order("name", { ascending: true });
+              if (refetched) {
+                finalExpenses = refetched as MonthlyExpense[];
+              }
+            }
+          } catch (err) {
+            console.error("Error seeding expenses:", err);
+          } finally {
+            seedingLocks.delete(expenseLockKey);
+          }
+        } else if (needsSeedExpenses && seedingLocks.has(expenseLockKey)) {
+          // Si está bloqueado por otra petición, esperamos y consultamos de nuevo
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          const { data: refetched } = await supabase
             .from("monthly_expenses_config")
             .select("*")
-            .in(
-              "year",
-              [...new Set(prevMonthsList.map((m) => m.year))]
-            )
-            .order("year", { ascending: false })
-            .order("month", { ascending: false });
-
-          if (prevExpensesData && prevExpensesData.length > 0) {
-            // Encontrar el mes más reciente con datos
-            for (const pm of prevMonthsList) {
-              const monthData = prevExpensesData.filter(
-                (e: any) => e.year === pm.year && e.month === pm.month
-              );
-              if (monthData.length > 0) {
-                const seeded = await seedExpensesFromRows(monthData);
-                finalExpenses = seeded;
-                break;
-              }
-            }
+            .eq("year", year)
+            .eq("month", month)
+            .order("name", { ascending: true });
+          if (refetched && refetched.length > 0) {
+            finalExpenses = refetched as MonthlyExpense[];
           }
         }
 
-        if (needsSeedSalaries) {
-          const { data: prevSalariesData } = await supabase
+        // Seeding salaries
+        if (needsSeedSalaries && !seedingLocks.has(salaryLockKey)) {
+          seedingLocks.add(salaryLockKey);
+          try {
+            // Count query check
+            const { count, error: countError } = await supabase
+              .from("monthly_salaries_config")
+              .select("*", { count: "exact", head: true })
+              .eq("year", year)
+              .eq("month", month);
+
+            if (!countError && (count === null || count === 0)) {
+              const { data: prevSalariesData } = await supabase
+                .from("monthly_salaries_config")
+                .select("*")
+                .in(
+                  "year",
+                  [...new Set(prevMonthsList.map((m) => m.year))]
+                )
+                .order("year", { ascending: false })
+                .order("month", { ascending: false });
+
+              let seeded = false;
+              if (prevSalariesData && prevSalariesData.length > 0) {
+                // Encontrar el mes más reciente con datos
+                for (const pm of prevMonthsList) {
+                  const monthData = prevSalariesData.filter(
+                    (s: any) => s.year === pm.year && s.month === pm.month
+                  );
+                  if (monthData.length > 0) {
+                    finalSalaries = await seedSalariesFromRows(monthData);
+                    seeded = true;
+                    break;
+                  }
+                }
+              }
+
+              // Si aún no hay datos, intentar desde las tablas base
+              if (!seeded) {
+                const { data } = await supabase
+                  .from("business_salaries")
+                  .select("name, amount, is_active, description")
+                  .order("name", { ascending: true });
+                if (data && data.length > 0) {
+                  const sourceSalaries = data.map((d: any) => ({
+                    ...d,
+                    id: "",
+                    year,
+                    month,
+                  }));
+                  finalSalaries = await seedSalariesFromRows(sourceSalaries);
+                }
+              }
+            } else {
+              // Ya fueron sembrados por otra petición, los leemos de la base de datos
+              const { data: refetched } = await supabase
+                .from("monthly_salaries_config")
+                .select("*")
+                .eq("year", year)
+                .eq("month", month)
+                .order("name", { ascending: true });
+              if (refetched) {
+                finalSalaries = refetched as MonthlySalary[];
+              }
+            }
+          } catch (err) {
+            console.error("Error seeding salaries:", err);
+          } finally {
+            seedingLocks.delete(salaryLockKey);
+          }
+        } else if (needsSeedSalaries && seedingLocks.has(salaryLockKey)) {
+          // Si está bloqueado por otra petición, esperamos y consultamos de nuevo
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          const { data: refetched } = await supabase
             .from("monthly_salaries_config")
             .select("*")
-            .in(
-              "year",
-              [...new Set(prevMonthsList.map((m) => m.year))]
-            )
-            .order("year", { ascending: false })
-            .order("month", { ascending: false });
-
-          if (prevSalariesData && prevSalariesData.length > 0) {
-            // Encontrar el mes más reciente con datos
-            for (const pm of prevMonthsList) {
-              const monthData = prevSalariesData.filter(
-                (s: any) => s.year === pm.year && s.month === pm.month
-              );
-              if (monthData.length > 0) {
-                const seeded = await seedSalariesFromRows(monthData);
-                finalSalaries = seeded;
-                break;
-              }
-            }
-          }
-        }
-
-        // Si aún no hay datos, intentar desde las tablas base
-        if (needsSeedExpenses && finalExpenses.length === 0) {
-          const { data } = await supabase
-            .from("business_expenses")
-            .select("name, amount, is_active, category, description")
+            .eq("year", year)
+            .eq("month", month)
             .order("name", { ascending: true });
-          if (data && data.length > 0) {
-            const sourceExpenses = data.map((d: any) => ({
-              ...d,
-              id: "",
-              year,
-              month,
-            }));
-            const seeded = await seedExpensesFromRows(sourceExpenses);
-            finalExpenses = seeded;
-          }
-        }
-
-        if (needsSeedSalaries && finalSalaries.length === 0) {
-          const { data } = await supabase
-            .from("business_salaries")
-            .select("name, amount, is_active, description")
-            .order("name", { ascending: true });
-          if (data && data.length > 0) {
-            const sourceSalaries = data.map((d: any) => ({
-              ...d,
-              id: "",
-              year,
-              month,
-            }));
-            const seeded = await seedSalariesFromRows(sourceSalaries);
-            finalSalaries = seeded;
+          if (refetched && refetched.length > 0) {
+            finalSalaries = refetched as MonthlySalary[];
           }
         }
 

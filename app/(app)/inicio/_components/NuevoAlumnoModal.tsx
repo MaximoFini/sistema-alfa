@@ -508,6 +508,11 @@ export default function NuevoAlumnoModal({
                 ? "Completá los datos personales."
                 : "Asigná una actividad y registra el pago."}
             </p>
+            <div className="mt-1">
+              <span className="inline-block text-[10px] font-medium text-red-600 bg-red-50 border border-red-100 rounded px-1.5 py-0.5">
+                ENTER para navegación rápida
+              </span>
+            </div>
           </div>
           <button
             onClick={onClose}
