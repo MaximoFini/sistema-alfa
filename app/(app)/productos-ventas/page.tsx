@@ -127,11 +127,7 @@ function ProductoModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const [productCategories, setProductCategories] = useState<{ id: string; name: string; is_active: boolean }[]>([
-    { id: "1", name: "General", is_active: true },
-    { id: "2", name: "Indumentaria", is_active: true },
-    { id: "3", name: "Suplementacion", is_active: true },
-  ]);
+  const [productCategories, setProductCategories] = useState<{ id: string; name: string; is_active: boolean }[]>([]);
 
   useEffect(() => {
     async function loadCategories() {
@@ -928,6 +924,7 @@ export default function ProductosVentasPage() {
   const [productoEdit, setProductoEdit] = useState<Producto | undefined>();
   const [searchTerm, setSearchTerm] = useState("");
   const [categories, setCategories] = useState<{ id: string; name: string; color?: string }[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
 
   useEffect(() => {
     async function loadCategories() {
@@ -941,6 +938,8 @@ export default function ProductosVentasPage() {
         }
       } catch (err) {
         console.error("Error loading categories:", err);
+      } finally {
+        setCategoriesLoading(false);
       }
     }
     loadCategories();
@@ -959,9 +958,9 @@ export default function ProductosVentasPage() {
     optimisticUpdateProducto,
   } = useDataCacheStore();
 
-  // Optimización UX: Solo mostrar carga en pantalla completa si no hay datos en caché.
+  // Optimización UX: Solo mostrar carga en pantalla completa si no hay datos en caché o si cargan categorías.
   // Si ya hay datos en caché, los mostramos de inmediato y revalidamos en segundo plano.
-  const loading = (productosLoading && productos.length === 0) || (ventasLoading && ventas.length === 0);
+  const loading = (productosLoading && productos.length === 0) || (ventasLoading && ventas.length === 0) || categoriesLoading;
 
   useEffect(() => {
     fetchProductos();
@@ -1436,9 +1435,6 @@ export default function ProductosVentasPage() {
                             <th className="px-6 py-4 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">
                               Total
                             </th>
-                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">
-                              Ganancia
-                            </th>
                             <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
                               Medio de Pago
                             </th>
@@ -1451,7 +1447,7 @@ export default function ProductosVentasPage() {
                           {ventas.length === 0 ? (
                             <tr>
                               <td
-                                colSpan={9}
+                                colSpan={8}
                                 className="px-6 py-12 text-center"
                               >
                                 <ShoppingCart
@@ -1500,17 +1496,6 @@ export default function ProductosVentasPage() {
                                 </td>
                                 <td className="px-6 py-4 text-sm text-right font-semibold text-gray-900">
                                   ${(venta.total || 0).toFixed(2)}
-                                </td>
-                                <td
-                                  className="px-6 py-4 text-sm text-right font-semibold"
-                                  style={{
-                                    color:
-                                      (venta.ganancia || 0) >= 0
-                                        ? "#16A34A"
-                                        : "#DC2626",
-                                  }}
-                                >
-                                  ${(venta.ganancia || 0).toFixed(2)}
                                 </td>
                                 <td className="px-6 py-4 text-sm text-gray-900">
                                   <div className="flex flex-col">

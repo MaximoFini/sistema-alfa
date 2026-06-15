@@ -50,7 +50,8 @@ export default function Sidebar() {
     pathname.startsWith("/planificacion"),
   );
 
-  function handleLogout() {
+  async function handleLogout() {
+    await supabase.auth.signOut();
     router.push("/");
   }
 
@@ -220,7 +221,7 @@ export default function Sidebar() {
 
       {/* Ingreso Web placed just above the divider */}
       <div className="px-2 pb-1 shrink-0">
-        <Link
+        <a
           href="/ingreso-web"
           target="_blank"
           rel="noopener noreferrer"
@@ -235,7 +236,7 @@ export default function Sidebar() {
         >
           <MonitorCheck size={18} className="shrink-0" />
           {!collapsed && <span className="text-sm">Ingreso Web</span>}
-        </Link>
+        </a>
       </div>
 
       {/* Bottom section */}

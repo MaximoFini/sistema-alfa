@@ -579,6 +579,11 @@ function NuevoAlumnoModal({
                 ? "Completá los datos personales."
                 : "Asigná una actividad y registra el pago."}
             </p>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-gray-100 text-[10px] font-medium text-gray-500 border border-gray-200">
+                <kbd className="font-sans font-semibold">↵ Enter</kbd> para navegación rápida
+              </span>
+            </div>
           </div>
           <button
             onClick={onClose}
@@ -1298,7 +1303,7 @@ export default function AlumnosList() {
         <img
           src="/logo-sin-fondo-completo.webp"
           alt="Sistema Alfa Background"
-          className="w-[80vw] md:w-[450px] opacity-[0.35] object-contain ml-0 md:translate-x-[128px]"
+          className="w-[80vw] md:w-[450px] opacity-[0.06] object-contain ml-0"
         />
       </div>
 
