@@ -11,7 +11,7 @@ function getSupabaseAdmin() {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
   }
-  return _supabaseAdmin;
+  return _supabaseAdmin!;
 }
 
 function diasDesde(fechaStr: string | null): number | null {
