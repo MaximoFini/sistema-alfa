@@ -21,6 +21,11 @@ const alumnos = new Table({
   clases_gracia_usadas: column.integer,
   es_prueba: column.integer,
   actividad_interes: column.text,
+  cus_completado: column.integer,
+  cus_clases_presentadas: column.integer,
+  email: column.text,
+  telefono_emergencia: column.text,
+  observaciones: column.text,
   created_at: column.text,
   updated_at: column.text,
 });
@@ -134,6 +139,22 @@ const training_plan_days = new Table({
   display_order: column.integer,
 });
 
+const training_plan_exercises = new Table({
+  day_id: column.text,
+  stage_id: column.text,
+  stage_name: column.text,
+  exercise_name: column.text,
+  video_url: column.text,
+  series: column.integer,
+  reps: column.text,
+  carga: column.text,
+  pause: column.text,
+  notes: column.text,
+  coach_instructions: column.text,
+  display_order: column.integer,
+  write_weight: column.integer,
+});
+
 const training_plan_assignments = new Table({
   plan_id: column.text,
 });
@@ -214,8 +235,12 @@ const comunicacion_mensajes = new Table({
   created_at: column.text,
 });
 
-const settings = new Table({
+const system_settings = new Table({
+  notify_days_before_expiration: column.integer,
+  alert_1_days_no_attendance: column.integer,
   alert_2_days_no_attendance: column.integer,
+  alert_3_days_no_attendance: column.integer,
+  days_after_expiration_inactive: column.integer,
   days_without_renewal_lost: column.integer,
 });
 
@@ -248,6 +273,7 @@ export const AppSchema = new Schema({
   accepted_cards,
   training_plans,
   training_plan_days,
+  training_plan_exercises,
   training_plan_assignments,
   monthly_expenses_config,
   monthly_salaries_config,
@@ -255,7 +281,7 @@ export const AppSchema = new Schema({
   business_salaries,
   estadisticas_mensuales,
   comunicacion_mensajes,
-  settings,
+  system_settings,
   profiles,
   system_users,
 });

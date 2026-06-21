@@ -14,8 +14,13 @@ import {
   AlertTriangle,
   Eye,
   RotateCcw,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
+  Power,
 } from "lucide-react";
 import { useAdminSettingsStore } from "@/hooks/use-admin-settings";
+import { usePowerSync } from "@powersync/react";
 import { supabase } from "@/lib/supabase";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -137,6 +142,7 @@ const FILTROS: Record<
 
 export default function ComunicacionPage() {
   const { settings, fetchSettings } = useAdminSettingsStore();
+  const db = usePowerSync();
 
   const [alumnos, setAlumnos] = useState<AlumnoComm[]>([]);
   const [loading, setLoading] = useState(true);
@@ -151,6 +157,59 @@ export default function ComunicacionPage() {
   const [historialLoading, setHistorialLoading] = useState(true);
   const [expandido, setExpandido] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
+
+  // ── WhatsApp Connection State ──────────────────────────────────────────────────
+  const [wspStatus, setWspStatus] = useState<"DISCONNECTED" | "INITIALIZING" | "QR_CODE" | "CONNECTED" | "ERROR">("DISCONNECTED");
+  const [wspQr, setWspQr] = useState<string | null>(null);
+  const [wspError, setWspError] = useState<string | null>(null);
+  const [wspLoading, setWspLoading] = useState(false);
+
+  const checkWspStatus = useCallback(async () => {
+    try {
+      const res = await fetch("/api/whatsapp/status");
+      if (res.ok) {
+        const data = await res.json();
+        setWspStatus(data.status);
+        setWspQr(data.qr);
+        setWspError(data.error);
+      }
+    } catch (err) {
+      console.error("Error al obtener estado de WhatsApp:", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    checkWspStatus();
+    const interval = setInterval(() => {
+      checkWspStatus();
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [checkWspStatus]);
+
+  async function handleConnectWsp() {
+    setWspLoading(true);
+    try {
+      await fetch("/api/whatsapp/connect", { method: "POST" });
+      await checkWspStatus();
+    } catch (err) {
+      console.error("Error al conectar WhatsApp:", err);
+    } finally {
+      setWspLoading(false);
+    }
+  }
+
+  async function handleDisconnectWsp() {
+    if (!confirm("¿Estás seguro de que deseas cerrar la sesión de WhatsApp?")) return;
+    setWspLoading(true);
+    try {
+      await fetch("/api/whatsapp/disconnect", { method: "POST" });
+      await checkWspStatus();
+    } catch (err) {
+      console.error("Error al desconectar WhatsApp:", err);
+    } finally {
+      setWspLoading(false);
+    }
+  }
 
   const checkboxAllRef = useRef<HTMLInputElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -326,27 +385,50 @@ export default function ComunicacionPage() {
   // ── Send ─────────────────────────────────────────────────────────────────────
 
   const puedeEnviar =
-    mensaje.trim().length > 0 && cantidadSeleccionados > 0 && !enviando;
+    mensaje.trim().length > 0 &&
+    cantidadSeleccionados > 0 &&
+    !enviando &&
+    wspStatus === "CONNECTED";
 
   async function handleEnviar() {
     if (!puedeEnviar) return;
     setEnviando(true);
     setShowPreview(false);
 
-    await supabase.from("comunicacion_mensajes").insert({
-      texto: mensaje.trim(),
-      filtro,
-      filtro_label: FILTROS[filtro].label,
-      cantidad: cantidadSeleccionados,
-      estado: "guardado",
-    });
+    try {
+      const selectedAlumnos = alumnos.filter((a) => seleccionados.has(a.id));
+      const res = await fetch("/api/whatsapp/send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          mensaje: mensaje.trim(),
+          alumnos: selectedAlumnos,
+          filtro,
+          filtroLabel: FILTROS[filtro].label,
+        }),
+      });
 
-    await fetchHistorial();
-    setMensaje("");
-    setSeleccionados(new Set());
-    setEnviando(false);
-    setEnviado(true);
-    setTimeout(() => setEnviado(false), 3000);
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || "Error al enviar los mensajes.");
+        return;
+      }
+
+      setMensaje("");
+      setSeleccionados(new Set());
+      setEnviado(true);
+      setTimeout(() => setEnviado(false), 3000);
+      
+      // Refrescar historial
+      fetchHistorial();
+    } catch (err) {
+      console.error("Error al enviar mensajes por WhatsApp:", err);
+      alert("Error al conectar con el servidor para iniciar el envío.");
+    } finally {
+      setEnviando(false);
+    }
   }
 
   // ── Reenviar desde historial ─────────────────────────────────────────────────
@@ -407,6 +489,133 @@ export default function ComunicacionPage() {
           className="flex-1 overflow-y-auto p-6 lg:p-8"
         >
           <div className="max-w-4xl mx-auto space-y-6">
+
+            {/* WhatsApp Connection Manager */}
+            <div className="bg-white rounded-2xl border border-gray-200/80 shadow-sm p-5 transition-all">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-start gap-3 bg-transparent">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 shrink-0 shadow-sm">
+                    <MessageCircle size={20} className="text-emerald-600 fill-emerald-100" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-semibold text-gray-900">
+                      Servicio de WhatsApp Web
+                    </h2>
+                    <p className="text-xs text-gray-500 mt-0.5 max-w-md">
+                      Vincula tu cuenta para poder enviar mensajes masivos y personalizados a tus alumnos.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 self-start md:self-center">
+                  {wspStatus === "CONNECTED" && (
+                    <span className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                      Conectado
+                    </span>
+                  )}
+                  {wspStatus === "QR_CODE" && (
+                    <span className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                      <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                      Esperando Escaneo QR
+                    </span>
+                  )}
+                  {wspStatus === "INITIALIZING" && (
+                    <span className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                      <Loader2 size={12} className="animate-spin text-blue-500" />
+                      Iniciando Navegador...
+                    </span>
+                  )}
+                  {wspStatus === "DISCONNECTED" && (
+                    <span className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-gray-50 text-gray-600 border border-gray-200">
+                      <span className="w-2 h-2 rounded-full bg-gray-400" />
+                      Desconectado
+                    </span>
+                  )}
+                  {wspStatus === "ERROR" && (
+                    <span className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200">
+                      <AlertCircle size={12} className="text-red-500" />
+                      Error de Conexión
+                    </span>
+                  )}
+
+                  {/* Actions */}
+                  {wspStatus === "DISCONNECTED" && (
+                    <button
+                      onClick={handleConnectWsp}
+                      disabled={wspLoading}
+                      className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 rounded-xl transition-all shadow-sm shadow-emerald-600/20 disabled:opacity-50"
+                    >
+                      {wspLoading ? (
+                        <Loader2 size={12} className="animate-spin" />
+                      ) : (
+                        <Power size={12} />
+                      )}
+                      Conectar
+                    </button>
+                  )}
+
+                  {(wspStatus === "CONNECTED" || wspStatus === "QR_CODE" || wspStatus === "ERROR") && (
+                    <button
+                      onClick={handleDisconnectWsp}
+                      disabled={wspLoading}
+                      className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 active:bg-red-200 rounded-xl transition-all border border-red-200 disabled:opacity-50"
+                    >
+                      {wspLoading ? (
+                        <Loader2 size={12} className="animate-spin" />
+                      ) : (
+                        <Power size={12} />
+                      )}
+                      Desconectar
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* QR Code Section */}
+              {wspStatus === "QR_CODE" && wspQr && (
+                <div className="mt-5 pt-5 border-t border-gray-100 flex flex-col md:flex-row items-center gap-6 bg-gray-50 rounded-2xl p-5 border border-gray-100">
+                  <div className="bg-white p-3 rounded-2xl shadow-sm border border-gray-200 shrink-0">
+                    <img src={wspQr} alt="WhatsApp QR Code" className="w-48 h-48 object-contain" />
+                  </div>
+                  <div className="flex-1 space-y-3">
+                    <h3 className="text-sm font-bold text-gray-900">
+                      Escanea el código QR para vincular tu WhatsApp
+                    </h3>
+                    <ol className="text-xs text-gray-600 space-y-2 list-decimal list-inside">
+                      <li>Abre WhatsApp en tu teléfono celular.</li>
+                      <li>
+                        Toca el botón de <strong>Menú</strong> (tres puntos en Android) o{" "}
+                        <strong>Configuración</strong> (en iPhone).
+                      </li>
+                      <li>
+                        Selecciona <strong>Dispositivos vinculados</strong> y luego{" "}
+                        <strong>Vincular un dispositivo</strong>.
+                      </li>
+                      <li>Apunta la cámara de tu teléfono hacia el código QR de la izquierda.</li>
+                    </ol>
+                    <p className="text-[11px] text-amber-600 bg-amber-50 border border-amber-100 px-3 py-2 rounded-lg font-medium">
+                      Nota: Este navegador se ejecuta localmente en el servidor. La sesión se guardará de forma segura y automática para futuros accesos.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {wspStatus === "ERROR" && wspError && (
+                <div className="mt-4 p-3 bg-red-50 border border-red-100 rounded-xl flex items-start gap-2 text-xs text-red-700">
+                  <AlertCircle size={14} className="shrink-0 mt-0.5 text-red-500" />
+                  <div>
+                    <span className="font-bold">Error en el servicio:</span> {wspError}
+                    <button
+                      onClick={handleConnectWsp}
+                      className="block mt-2 underline font-semibold hover:text-red-900"
+                    >
+                      Intentar reconectar
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
 
       {/* Filter chips */}
       <div className="flex gap-2 flex-wrap">
@@ -680,8 +889,20 @@ export default function ComunicacionPage() {
                 )}
               </button>
 
-              <p className="text-xs text-gray-400 text-center">
-                WSP Business - pendiente de configuracion
+              <p className={`text-xs text-center font-medium ${
+                wspStatus === "CONNECTED"
+                  ? "text-emerald-600 animate-fade-in"
+                  : wspStatus === "DISCONNECTED"
+                  ? "text-gray-400"
+                  : wspStatus === "ERROR"
+                  ? "text-red-500"
+                  : "text-amber-500 animate-pulse"
+              }`}>
+                {wspStatus === "CONNECTED" && "✓ WhatsApp conectado y listo"}
+                {wspStatus === "DISCONNECTED" && "WhatsApp desconectado"}
+                {wspStatus === "INITIALIZING" && "Iniciando servicio de WhatsApp..."}
+                {wspStatus === "QR_CODE" && "Esperando vinculación QR..."}
+                {wspStatus === "ERROR" && "Error en conexión de WhatsApp"}
               </p>
             </div>
           </div>

@@ -34,7 +34,6 @@ import {
 import { useMonthlyExpenses } from "@/hooks/use-monthly-expenses";
 import ExpensesModal from "@/components/ExpensesModal";
 import { useAdminStore, FinancialStats } from "@/stores/admin-store";
-import { supabase } from "@/lib/supabase";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -302,52 +301,6 @@ export default function FinanzasPage() {
     };
   }, [selectedYear, selectedMonth, mounted]);
 
-  // Sincronización en tiempo real con Supabase
-  useEffect(() => {
-    if (!mounted) return;
-    let active = true;
-
-    async function reloadStats() {
-      try {
-        const response = await fetch(
-          `/api/finanzas?year=${selectedYear}&month=${selectedMonth}`
-        );
-        if (!response.ok) throw new Error(`Error ${response.status}`);
-        const data = await response.json();
-        if (active) {
-          setStats(data);
-          setFinanzasPageSnapshot({
-            selectedYear,
-            selectedMonth,
-            stats: data,
-          });
-        }
-      } catch (error) {
-        console.error("Error reloading finanzas stats in realtime:", error);
-      }
-    }
-
-    const channel = supabase
-      .channel("finanzas-realtime-changes")
-      .on("postgres_changes", { event: "*", schema: "public", table: "pagos" }, () => {
-        if (active) reloadStats();
-      })
-      .on("postgres_changes", { event: "*", schema: "public", table: "ventas" }, () => {
-        if (active) reloadStats();
-      })
-      .on("postgres_changes", { event: "*", schema: "public", table: "monthly_expenses_config" }, () => {
-        if (active) reloadStats();
-      })
-      .on("postgres_changes", { event: "*", schema: "public", table: "monthly_salaries_config" }, () => {
-        if (active) reloadStats();
-      })
-      .subscribe();
-
-    return () => {
-      active = false;
-      supabase.removeChannel(channel);
-    };
-  }, [selectedYear, selectedMonth, mounted]);
 
   // Cálculos reactivos en tiempo real a partir del hook de gastos
   const totalGastos = expenses

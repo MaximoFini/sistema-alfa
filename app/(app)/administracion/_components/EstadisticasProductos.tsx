@@ -175,24 +175,6 @@ export default function EstadisticasProductos() {
     loadData();
   }, [selectedYear, selectedMonth]);
 
-  // Sincronización en tiempo real con Supabase
-  useEffect(() => {
-    let active = true;
-    const channel = supabase
-      .channel("productos-realtime-changes")
-      .on("postgres_changes", { event: "*", schema: "public", table: "productos" }, () => {
-        if (active) loadData();
-      })
-      .on("postgres_changes", { event: "*", schema: "public", table: "ventas" }, () => {
-        if (active) loadData();
-      })
-      .subscribe();
-
-    return () => {
-      active = false;
-      supabase.removeChannel(channel);
-    };
-  }, [selectedYear, selectedMonth]);
 
   async function loadData() {
     setLoading(true);

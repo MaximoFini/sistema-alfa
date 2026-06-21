@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAdminStore } from "@/stores/admin-store";
 import {
@@ -119,7 +119,6 @@ export default function DiarioTab() {
     isCacheValid && snap ? snap.asistencias : []
   );
 
-  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const loadDiarioData = useCallback(async () => {
     setLoading(true);
@@ -182,13 +181,6 @@ export default function DiarioTab() {
     }
   }, [selectedDate, setDiarioSnapshot]);
 
-  const debouncedLoad = useCallback(() => {
-    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
-    debounceTimerRef.current = setTimeout(() => {
-      loadDiarioData();
-    }, 300);
-  }, [loadDiarioData]);
-
   useEffect(() => {
     if (isDiarioCacheValid() && snap && snap.selectedDate === selectedDate) {
       return;
@@ -196,31 +188,6 @@ export default function DiarioTab() {
     loadDiarioData();
   }, [selectedDate, loadDiarioData]);
 
-  // Sincronización en tiempo real con Supabase
-  useEffect(() => {
-    let active = true;
-    const channel = supabase
-      .channel("diario-realtime-changes")
-      .on("postgres_changes", { event: "*", schema: "public", table: "alumnos" }, () => {
-        if (active) debouncedLoad();
-      })
-      .on("postgres_changes", { event: "*", schema: "public", table: "pagos" }, () => {
-        if (active) debouncedLoad();
-      })
-      .on("postgres_changes", { event: "*", schema: "public", table: "ventas" }, () => {
-        if (active) debouncedLoad();
-      })
-      .on("postgres_changes", { event: "*", schema: "public", table: "asistencias" }, () => {
-        if (active) debouncedLoad();
-      })
-      .subscribe();
-
-    return () => {
-      active = false;
-      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
-      supabase.removeChannel(channel);
-    };
-  }, [selectedDate, debouncedLoad]);
 
   // Desplazar fecha
   function shiftDate(days: number) {

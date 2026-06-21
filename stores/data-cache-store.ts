@@ -1,13 +1,10 @@
-// Store global de cache - Migrado desde StabilitySistema
-// ⚠️ LA LÓGICA DE QUERIES DEBE MANTENERSE IDÉNTICA AL CÓDIGO ORIGINAL
-
-import { create } from "zustand";
-import { supabase } from "@/lib/supabase";
+import { useCallback } from "react";
+import { useQuery, usePowerSync } from "@powersync/react";
 import { ExerciseCategory } from "@/lib/types/exercises";
 import { TrainingPlanSummary } from "@/lib/types/plans";
 
-// Types para productos y ventas
-interface Producto {  id: string;
+interface Producto {
+  id: string;
   nombre: string;
   precio_venta: number;
   precio_costo: number;
@@ -43,7 +40,6 @@ interface PaymentMethod {
   name: string;
 }
 
-// Types para alumnos
 export interface AlumnoRow {
   id: string;
   nombre: string | null;
@@ -61,572 +57,175 @@ export interface AlumnoRow {
   } | null;
 }
 
-interface AlumnosCacheEntry {
-  alumnos: AlumnoRow[];
-  totalRegistros: number;
-  totalPaginas: number;
-  fetchedAt: number;
-}
-
 const POR_PAGINA_ALUMNOS = 20;
 
-interface DataCacheState {
+const STABLE_ASYNC_FN = async (..._args: any[]) => {};
+const STABLE_FN = (..._args: any[]) => {};
+
+export function useDataCacheStore() {
+  const db = usePowerSync();
+
   // Categories
-  categories: ExerciseCategory[];
-  categoriesLoading: boolean;
-  categoriesLastFetched: number | null;
-
-  // Plans
-  plans: TrainingPlanSummary[];
-  plansLoading: boolean;
-  plansLastFetched: number | null;
-
-  // Productos
-  productos: Producto[];
-  productosLoading: boolean;
-  productosLastFetched: number | null;
-
-  // Ventas
-  ventas: Venta[];
-  ventasLoading: boolean;
-  ventasLastFetched: number | null;
+  const { data: rawCategories, isLoading: categoriesLoading } = useQuery<ExerciseCategory>(
+    "SELECT id, name, color FROM exercise_categories ORDER BY name"
+  );
+  const categories = (rawCategories ?? []) as ExerciseCategory[];
 
   // Payment Methods
-  paymentMethods: PaymentMethod[];
-  paymentMethodsLoading: boolean;
-  paymentMethodsLastFetched: number | null;
+  const { data: rawPaymentMethods, isLoading: paymentMethodsLoading } = useQuery<PaymentMethod>(
+    "SELECT name FROM payment_methods WHERE is_active = 1 ORDER BY name"
+  );
+  const paymentMethods = (rawPaymentMethods ?? []) as PaymentMethod[];
 
-  // Alumnos — cache por clave `${page}:${query}`
-  alumnosCache: Record<string, AlumnosCacheEntry>;
-  alumnosLoadingKeys: Record<string, boolean>;
+  // Productos
+  const { data: rawProductos, isLoading: productosLoading } = useQuery<{
+    id: string;
+    nombre: string;
+    precio_venta: number;
+    precio_costo: number;
+    stock: number;
+    stock_minimo: number;
+    activo: number;
+    categoria: string;
+    talles: string | null;
+    created_at: string;
+    updated_at: string;
+  }>("SELECT id, nombre, precio_venta, precio_costo, stock, stock_minimo, activo, categoria, talles, created_at, updated_at FROM productos ORDER BY nombre");
 
-  // Actions
-  fetchCategories: () => Promise<void>;
-  fetchPlans: (professorId: string) => Promise<void>;
-  fetchProductos: () => Promise<void>;
-  fetchVentas: () => Promise<void>;
-  fetchPaymentMethods: () => Promise<void>;
-  fetchAlumnos: (page: number, query: string, dateStr?: string | null, forceRefresh?: boolean) => Promise<void>;
-  invalidateCategories: () => void;
-  invalidatePlans: () => void;
-  invalidateProductos: () => void;
-  invalidateVentas: () => void;
-  invalidatePaymentMethods: () => void;
-  invalidateAlumnos: () => void;
+  const productos: Producto[] = (rawProductos ?? []).map((p) => ({
+    ...p,
+    activo: !!p.activo,
+    talles: p.talles ? JSON.parse(p.talles) : null,
+  }));
 
-  // Optimistic updates
-  optimisticDeletePlan: (planId: string) => void;
-  optimisticAddPlan: (plan: TrainingPlanSummary) => void;
-  optimisticUpdatePlan: (
-    planId: string,
-    updates: Partial<TrainingPlanSummary>,
-  ) => void;
-  optimisticUpdateProducto: (
-    productoId: string,
-    updates: Partial<Producto>,
-  ) => void;
-  optimisticAddProducto: (producto: Producto) => void;
-  optimisticAddVenta: (venta: Venta) => void;
-}
+  // Ventas (with joined product name)
+  const { data: rawVentas, isLoading: ventasLoading } = useQuery<{
+    id: string;
+    producto_id: string;
+    cantidad: number;
+    precio_unitario: number;
+    precio_costo_unitario: number;
+    total: number;
+    ganancia: number;
+    notas: string | null;
+    talle_vendido: string | null;
+    created_at: string;
+    medio_pago: string | null;
+    tarjeta: string | null;
+    alias_transferencia: string | null;
+    producto_nombre: string | null;
+  }>(
+    `SELECT v.id, v.producto_id, v.cantidad, v.precio_unitario, v.precio_costo_unitario, v.total, v.ganancia,
+            v.notas, v.talle_vendido, v.created_at, v.medio_pago, v.tarjeta, v.alias_transferencia,
+            p.nombre AS producto_nombre
+     FROM ventas v
+     LEFT JOIN productos p ON v.producto_id = p.id
+     ORDER BY v.created_at DESC
+     LIMIT 100`
+  );
 
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
+  const ventas: Venta[] = (rawVentas ?? []).map((v) => ({
+    ...v,
+    productos: v.producto_nombre ? { nombre: v.producto_nombre } : undefined,
+  }));
 
-// Raw DB row types for Supabase query results
-interface RawPlanRow {
-  id: string;
-  coach_id: string;
-  title: string;
-  description: string | null;
-  start_date: string;
-  end_date: string;
-  total_days: number;
-  days_per_week: number;
-  total_weeks: number;
-  plan_type: string | null;
-  difficulty_level: string | null;
-  is_template: boolean;
-  is_archived: boolean;
-  created_at: string;
-  training_plan_assignments?: { count: number }[];
-}
 
-interface RawAlumnoRow {
-  id: string;
-  nombre: string | null;
-  edad_actual: number | null;
-  fecha_registro: string | null;
-  dni: string | null;
-  es_prueba?: boolean | null;
-  actividad_interes?: string | null;
-  activo?: boolean | null;
-  cus_completado?: boolean | null;
-  cus_clases_presentadas?: number | null;
-  fecha_ultima_asistencia?: string | null;
-  // Fields from alumnos_por_orden_llegada RPC
-  ult_fecha?: string | null;
-  ult_hora?: string | null;
-  total_count?: number | string;
-}
 
-export const useDataCacheStore = create<DataCacheState>((set, get) => ({
-  // Initial state
-  categories: [],
-  categoriesLoading: false,
-  categoriesLastFetched: null,
-
-  plans: [],
-  plansLoading: false,
-  plansLastFetched: null,
-
-  productos: [],
-  productosLoading: false,
-  productosLastFetched: null,
-
-  ventas: [],
-  ventasLoading: false,
-  ventasLastFetched: null,
-
-  paymentMethods: [],
-  paymentMethodsLoading: false,
-  paymentMethodsLastFetched: null,
-
-  alumnosCache: {},
-  alumnosLoadingKeys: {},
-
-  // Fetch Categories
-  // Query EXACTA del código original
-  fetchCategories: async () => {
-    const state = get();
-    const now = Date.now();
-
-    // Return cache if valid
-    if (
-      state.categoriesLastFetched &&
-      now - state.categoriesLastFetched < CACHE_DURATION
-    ) {
-      return;
-    }
-
-    // Already loading
-    if (state.categoriesLoading) return;
-
-    set({ categoriesLoading: true });
-
-    try {
-      const { data, error } = await supabase
-        .from("exercise_categories")
-        .select("id, name, color")
-        .order("name", { ascending: true });
-
-      if (error) throw error;
-
-      set({
-        categories: data || [],
-        categoriesLastFetched: Date.now(),
-        categoriesLoading: false,
-      });
-    } catch (error) {
-      console.error("Error fetching categories:", error);
-      set({ categoriesLoading: false });
-    }
-  },
-
-  // Fetch Plans
-  // Query EXACTA del código original con count de asignaciones
-  fetchPlans: async (professorId: string) => {
-    const state = get();
-    const now = Date.now();
-
-    // Return cache if valid
-    if (
-      state.plansLastFetched &&
-      now - state.plansLastFetched < CACHE_DURATION
-    ) {
-      return;
-    }
-
-    // Already loading
-    if (state.plansLoading) return;
-
-    set({ plansLoading: true });
-
-    try {
-      const { data: plansData, error } = await supabase
-        .from("training_plans")
-        .select(
-          `
-          *,
-          training_plan_assignments(count)
-        `,
-        )
-        .eq("coach_id", professorId)
-        .eq("is_archived", false)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-
-      // Transform data to include assignedCount
-      const plans: TrainingPlanSummary[] = (plansData as RawPlanRow[] || []).map(
-        (plan) => ({
-          id: plan.id,
-          coach_id: plan.coach_id,
-          title: plan.title,
-          description: plan.description,
-          start_date: plan.start_date,
-          end_date: plan.end_date,
-          total_days: plan.total_days,
-          days_per_week: plan.days_per_week,
-          total_weeks: plan.total_weeks,
-          plan_type: plan.plan_type,
-          difficulty_level: plan.difficulty_level,
-          is_template: plan.is_template,
-          is_archived: plan.is_archived,
-          created_at: plan.created_at,
-          assignedCount: plan.training_plan_assignments?.[0]?.count || 0,
-        }),
-      );
-
-      set({
-        plans,
-        plansLastFetched: Date.now(),
-        plansLoading: false,
-      });
-    } catch (error) {
-      console.error("Error fetching plans:", error);
-      set({ plansLoading: false });
-    }
-  },
-
-  // Invalidate cache
-  invalidateCategories: () => {
-    set({ categoriesLastFetched: null });
-  },
-
-  invalidatePlans: () => {
-    set({ plansLastFetched: null });
-  },
-
-  invalidateProductos: () => {
-    set({ productosLastFetched: null });
-  },
-
-  invalidateVentas: () => {
-    set({ ventasLastFetched: null });
-  },
-
-  invalidatePaymentMethods: () => {
-    set({ paymentMethodsLastFetched: null });
-  },
-
-  invalidateAlumnos: () => {
-    set({ alumnosCache: {}, alumnosLoadingKeys: {} });
-  },
-
-  // Fetch Alumnos — con caché por página+query (5 min)
-  fetchAlumnos: async (page: number, query: string, dateStr?: string | null, forceRefresh?: boolean) => {
+  // Helper to get alumnos data imperatively
+  const getAlumnos = useCallback(async (page: number, query: string) => {
     const safeQuery = query.replace(/[^a-zA-Z0-9áéíóúüñÁÉÍÓÚÜÑ\s]/g, "");
-    const cacheKey = `${page}:${safeQuery}:${dateStr || ""}`;
-    const state = get();
-    const now = Date.now();
+    const offset = (page - 1) * POR_PAGINA_ALUMNOS;
 
-    // Cache hit
-    const cached = state.alumnosCache[cacheKey];
-    if (!forceRefresh && cached && now - cached.fetchedAt < CACHE_DURATION) {
-      return;
-    }
+    const countResult = await db.getAll<{ cnt: number }>(
+      safeQuery
+        ? `SELECT COUNT(*) as cnt FROM alumnos WHERE nombre LIKE '%' || ? || '%' OR dni LIKE '%' || ? || '%'`
+        : "SELECT COUNT(*) as cnt FROM alumnos",
+      safeQuery ? [safeQuery, safeQuery] : []
+    );
+    const totalRegistros = countResult[0]?.cnt ?? 0;
+    const totalPaginas = Math.max(1, Math.ceil(totalRegistros / POR_PAGINA_ALUMNOS));
 
-    // Ya cargando esta clave (solo bloquear si no es forceRefresh)
-    if (!forceRefresh && state.alumnosLoadingKeys[cacheKey]) return;
+    const rawAlumnos = await db.getAll<{
+      id: string;
+      nombre: string | null;
+      edad_actual: number | null;
+      fecha_registro: string | null;
+      dni: string | null;
+      es_prueba: number | null;
+      actividad_interes: string | null;
+      activo: number | null;
+      cus_completado: number | null;
+      cus_clases_presentadas: number | null;
+      fecha_ultima_asistencia: string | null;
+    }>(
+      safeQuery
+        ? `SELECT id, nombre, edad_actual, fecha_registro, dni, es_prueba, actividad_interes, activo, cus_completado, cus_clases_presentadas, fecha_ultima_asistencia
+           FROM alumnos
+           WHERE nombre LIKE '%' || ? || '%' OR dni LIKE '%' || ? || '%'
+           ORDER BY fecha_ultima_asistencia DESC NULLS LAST, nombre ASC
+           LIMIT ? OFFSET ?`
+        : `SELECT id, nombre, edad_actual, fecha_registro, dni, es_prueba, actividad_interes, activo, cus_completado, cus_clases_presentadas, fecha_ultima_asistencia
+           FROM alumnos
+           ORDER BY fecha_ultima_asistencia DESC NULLS LAST, nombre ASC
+           LIMIT ? OFFSET ?`,
+      safeQuery ? [safeQuery, safeQuery, POR_PAGINA_ALUMNOS, offset] : [POR_PAGINA_ALUMNOS, offset]
+    );
 
-    set((s) => ({
-      alumnosLoadingKeys: { ...s.alumnosLoadingKeys, [cacheKey]: true },
+    const alumnos: AlumnoRow[] = rawAlumnos.map((row) => ({
+      id: row.id,
+      nombre: row.nombre,
+      edad_actual: row.edad_actual,
+      fecha_registro: row.fecha_registro,
+      dni: row.dni,
+      es_prueba: row.es_prueba != null ? !!row.es_prueba : null,
+      actividad_interes: row.actividad_interes,
+      activo: row.activo != null ? !!row.activo : null,
+      cus_completado: row.cus_completado != null ? !!row.cus_completado : null,
+      cus_clases_presentadas: row.cus_clases_presentadas,
+      ultimaAsistencia: row.fecha_ultima_asistencia
+        ? { fecha: row.fecha_ultima_asistencia, hora: null }
+        : null,
     }));
 
-    try {
-      const offset = (page - 1) * POR_PAGINA_ALUMNOS;
+    return { alumnos, totalRegistros, totalPaginas };
+  }, [db]);
 
-      const { data: alumnosRaw, error } = await supabase.rpc(
-        "alumnos_por_orden_llegada",
-        {
-          p_query: safeQuery || null,
-          p_date: dateStr || null,
-          p_limit: POR_PAGINA_ALUMNOS,
-          p_offset: offset,
-        },
-      );
+  return {
+    categories,
+    categoriesLoading,
+    plans: [] as TrainingPlanSummary[],
+    plansLoading: false,
+    productos,
+    productosLoading,
+    ventas,
+    ventasLoading,
+    paymentMethods,
+    paymentMethodsLoading,
 
-      if (error) {
-        // Fallback: query directa sin RPC
-        const from = offset;
-        const to = from + POR_PAGINA_ALUMNOS - 1;
+    fetchCategories: STABLE_ASYNC_FN,
+    fetchPlans: STABLE_ASYNC_FN,
+    fetchProductos: STABLE_ASYNC_FN,
+    fetchVentas: STABLE_ASYNC_FN,
+    fetchPaymentMethods: STABLE_ASYNC_FN,
+    fetchAlumnos: STABLE_ASYNC_FN,
+    getAlumnos,
 
-        let q = supabase
-          .from("alumnos")
-          .select(
-            "id, nombre, edad_actual, fecha_registro, dni, fecha_ultima_asistencia, es_prueba, actividad_interes, activo, cus_completado, cus_clases_presentadas",
-            { count: "exact" },
-          )
-          .order("fecha_ultima_asistencia", {
-            ascending: false,
-            nullsFirst: false,
-          })
-          .order("nombre", { ascending: true })
-          .range(from, to);
+    invalidateCategories: STABLE_FN,
+    invalidatePlans: STABLE_FN,
+    invalidateProductos: STABLE_FN,
+    invalidateVentas: STABLE_FN,
+    invalidatePaymentMethods: STABLE_FN,
+    invalidateAlumnos: STABLE_FN,
 
-        if (safeQuery) {
-          q = q.or(
-            `nombre.ilike.%${safeQuery}%,dni.ilike.%${safeQuery}%`,
-          );
-        }
+    optimisticDeletePlan: STABLE_FN,
+    optimisticAddPlan: STABLE_FN,
+    optimisticUpdatePlan: STABLE_FN,
+    optimisticUpdateProducto: STABLE_FN,
+    optimisticAddProducto: STABLE_FN,
+    optimisticAddVenta: STABLE_FN,
+  };
+}
 
-        const { data: fallbackData, count, error: fbError } = await q;
-        if (fbError) throw fbError;
-
-        const totalRegistros = count ?? 0;
-        const totalPaginas = Math.max(
-          1,
-          Math.ceil(totalRegistros / POR_PAGINA_ALUMNOS),
-        );
-        const alumnos: AlumnoRow[] = (fallbackData as RawAlumnoRow[] ?? []).map((row) => ({
-          id: row.id,
-          nombre: row.nombre,
-          edad_actual: row.edad_actual,
-          fecha_registro: row.fecha_registro,
-          dni: row.dni,
-          es_prueba: row.es_prueba,
-          actividad_interes: row.actividad_interes,
-          activo: row.activo,
-          cus_completado: row.cus_completado,
-          cus_clases_presentadas: row.cus_clases_presentadas,
-          ultimaAsistencia: row.fecha_ultima_asistencia
-            ? { fecha: row.fecha_ultima_asistencia, hora: null }
-            : null,
-        }));
-
-        set((s) => ({
-          alumnosCache: {
-            ...s.alumnosCache,
-            [cacheKey]: { alumnos, totalRegistros, totalPaginas, fetchedAt: Date.now() },
-          },
-          alumnosLoadingKeys: { ...s.alumnosLoadingKeys, [cacheKey]: false },
-        }));
-        return;
-      }
-
-      const totalRegistros =
-        alumnosRaw && alumnosRaw.length > 0
-          ? Number(alumnosRaw[0].total_count)
-          : 0;
-      const totalPaginas = Math.max(
-        1,
-        Math.ceil(totalRegistros / POR_PAGINA_ALUMNOS),
-      );
-
-      const alumnos: AlumnoRow[] = (alumnosRaw as RawAlumnoRow[] ?? []).map((row) => ({
-        id: row.id,
-        nombre: row.nombre,
-        edad_actual: row.edad_actual,
-        fecha_registro: row.fecha_registro,
-        dni: row.dni,
-        es_prueba: row.es_prueba,
-        actividad_interes: row.actividad_interes,
-        activo: row.activo,
-        cus_completado: row.cus_completado,
-        cus_clases_presentadas: row.cus_clases_presentadas,
-        ultimaAsistencia: row.ult_fecha
-          ? { fecha: row.ult_fecha, hora: row.ult_hora ?? null }
-          : null,
-      }));
-
-      set((s) => ({
-        alumnosCache: {
-          ...s.alumnosCache,
-          [cacheKey]: { alumnos, totalRegistros, totalPaginas, fetchedAt: Date.now() },
-        },
-        alumnosLoadingKeys: { ...s.alumnosLoadingKeys, [cacheKey]: false },
-      }));
-    } catch (err) {
-      console.error("[fetchAlumnos] Error:", err);
-      set((s) => ({
-        alumnosLoadingKeys: { ...s.alumnosLoadingKeys, [cacheKey]: false },
-      }));
-    }
-  },
-
-  // Fetch Productos
-  // Query EXACTA del código original
-  fetchProductos: async () => {
-    const state = get();
-    const now = Date.now();
-
-    // Return cache if valid
-    if (
-      state.productosLastFetched &&
-      now - state.productosLastFetched < CACHE_DURATION
-    ) {
-      return;
-    }
-
-    // Already loading
-    if (state.productosLoading) return;
-
-    set({ productosLoading: true });
-
-    try {
-      const fetchPromise = supabase
-        .from("productos")
-        .select("id, nombre, precio_venta, precio_costo, stock, stock_minimo, activo, categoria, talles, created_at, updated_at")
-        .order("nombre", { ascending: true });
-
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("Timeout al cargar productos desde la base de datos (límite de 8 segundos superado)")), 8000)
-      );
-
-      const { data, error } = await Promise.race([fetchPromise, timeoutPromise]);
-
-      if (error) throw error;
-
-      set({
-        productos: data || [],
-        productosLastFetched: Date.now(),
-        productosLoading: false,
-      });
-    } catch (error) {
-      console.error("Error fetching productos:", error);
-      set({ productosLoading: false });
-    }
-  },
-
-  // Fetch Ventas
-  // Query EXACTA del código original
-  fetchVentas: async () => {
-    const state = get();
-    const now = Date.now();
-
-    // Return cache if valid
-    if (
-      state.ventasLastFetched &&
-      now - state.ventasLastFetched < CACHE_DURATION
-    ) {
-      return;
-    }
-
-    // Already loading
-    if (state.ventasLoading) return;
-
-    set({ ventasLoading: true });
-
-    try {
-      const fetchPromise = supabase
-        .from("ventas")
-        .select("*, productos(nombre)")
-        .order("created_at", { ascending: false })
-        .limit(100);
-
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("Timeout al cargar ventas desde la base de datos (límite de 8 segundos superado)")), 8000)
-      );
-
-      const { data, error } = await Promise.race([fetchPromise, timeoutPromise]);
-
-      if (error) throw error;
-
-      set({
-        ventas: data || [],
-        ventasLastFetched: Date.now(),
-        ventasLoading: false,
-      });
-    } catch (error) {
-      console.error("Error fetching ventas:", error);
-      set({ ventasLoading: false });
-    }
-  },
-
-  // Fetch Payment Methods
-  // Query EXACTA del código original
-  fetchPaymentMethods: async () => {
-    const state = get();
-    const now = Date.now();
-
-    // Return cache if valid
-    if (
-      state.paymentMethodsLastFetched &&
-      now - state.paymentMethodsLastFetched < CACHE_DURATION
-    ) {
-      return;
-    }
-
-    // Already loading
-    if (state.paymentMethodsLoading) return;
-
-    set({ paymentMethodsLoading: true });
-
-    try {
-      const { data, error } = await supabase
-        .from("payment_methods")
-        .select("name")
-        .eq("is_active", true)
-        .order("name", { ascending: true });
-
-      if (error) throw error;
-
-      set({
-        paymentMethods: data || [],
-        paymentMethodsLastFetched: Date.now(),
-        paymentMethodsLoading: false,
-      });
-    } catch (error) {
-      console.error("Error fetching payment methods:", error);
-      set({ paymentMethodsLoading: false });
-    }
-  },
-
-  // Optimistic updates for instant UI feedback
-  optimisticDeletePlan: (planId: string) => {
-    set((state) => ({
-      plans: state.plans.filter((plan) => plan.id !== planId),
-    }));
-  },
-
-  optimisticAddPlan: (plan: TrainingPlanSummary) => {
-    set((state) => ({
-      plans: [plan, ...state.plans],
-    }));
-  },
-
-  optimisticUpdatePlan: (
-    planId: string,
-    updates: Partial<TrainingPlanSummary>,
-  ) => {
-    set((state) => ({
-      plans: state.plans.map((plan) =>
-        plan.id === planId ? { ...plan, ...updates } : plan,
-      ),
-    }));
-  },
-
-  optimisticUpdateProducto: (
-    productoId: string,
-    updates: Partial<Producto>,
-  ) => {
-    set((state) => ({
-      productos: state.productos.map((producto) =>
-        producto.id === productoId ? { ...producto, ...updates } : producto,
-      ),
-    }));
-  },
-
-  optimisticAddProducto: (producto: Producto) => {
-    set((state) => ({
-      productos: [...state.productos, producto].sort((a, b) =>
-        a.nombre.localeCompare(b.nombre),
-      ),
-    }));
-  },
-
-  optimisticAddVenta: (venta: Venta) => {
-    set((state) => ({
-      ventas: [venta, ...state.ventas],
-    }));
-  },
-}));
+// Re-export for backward compatibility - consumers using `useDataCacheStore()` as Zustand store
+// need to switch to calling `useDataCacheStore()` as a hook instead.
+// During migration, consumers that use `useDataCacheStore.getState()` will need updating.

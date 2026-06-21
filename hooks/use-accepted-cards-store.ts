@@ -1,130 +1,58 @@
-import { create } from "zustand";
-import { supabase } from "@/lib/supabase";
-import { CACHE_DURATION } from "./store-constants";
+import { useQuery, usePowerSync } from "@powersync/react";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
 export interface AcceptedCard {
   id: string;
   name: string;
   is_active: boolean;
 }
 
-// ─── Store ────────────────────────────────────────────────────────────────────
-interface AcceptedCardsState {
-  cards: AcceptedCard[];
-  cardsLoading: boolean;
-  cardsLastFetched: number | null;
+export function useAcceptedCardsStore() {
+  const db = usePowerSync();
+  const { data: rawCards, isLoading: cardsLoading } = useQuery<{
+    id: string;
+    name: string;
+    is_active: number;
+  }>("SELECT id, name, is_active FROM accepted_cards ORDER BY name");
 
-  fetchCards: () => Promise<void>;
-  toggleCard: (cardId: string) => Promise<void>;
-  updateCard: (cardId: string, name: string) => Promise<void>;
-  addCard: (name: string) => Promise<void>;
-  deleteCard: (cardId: string) => Promise<void>;
-  invalidateCards: () => void;
-}
+  const cards: AcceptedCard[] = (rawCards ?? []).map((c) => ({
+    id: c.id,
+    name: c.name,
+    is_active: !!c.is_active,
+  }));
 
-export const useAcceptedCardsStore = create<AcceptedCardsState>((set, get) => ({
-  cards: [],
-  cardsLoading: false,
-  cardsLastFetched: null,
-
-  fetchCards: async () => {
-    const state = get();
-    const now = Date.now();
-
-    if (state.cardsLastFetched && now - state.cardsLastFetched < CACHE_DURATION) {
-      return;
-    }
-    if (state.cardsLoading) return;
-
-    set({ cardsLoading: true });
-
-    try {
-      const { data, error } = await supabase
-        .from("accepted_cards")
-        .select("id, name, is_active")
-        .order("name", { ascending: true });
-
-      if (error) throw error;
-
-      set({
-        cards: (data || []).map((c: any) => ({ id: c.id, name: c.name, is_active: c.is_active })),
-        cardsLastFetched: Date.now(),
-        cardsLoading: false,
-      });
-    } catch (error) {
-      console.error("Error fetching accepted cards:", error);
-      set({ cardsLoading: false });
-    }
-  },
-
-  toggleCard: async (cardId) => {
-    const state = get();
-    const card = state.cards.find((c) => c.id === cardId);
+  const toggleCard = async (cardId: string) => {
+    const card = cards.find((c) => c.id === cardId);
     if (!card) return;
+    await db.execute("UPDATE accepted_cards SET is_active = ? WHERE id = ?", [
+      card.is_active ? 0 : 1,
+      cardId,
+    ]);
+  };
 
-    try {
-      const { error } = await supabase
-        .from("accepted_cards")
-        .update({ is_active: !card.is_active })
-        .eq("id", cardId);
+  const updateCard = async (cardId: string, name: string) => {
+    await db.execute("UPDATE accepted_cards SET name = ? WHERE id = ?", [name, cardId]);
+  };
 
-      if (error) throw error;
+  const addCard = async (name: string) => {
+    const id = crypto.randomUUID();
+    await db.execute(
+      "INSERT INTO accepted_cards (id, name, is_active) VALUES (?, ?, 1)",
+      [id, name]
+    );
+  };
 
-      set({ cards: state.cards.map((c) => c.id === cardId ? { ...c, is_active: !c.is_active } : c) });
-    } catch (error) {
-      console.error("Error toggling accepted card:", error);
-    }
-  },
+  const deleteCard = async (cardId: string) => {
+    await db.execute("DELETE FROM accepted_cards WHERE id = ?", [cardId]);
+  };
 
-  updateCard: async (cardId, name) => {
-    try {
-      const { error } = await supabase
-        .from("accepted_cards")
-        .update({ name })
-        .eq("id", cardId);
-
-      if (error) throw error;
-
-      const state = get();
-      set({ cards: state.cards.map((c) => c.id === cardId ? { ...c, name } : c) });
-    } catch (error) {
-      console.error("Error updating accepted card:", error);
-    }
-  },
-
-  addCard: async (name) => {
-    try {
-      const { data, error } = await supabase
-        .from("accepted_cards")
-        .insert({ name, is_active: true })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      const state = get();
-      set({ cards: [...state.cards, { id: data.id, name: data.name, is_active: data.is_active }] });
-    } catch (error) {
-      console.error("Error adding accepted card:", error);
-    }
-  },
-
-  deleteCard: async (cardId) => {
-    try {
-      const { error } = await supabase
-        .from("accepted_cards")
-        .delete()
-        .eq("id", cardId);
-
-      if (error) throw error;
-
-      const state = get();
-      set({ cards: state.cards.filter((c) => c.id !== cardId) });
-    } catch (error) {
-      console.error("Error deleting accepted card:", error);
-    }
-  },
-
-  invalidateCards: () => set({ cardsLastFetched: null }),
-}));
+  return {
+    cards,
+    cardsLoading,
+    fetchCards: async () => {},
+    toggleCard,
+    updateCard,
+    addCard,
+    deleteCard,
+    invalidateCards: () => {},
+  };
+}

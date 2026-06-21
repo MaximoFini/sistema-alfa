@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { usePowerSync } from "@powersync/react";
 import { triggerHapticFeedback, HapticPresets } from "@/lib/utils";
 import {
   User,
@@ -126,6 +126,7 @@ export default function PanelInfoPersonal({
   onAlumnoActualizado?: (datos: Partial<Alumno>) => void;
 }) {
   const router = useRouter();
+  const db = usePowerSync();
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [guardando, setGuardando] = useState(false);
@@ -236,22 +237,13 @@ export default function PanelInfoPersonal({
     triggerHapticFeedback(HapticPresets.medium);
     setGuardando(true);
 
-    // Verificar si ya existe otro alumno con el mismo DNI
-    const { data: dniExistente, error: checkError } = await supabase
-      .from("alumnos")
-      .select("id")
-      .eq("dni", formData.dni.trim())
-      .neq("id", alumno.id)
-      .maybeSingle();
+    // Verificar si ya existe otro alumno con el mismo DNI (local query)
+    const dniCheck = await db.get<{ count: number }>(
+      "SELECT COUNT(*) as count FROM alumnos WHERE dni = ? AND id != ?",
+      [formData.dni.trim(), alumno.id]
+    );
 
-    if (checkError) {
-      setGuardando(false);
-      triggerHapticFeedback(HapticPresets.error);
-      alert("Error al verificar el DNI: " + checkError.message);
-      return;
-    }
-
-    if (dniExistente) {
+    if (dniCheck.count > 0) {
       setGuardando(false);
       setErrors({ dni: "Ya existe otro alumno registrado con este DNI" });
       triggerHapticFeedback(HapticPresets.warning);
@@ -260,29 +252,31 @@ export default function PanelInfoPersonal({
 
     const edadCalculada = calcularEdad(formData.fecha_nacimiento);
 
-    const { error } = await supabase
-      .from("alumnos")
-      .update({
-        nombre: formData.nombre.trim(),
-        dni: formData.dni.trim(),
-        domicilio: formData.domicilio.trim(),
-        telefono: formData.telefono.trim(),
-        fecha_nacimiento: formData.fecha_nacimiento,
-        genero: formData.genero,
-        edad_actual: edadCalculada,
-        email: formData.email.trim() || null,
-        telefono_emergencia: formData.telefonoEmergencia.trim() || null,
-        observaciones: formData.observaciones.trim() || null,
-      })
-      .eq("id", alumno.id);
-
-    setGuardando(false);
-
-    if (error) {
+    try {
+      await db.execute(
+        `UPDATE alumnos SET nombre = ?, dni = ?, domicilio = ?, telefono = ?, fecha_nacimiento = ?, genero = ?, edad_actual = ?, email = ?, telefono_emergencia = ?, observaciones = ? WHERE id = ?`,
+        [
+          formData.nombre.trim(),
+          formData.dni.trim(),
+          formData.domicilio.trim(),
+          formData.telefono.trim(),
+          formData.fecha_nacimiento,
+          formData.genero,
+          edadCalculada,
+          formData.email.trim() || null,
+          formData.telefonoEmergencia.trim() || null,
+          formData.observaciones.trim() || null,
+          alumno.id,
+        ]
+      );
+    } catch (e: any) {
+      setGuardando(false);
       triggerHapticFeedback(HapticPresets.error);
-      alert("Error al actualizar el alumno: " + error.message);
+      alert("Error al actualizar el alumno: " + (e.message || e));
       return;
     }
+
+    setGuardando(false);
 
     if (onAlumnoActualizado) {
       onAlumnoActualizado({
@@ -301,50 +295,40 @@ export default function PanelInfoPersonal({
 
     triggerHapticFeedback(HapticPresets.success);
     setShowEditModal(false);
-    router.refresh();
   }
 
   async function handleEliminar() {
     triggerHapticFeedback(HapticPresets.heavy);
     setEliminando(true);
 
-    // ⚡ OPTIMIZACIÓN: Se elimina directamente el alumno.
-    // Las claves foráneas en la base de datos ya están configuradas con ON DELETE CASCADE,
-    // por lo que las asistencias y los pagos asociados se eliminan de forma atómica en el servidor (1 RTT).
-    const { error } = await supabase
-      .from("alumnos")
-      .delete()
-      .eq("id", alumno.id);
-
-    setEliminando(false);
-
-    if (error) {
+    try {
+      await db.execute("DELETE FROM alumnos WHERE id = ?", [alumno.id]);
+    } catch (e: any) {
+      setEliminando(false);
       triggerHapticFeedback(HapticPresets.error);
-      alert("Error al eliminar el alumno: " + error.message);
+      alert("Error al eliminar el alumno: " + (e.message || e));
       return;
     }
+
+    setEliminando(false);
 
     triggerHapticFeedback(HapticPresets.success);
     // Redirigir a la lista de alumnos
     router.push("/inicio");
-    router.refresh();
   }
 
   async function handleOtorgarGracia() {
     triggerHapticFeedback(HapticPresets.medium);
     setOtorgandoGracia(true);
-    const { error } = await supabase
-      .from("alumnos")
-      .update({
-        clases_gracia_disponibles: 2,
-        clases_gracia_usadas: 0,
-      })
-      .eq("id", alumno.id);
-
-    if (error) {
+    try {
+      await db.execute(
+        "UPDATE alumnos SET clases_gracia_disponibles = ?, clases_gracia_usadas = ? WHERE id = ?",
+        [2, 0, alumno.id]
+      );
+    } catch (e: any) {
       setOtorgandoGracia(false);
       triggerHapticFeedback(HapticPresets.error);
-      alert("Error al otorgar clases de gracia: " + error.message);
+      alert("Error al otorgar clases de gracia: " + (e.message || e));
       return;
     }
 
@@ -359,7 +343,6 @@ export default function PanelInfoPersonal({
       });
     }
     setOtorgandoGracia(false);
-    router.refresh();
   }
 
 
@@ -373,26 +356,25 @@ export default function PanelInfoPersonal({
     }
     setMarcandoCus(true);
 
-    const { error } = await supabase
-      .from("alumnos")
-      .update({ cus_completado: true })
-      .eq("id", alumno.id);
-
-    setMarcandoCus(false);
-
-    if (error) {
+    try {
+      await db.execute(
+        "UPDATE alumnos SET cus_completado = ? WHERE id = ?",
+        [1, alumno.id]
+      );
+    } catch (e: any) {
       // Revert on error
       setCusCompletado(false);
       if (onAlumnoActualizado) {
         onAlumnoActualizado({ cus_completado: false });
       }
+      setMarcandoCus(false);
       triggerHapticFeedback(HapticPresets.error);
-      alert("Error al actualizar CUS: " + error.message);
+      alert("Error al actualizar CUS: " + (e.message || e));
       return;
     }
 
+    setMarcandoCus(false);
     triggerHapticFeedback(HapticPresets.success);
-    router.refresh();
   }
 
   const LONG_PRESS_DURATION = 3000; // 3 segundos

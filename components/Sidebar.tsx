@@ -7,7 +7,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/lib/supabase";
 import { useAdminStore } from "@/stores/admin-store";
-import { useAdminSettingsStore } from "@/hooks/use-admin-settings";
 import {
   Users,
   MessageSquare,
@@ -200,9 +199,6 @@ export default function Sidebar() {
             onMouseEnter={() => {
               router.prefetch("/administracion");
               useAdminStore.getState().fetchFinanzasStats();
-              useAdminSettingsStore.getState().fetchSettings();
-              useAdminSettingsStore.getState().fetchPlanes();
-              useAdminSettingsStore.getState().fetchMetodos();
             }}
             className={cn(
               "flex items-center rounded-lg transition-all duration-150",

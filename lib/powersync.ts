@@ -4,6 +4,7 @@ import {
   CrudTransaction,
   PowerSyncBackendConnector,
   PowerSyncDatabase,
+  WASQLiteOpenFactory,
 } from "@powersync/web";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { AppSchema } from "./powersync-schema";
@@ -15,12 +16,17 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
     const {
       data: { session },
     } = await this.supabase.auth.getSession();
+
     if (!session) {
       throw new Error("No active session");
     }
+
     return {
       endpoint: process.env.NEXT_PUBLIC_POWERSYNC_URL!,
       token: session.access_token,
+      expiresAt: session.expires_at
+        ? new Date(session.expires_at * 1000)
+        : undefined,
     };
   }
 
@@ -61,9 +67,17 @@ let powerSyncInstance: PowerSyncDatabase | null = null;
 
 export function getPowerSyncDatabase(): PowerSyncDatabase {
   if (!powerSyncInstance) {
+    const factory = new WASQLiteOpenFactory({
+      dbFilename: "sistema-alfa.db",
+      worker: "/@powersync/worker/WASQLiteDB.umd.js",
+    });
+
     powerSyncInstance = new PowerSyncDatabase({
       schema: AppSchema,
-      database: { dbFilename: "sistema-alfa.db" },
+      database: factory,
+      sync: {
+        worker: "/@powersync/worker/SharedSyncImplementation.umd.js",
+      },
     });
   }
   return powerSyncInstance;

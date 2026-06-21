@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
+import { usePowerSync } from "@powersync/react";
 import { useStaticDataStore } from "@/stores/static-data-store";
 import {
   ChevronDown,
@@ -51,6 +51,7 @@ export default function NuevoAlumnoModal({
   onClose: () => void;
   onGuardado: () => void;
 }) {
+  const db = usePowerSync();
   const isMobile = useIsMobile();
   const [step, setStep] = useState<1 | 2>(1);
 
@@ -59,9 +60,6 @@ export default function NuevoAlumnoModal({
     subscriptionPlans,
     paymentMethods,
     acceptedCards,
-    fetchSubscriptionPlans,
-    fetchPaymentMethods,
-    fetchAcceptedCards,
   } = useStaticDataStore();
 
   const [form, setForm] = useState<FormData>({
@@ -108,13 +106,6 @@ export default function NuevoAlumnoModal({
     setForm((prev) => ({ ...prev, fechaRegistro: today }));
     setPagoForm((prev) => ({ ...prev, fechaCobro: today, fechaInicio: today }));
   }, []);
-
-  // Cargar datos estáticos desde el store (con caché automático)
-  useEffect(() => {
-    fetchSubscriptionPlans();
-    fetchPaymentMethods();
-    fetchAcceptedCards();
-  }, [fetchSubscriptionPlans, fetchPaymentMethods, fetchAcceptedCards]);
 
   function setField(field: keyof FormData, value: string) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -292,29 +283,13 @@ export default function NuevoAlumnoModal({
     setGuardando(true);
 
     try {
-      // Verificar si ya existe un alumno con el mismo DNI (con timeout y sin maybeSingle para evitar hangs)
-      const fetchPromise = supabase
-        .from("alumnos")
-        .select("id")
-        .eq("dni", form.dni.trim())
-        .limit(1);
-
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("Límite de tiempo superado al verificar el DNI (4s)")), 4000)
+      // Verificar si ya existe un alumno con el mismo DNI (local query)
+      const dniCheck = await db.get<{ count: number }>(
+        "SELECT COUNT(*) as count FROM alumnos WHERE dni = ?",
+        [form.dni.trim()]
       );
 
-      const { data: dniData, error: checkError } = await Promise.race([
-        fetchPromise,
-        timeoutPromise,
-      ]);
-
-      if (checkError) {
-        throw new Error("Error al verificar el DNI: " + checkError.message);
-      }
-
-      const dniExistente = dniData && dniData.length > 0;
-
-      if (dniExistente) {
+      if (dniCheck.count > 0) {
         setErrors({ dni: "Ya existe un alumno registrado con este DNI" });
         triggerHapticFeedback(HapticPresets.warning);
         return;
@@ -326,30 +301,29 @@ export default function NuevoAlumnoModal({
         // Avanzar al paso 2 de inmediato en el cliente, sin tocar la base de datos aún (0 RTT)
         setStep(2);
       } else {
-        // Guardado tradicional sin cobro (1 RTT)
+        // Guardado tradicional sin cobro
         const edadCalculada = calcularEdad(form.fechaNacimiento);
 
-        const { error } = await supabase
-          .from("alumnos")
-          .insert({
-            nombre: form.nombre.trim(),
-            dni: form.dni.trim(),
-            domicilio: form.domicilio.trim(),
-            telefono: form.telefono.trim(),
-            fecha_nacimiento: form.fechaNacimiento,
-            fecha_registro: form.fechaRegistro,
-            genero: form.genero,
-            edad_actual: edadCalculada,
-            cus_completado: esMenorDeEdad ? form.cusCompletado : false,
-            cus_clases_presentadas: 0,
-            email: form.email.trim() || null,
-            telefono_emergencia: form.telefonoEmergencia.trim() || null,
-            observaciones: form.observaciones.trim() || null,
-          });
-
-        if (error) {
-          throw new Error("Error al guardar el alumno: " + error.message);
-        }
+        await db.execute(
+          `INSERT INTO alumnos (id, nombre, dni, domicilio, telefono, fecha_nacimiento, fecha_registro, genero, edad_actual, cus_completado, cus_clases_presentadas, email, telefono_emergencia, observaciones)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            crypto.randomUUID(),
+            form.nombre.trim(),
+            form.dni.trim(),
+            form.domicilio.trim(),
+            form.telefono.trim(),
+            form.fechaNacimiento,
+            form.fechaRegistro,
+            form.genero,
+            edadCalculada,
+            esMenorDeEdad ? (form.cusCompletado ? 1 : 0) : 0,
+            0,
+            form.email.trim() || null,
+            form.telefonoEmergencia.trim() || null,
+            form.observaciones.trim() || null,
+          ]
+        );
 
         triggerHapticFeedback(HapticPresets.success);
         onGuardado();
@@ -376,29 +350,13 @@ export default function NuevoAlumnoModal({
     setGuardando(true);
 
     try {
-      // Verificar si ya existe un alumno con el mismo DNI (doble seguridad con timeout y sin maybeSingle)
-      const fetchPromise = supabase
-        .from("alumnos")
-        .select("id")
-        .eq("dni", form.dni.trim())
-        .limit(1);
-
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("Límite de tiempo superado al verificar el DNI (4s)")), 4000)
+      // Verificar si ya existe un alumno con el mismo DNI (local query)
+      const dniCheck = await db.get<{ count: number }>(
+        "SELECT COUNT(*) as count FROM alumnos WHERE dni = ?",
+        [form.dni.trim()]
       );
 
-      const { data: dniData, error: checkError } = await Promise.race([
-        fetchPromise,
-        timeoutPromise,
-      ]);
-
-      if (checkError) {
-        throw new Error("Error al verificar el DNI: " + checkError.message);
-      }
-
-      const dniExistente = dniData && dniData.length > 0;
-
-      if (dniExistente) {
+      if (dniCheck.count > 0) {
         setStep(1); // Volver al paso 1 para mostrar el error
         setErrors({ dni: "Ya existe un alumno registrado con este DNI" });
         triggerHapticFeedback(HapticPresets.warning);
@@ -428,36 +386,50 @@ export default function NuevoAlumnoModal({
 
       const edadCalculada = calcularEdad(form.fechaNacimiento);
 
-      // Guardado unificado de alumno + pago atómico mediante la RPC (1 RTT)
-      const { error: rpcError } = await supabase.rpc(
-        "crear_alumno_con_cobro",
-        {
-          p_nombre: form.nombre.trim(),
-          p_dni: form.dni.trim(),
-          p_domicilio: form.domicilio.trim(),
-          p_telefono: form.telefono.trim(),
-          p_fecha_nacimiento: form.fechaNacimiento,
-          p_fecha_registro: form.fechaRegistro,
-          p_genero: form.genero,
-          p_edad_actual: edadCalculada,
-          p_actividad: pagoForm.actividad,
-          p_precio: Number(pagoForm.precio),
-          p_fecha_cobro: pagoForm.fechaCobro,
-          p_medio_pago: pagoForm.medioPago,
-          p_fecha_inicio: pagoForm.fechaInicio,
-          p_fecha_vencimiento: fechaProximoVencimiento,
-          p_cus_completado: esMenorDeEdad ? form.cusCompletado : false,
-          p_email: form.email.trim() || null,
-          p_tarjeta: pagoForm.tarjeta || null,
-          p_alias_transferencia: pagoForm.aliasTransferencia.trim() || null,
-          p_telefono_emergencia: form.telefonoEmergencia.trim() || null,
-          p_observaciones: form.observaciones.trim() || null,
-        }
+      // Insert alumno + pago locally (PowerSync syncs to Supabase)
+      const alumnoId = crypto.randomUUID();
+
+      await db.execute(
+        `INSERT INTO alumnos (id, nombre, dni, domicilio, telefono, fecha_nacimiento, fecha_registro, genero, edad_actual, abono_ultima_inscripcion, fecha_proximo_vencimiento, actividad_proximo_vencimiento, fecha_ultimo_inicio, cus_completado, cus_clases_presentadas, email, telefono_emergencia, observaciones)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          alumnoId,
+          form.nombre.trim(),
+          form.dni.trim(),
+          form.domicilio.trim(),
+          form.telefono.trim(),
+          form.fechaNacimiento,
+          form.fechaRegistro,
+          form.genero,
+          edadCalculada,
+          pagoForm.actividad,
+          fechaProximoVencimiento,
+          pagoForm.actividad,
+          pagoForm.fechaInicio,
+          esMenorDeEdad ? (form.cusCompletado ? 1 : 0) : 0,
+          0,
+          form.email.trim() || null,
+          form.telefonoEmergencia.trim() || null,
+          form.observaciones.trim() || null,
+        ]
       );
 
-      if (rpcError) {
-        throw new Error("Error al registrar alumno con cobro: " + rpcError.message);
-      }
+      await db.execute(
+        `INSERT INTO pagos (id, alumno_id, actividad, precio, fecha_cobro, medio_pago, fecha_inicio, fecha_vencimiento, tarjeta, alias_transferencia)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          crypto.randomUUID(),
+          alumnoId,
+          pagoForm.actividad,
+          Number(pagoForm.precio),
+          pagoForm.fechaCobro,
+          pagoForm.medioPago,
+          pagoForm.fechaInicio,
+          fechaProximoVencimiento,
+          pagoForm.tarjeta || null,
+          pagoForm.aliasTransferencia.trim() || null,
+        ]
+      );
 
       triggerHapticFeedback(HapticPresets.success);
       onGuardado();

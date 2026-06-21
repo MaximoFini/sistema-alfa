@@ -1,9 +1,14 @@
 "use client";
 
 import { useStatus } from "@powersync/react";
+import { useEffect } from "react";
 
 export function ConnectionStatus() {
   const status = useStatus();
+
+  useEffect(() => {
+    console.log("PowerSync sync status:", status);
+  }, [status]);
 
   if (status.connected) return null;
 

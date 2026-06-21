@@ -130,9 +130,6 @@ function NuevoAlumnoModal({
     subscriptionPlans,
     paymentMethods,
     acceptedCards,
-    fetchSubscriptionPlans,
-    fetchPaymentMethods,
-    fetchAcceptedCards,
   } = useStaticDataStore();
 
   const [form, setForm] = useState<FormData>({
@@ -179,13 +176,6 @@ function NuevoAlumnoModal({
     setForm((prev) => ({ ...prev, fechaRegistro: today }));
     setPagoForm((prev) => ({ ...prev, fechaCobro: today, fechaInicio: today }));
   }, []);
-
-  // Cargar datos estáticos desde el store (con caché automático)
-  useEffect(() => {
-    fetchSubscriptionPlans();
-    fetchPaymentMethods();
-    fetchAcceptedCards();
-  }, [fetchSubscriptionPlans, fetchPaymentMethods, fetchAcceptedCards]);
 
   function setField(field: keyof FormData, value: string) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -1205,90 +1195,45 @@ export default function AlumnosList() {
   const queryActual = queryParam;
 
   const [showModal, setShowModal] = useState(false);
+  const [alumnos, setAlumnos] = useState<AlumnoRow[]>([]);
+  const [alumnosLoading, setAlumnosLoading] = useState(false);
+  const [totalPaginas, setTotalPaginas] = useState(1);
+  const [totalRegistros, setTotalRegistros] = useState(0);
 
+  const { getAlumnos } = useDataCacheStore();
 
-  // Obtener la fecha de hoy en formato 'YYYY-MM-DD' considerando la zona horaria local de Argentina (GMT-3)
-  const localDate = new Date();
-  const offset = localDate.getTimezoneOffset();
-  const adjustedDate = new Date(localDate.getTime() - (offset * 60 * 1000));
-  const todayStr = adjustedDate.toISOString().split("T")[0];
-
-  const { alumnosCache, alumnosLoadingKeys, fetchAlumnos, invalidateAlumnos } =
-    useDataCacheStore();
-
-  const safeQuery = queryActual.replace(
-    /[^a-zA-Z0-9áéíóúüñÁÉÍÓÚÜÑ\s]/g,
-    "",
-  );
-  const cacheKey = `${paginaActual}:${safeQuery}:${!queryActual ? todayStr : ""}`;
-  const cached = alumnosCache[cacheKey];
-  const isLoading = alumnosLoadingKeys[cacheKey] ?? false;
-
-  const alumnos = cached?.alumnos ?? [];
-  const totalRegistros = cached?.totalRegistros ?? 0;
-  const totalPaginas = cached?.totalPaginas ?? 1;
   const porPagina = POR_PAGINA;
 
   // Fetch cuando cambia la página o el query
   useEffect(() => {
-    if (!queryActual) {
-      fetchAlumnos(paginaActual, "", todayStr);
-    } else {
-      fetchAlumnos(paginaActual, queryActual, null);
+    let cancelled = false;
+    async function load() {
+      setAlumnosLoading(true);
+      try {
+        const result = await getAlumnos(paginaActual, queryActual);
+        if (!cancelled) {
+          setAlumnos(result.alumnos);
+          setTotalRegistros(result.totalRegistros);
+          setTotalPaginas(result.totalPaginas);
+        }
+      } catch (err) {
+        console.error("Error fetching alumnos:", err);
+      } finally {
+        if (!cancelled) setAlumnosLoading(false);
+      }
     }
-  }, [paginaActual, queryActual, todayStr, fetchAlumnos]);
+    load();
+    return () => { cancelled = true; };
+  }, [paginaActual, queryActual, getAlumnos]);
 
   function handleGuardado() {
-    // Al guardar con éxito, no invalidamos la caché completa para evitar parpadeos con skeletons.
-    // Hacemos una recarga silenciosa en background usando forceRefresh = true.
-    if (!queryActual) {
-      fetchAlumnos(paginaActual, "", todayStr, true);
-    } else {
-      fetchAlumnos(paginaActual, queryActual, null, true);
-    }
+    // Reload current page after saving
+    getAlumnos(paginaActual, queryActual).then((result) => {
+      setAlumnos(result.alumnos);
+      setTotalRegistros(result.totalRegistros);
+      setTotalPaginas(result.totalPaginas);
+    }).catch(console.error);
   }
-
-  // ─── Realtime: escucha cambios en múltiples tablas ─────────────────────────
-  useEffect(() => {
-    let refreshTimeout: NodeJS.Timeout;
-
-    const handleRefresh = () => {
-      clearTimeout(refreshTimeout);
-      refreshTimeout = setTimeout(() => {
-        // En tiempo real tampoco invalidamos/borramos caché. Hacemos fetch background silencioso.
-        // Zustand evitará peticiones concurrentes si ya se está cargando por alumnosLoadingKeys.
-        if (!queryActual) {
-          fetchAlumnos(paginaActual, "", todayStr, true);
-        } else {
-          fetchAlumnos(paginaActual, queryActual, null, true);
-        }
-      }, 100);
-    };
-
-    const channel = supabase
-      .channel("inicio-realtime")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "alumnos" },
-        () => handleRefresh(),
-      )
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "asistencias" },
-        () => handleRefresh(),
-      )
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "pagos" },
-        () => handleRefresh(),
-      )
-      .subscribe();
-
-    return () => {
-      clearTimeout(refreshTimeout);
-      supabase.removeChannel(channel);
-    };
-  }, [paginaActual, queryActual, todayStr, fetchAlumnos, invalidateAlumnos]);
 
   // Enriquecer datos con UI derivada
   const alumnosEnriquecidos = alumnos.map(enriquecerAlumno);
@@ -1396,7 +1341,7 @@ export default function AlumnosList() {
       {/* Contenedor principal con z-index para estar por encima del fondo */}
       <div className="relative z-10 p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto">
         {/* Loading skeleton inline (cuando no hay datos en caché aún) */}
-        {isLoading && alumnos.length === 0 ? (
+        {alumnosLoading && alumnos.length === 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
             {Array.from({ length: 10 }).map((_, i) => (
               <div

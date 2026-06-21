@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { supabase } from "@/lib/supabase";
+import { usePowerSync } from "@powersync/react";
 import { useStaticDataStore } from "@/stores/static-data-store";
 import { ChevronDown, X, AlertCircle, Calendar } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -46,6 +46,7 @@ export default function RegistrarCobroModal({
   onClose,
   onGuardado,
 }: Props) {
+  const db = usePowerSync();
   const isMobile = useIsMobile();
 
   // Usar el store de datos estáticos
@@ -53,9 +54,6 @@ export default function RegistrarCobroModal({
     subscriptionPlans,
     paymentMethods,
     acceptedCards,
-    fetchSubscriptionPlans,
-    fetchPaymentMethods,
-    fetchAcceptedCards,
   } = useStaticDataStore();
 
   const [tarjeta, setTarjeta] = useState("");
@@ -136,12 +134,6 @@ export default function RegistrarCobroModal({
     }));
   }, [planVigente, pagosExistentes]);
 
-  // Cargar planes y medios de pago desde el store (con caché automático)
-  useEffect(() => {
-    fetchSubscriptionPlans();
-    fetchPaymentMethods();
-    fetchAcceptedCards();
-  }, [fetchSubscriptionPlans, fetchPaymentMethods, fetchAcceptedCards]);
 
   function setPagoField(field: keyof PagoForm, value: string) {
     setPagoForm((f) => ({ ...f, [field]: value }));
@@ -246,40 +238,37 @@ export default function RegistrarCobroModal({
         fechaProximoVencimiento = `${yyyy}-${mm}-${dd}`;
       }
 
-      const { error: errorPago } = await supabase.from("pagos").insert({
-        alumno_id: alumnoId,
-        actividad: pagoForm.actividad,
-        precio: Number(pagoForm.precio),
-        fecha_cobro: pagoForm.fechaCobro,
-        medio_pago: pagoForm.medioPago,
-        fecha_inicio: pagoForm.fechaInicio,
-        fecha_vencimiento: fechaProximoVencimiento,
-        tarjeta: tarjeta || null,
-        alias_transferencia: aliasTransferencia.trim() || null,
-      });
-
-      if (errorPago) {
-        throw new Error("Error al registrar cobro: " + errorPago.message);
-      }
+      await db.execute(
+        `INSERT INTO pagos (id, alumno_id, actividad, precio, fecha_cobro, medio_pago, fecha_inicio, fecha_vencimiento, tarjeta, alias_transferencia)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          crypto.randomUUID(),
+          alumnoId,
+          pagoForm.actividad,
+          Number(pagoForm.precio),
+          pagoForm.fechaCobro,
+          pagoForm.medioPago,
+          pagoForm.fechaInicio,
+          fechaProximoVencimiento,
+          tarjeta || null,
+          aliasTransferencia.trim() || null,
+        ]
+      );
 
       // Actualizar alumno con el nuevo plan (y reiniciar counter de gracia)
-      const { error: errorUpdate } = await supabase
-        .from("alumnos")
-        .update({
-          abono_ultima_inscripcion: pagoForm.actividad,
-          fecha_proximo_vencimiento: fechaProximoVencimiento,
-          actividad_proximo_vencimiento: pagoForm.actividad,
-          fecha_ultimo_inicio: pagoForm.fechaInicio,
-          // Resetear clases de gracia al renovar el plan
-          clases_gracia_disponibles: 0,
-          clases_gracia_usadas: 0,
-          es_prueba: false,
-        })
-        .eq("id", alumnoId);
-
-      if (errorUpdate) {
-        throw new Error("Error al actualizar alumno: " + errorUpdate.message);
-      }
+      await db.execute(
+        `UPDATE alumnos SET abono_ultima_inscripcion = ?, fecha_proximo_vencimiento = ?, actividad_proximo_vencimiento = ?, fecha_ultimo_inicio = ?, clases_gracia_disponibles = ?, clases_gracia_usadas = ?, es_prueba = ? WHERE id = ?`,
+        [
+          pagoForm.actividad,
+          fechaProximoVencimiento,
+          pagoForm.actividad,
+          pagoForm.fechaInicio,
+          0,
+          0,
+          0,
+          alumnoId,
+        ]
+      );
 
       triggerHapticFeedback(HapticPresets.success);
 

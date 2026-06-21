@@ -6,6 +6,7 @@ const nextConfig = {
   staticPageGenerationTimeout: 60,
   poweredByHeader: false,
   compress: true,
+  serverExternalPackages: ["whatsapp-web.js", "puppeteer"],
   async headers() {
     return [
       {
@@ -26,7 +27,7 @@ const nextConfig = {
   reactStrictMode: true,
   turbopack: {},
   experimental: {
-    optimizePackageImports: ["@radix-ui/react-*", "date-fns", "lucide-react"],
+    optimizePackageImports: ["@radix-ui/react-*", "date-fns", "lucide-react", "@powersync/web", "@powersync/react"],
     staticGenerationRetryCount: 1,
     // Optimizar fonts
     optimizeCss: true,

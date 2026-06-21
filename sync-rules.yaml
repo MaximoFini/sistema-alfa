@@ -1,6 +1,8 @@
 bucket_definitions:
   # Datos globales de referencia - todos los usuarios autenticados
   global_data:
+    # Empty parameters query = global bucket (all authenticated users get it)
+    parameters: SELECT
     data:
       - SELECT * FROM exercise_categories
       - SELECT * FROM exercises
@@ -9,43 +11,21 @@ bucket_definitions:
       - SELECT * FROM subscription_plans
       - SELECT * FROM payment_methods
       - SELECT * FROM accepted_cards
-      - SELECT * FROM settings
+      - SELECT * FROM system_settings
       - SELECT * FROM profiles
-
-  # Datos operativos - admin y recepcionista
-  operational_data:
-    parameters:
-      SELECT id AS user_id FROM profiles
-      WHERE role IN ('Administrador', 'Recepcionista')
-      AND id = token_parameters.user_id
-    data:
+      - SELECT * FROM productos
       - SELECT * FROM alumnos
       - SELECT * FROM pagos
       - SELECT * FROM ventas
-      - SELECT * FROM productos
       - SELECT * FROM asistencias
-      - SELECT * FROM comunicacion_mensajes
-
-  # Datos financieros/config - solo admin
-  admin_data:
-    parameters:
-      SELECT id AS user_id FROM profiles
-      WHERE role = 'Administrador'
-      AND id = token_parameters.user_id
-    data:
       - SELECT * FROM monthly_expenses_config
       - SELECT * FROM monthly_salaries_config
       - SELECT * FROM business_expenses
       - SELECT * FROM business_salaries
       - SELECT * FROM estadisticas_mensuales
       - SELECT * FROM system_users
-
-  # Planes de entrenamiento - por coach
-  coach_plans:
-    parameters:
-      SELECT id AS user_id FROM profiles
-      WHERE id = token_parameters.user_id
-    data:
-      - SELECT * FROM training_plans WHERE coach_id = bucket.user_id
-      - SELECT * FROM training_plan_days WHERE plan_id IN (SELECT id FROM training_plans WHERE coach_id = bucket.user_id)
-      - SELECT * FROM training_plan_assignments WHERE plan_id IN (SELECT id FROM training_plans WHERE coach_id = bucket.user_id)
+      - SELECT * FROM training_plans
+      - SELECT * FROM training_plan_days
+      - SELECT * FROM training_plan_exercises
+      - SELECT * FROM training_plan_assignments
+      - SELECT * FROM comunicacion_mensajes
