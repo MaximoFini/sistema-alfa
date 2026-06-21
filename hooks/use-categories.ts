@@ -1,20 +1,14 @@
-// Hook de categorías - Migrado desde StabilitySistema
-// ⚠️ Query EXACTA del código original (dataCacheStore.ts)
-
-import { useEffect } from "react";
-import { useDataCacheStore } from "@/stores/data-cache-store";
+import { useQuery } from "@powersync/react";
+import { ExerciseCategory } from "@/lib/types/exercises";
 
 export function useCategories() {
-  const { categories, categoriesLoading, fetchCategories } =
-    useDataCacheStore();
-
-  useEffect(() => {
-    fetchCategories();
-  }, [fetchCategories]);
+  const { data: categories, isLoading: loading } = useQuery<ExerciseCategory>(
+    "SELECT id, name, color FROM exercise_categories ORDER BY name"
+  );
 
   return {
-    categories,
-    loading: categoriesLoading,
-    refresh: fetchCategories,
+    categories: (categories ?? []) as ExerciseCategory[],
+    loading,
+    refresh: () => {},
   };
 }

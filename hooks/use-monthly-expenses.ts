@@ -1,10 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/lib/supabase";
+import { useQuery, usePowerSync } from "@powersync/react";
 
-// ─── Module state ─────────────────────────────────────────────────────────────
 const seedingLocks = new Set<string>();
-
-// ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface MonthlyExpense {
   id: string;
@@ -27,516 +24,230 @@ export interface MonthlySalary {
   description: string | null;
 }
 
-// ─── Helper ───────────────────────────────────────────────────────────────────
-
-function prevMonth(
-  year: number,
-  month: number,
-): { year: number; month: number } {
+function prevMonth(year: number, month: number): { year: number; month: number } {
   if (month === 1) return { year: year - 1, month: 12 };
   return { year, month: month - 1 };
 }
 
-// ─── Hook ─────────────────────────────────────────────────────────────────────
-
 export function useMonthlyExpenses(year: number, month: number) {
-  const [expenses, setExpenses] = useState<MonthlyExpense[]>([]);
-  const [salaries, setSalaries] = useState<MonthlySalary[]>([]);
-  const [loading, setLoading] = useState(true);
+  const db = usePowerSync();
   const [seeding, setSeeding] = useState(false);
+  const [seedDone, setSeedDone] = useState(false);
 
-  // ── Seed expenses from a source list ──────────────────────────────────────
-
-  const seedExpensesFromRows = useCallback(
-    async (
-      rows: Array<{
-        name: string;
-        amount: number;
-        is_active: boolean;
-        category: string | null;
-        description: string | null;
-      }>,
-    ) => {
-      if (rows.length === 0) return [];
-      const toInsert = rows.map((r) => ({
-        year,
-        month,
-        name: r.name,
-        amount: r.amount,
-        is_active: r.is_active,
-        category: r.category,
-        description: r.description,
-      }));
-      const { data, error } = await supabase
-        .from("monthly_expenses_config")
-        .insert(toInsert)
-        .select();
-      if (error) throw error;
-      return (data || []) as MonthlyExpense[];
-    },
-    [year, month],
+  const { data: rawExpenses } = useQuery<{
+    id: string;
+    year: number;
+    month: number;
+    name: string;
+    amount: number;
+    is_active: number;
+    category: string | null;
+    description: string | null;
+  }>(
+    "SELECT id, year, month, name, amount, is_active, category, description FROM monthly_expenses_config WHERE year = ? AND month = ? ORDER BY name",
+    [year, month]
   );
 
-  const seedSalariesFromRows = useCallback(
-    async (
-      rows: Array<{
-        name: string;
-        amount: number;
-        is_active: boolean;
-        description: string | null;
-      }>,
-    ) => {
-      if (rows.length === 0) return [];
-      const toInsert = rows.map((r) => ({
-        year,
-        month,
-        name: r.name,
-        amount: r.amount,
-        is_active: r.is_active,
-        description: r.description,
-      }));
-      const { data, error } = await supabase
-        .from("monthly_salaries_config")
-        .insert(toInsert)
-        .select();
-      if (error) throw error;
-      return (data || []) as MonthlySalary[];
-    },
-    [year, month],
+  const { data: rawSalaries } = useQuery<{
+    id: string;
+    year: number;
+    month: number;
+    name: string;
+    amount: number;
+    is_active: number;
+    description: string | null;
+  }>(
+    "SELECT id, year, month, name, amount, is_active, description FROM monthly_salaries_config WHERE year = ? AND month = ? ORDER BY name",
+    [year, month]
   );
 
-  // ── Fetch (with auto-seed from previous month) ────────────────────────────
+  const expenses: MonthlyExpense[] = (rawExpenses ?? []).map((e) => ({
+    ...e,
+    is_active: !!e.is_active,
+  }));
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
-      // Fetch expenses for this month
-      const { data: expData, error: expError } = await supabase
-        .from("monthly_expenses_config")
-        .select("*")
-        .eq("year", year)
-        .eq("month", month)
-        .order("name", { ascending: true });
+  const salaries: MonthlySalary[] = (rawSalaries ?? []).map((s) => ({
+    ...s,
+    is_active: !!s.is_active,
+  }));
 
-      if (expError) throw expError;
+  const loading = rawExpenses === undefined || rawSalaries === undefined;
 
-      // Fetch salaries for this month
-      const { data: salData, error: salError } = await supabase
-        .from("monthly_salaries_config")
-        .select("*")
-        .eq("year", year)
-        .eq("month", month)
-        .order("name", { ascending: true });
-
-      if (salError) throw salError;
-
-      let finalExpenses = (expData || []) as MonthlyExpense[];
-      let finalSalaries = (salData || []) as MonthlySalary[];
-
-      // If no data for this month, seed from previous months or base tables
-      const needsSeedExpenses = finalExpenses.length === 0;
-      const needsSeedSalaries = finalSalaries.length === 0;
-
-      if (needsSeedExpenses || needsSeedSalaries) {
-        setSeeding(true);
-
-        // Buscar los últimos 6 meses en una sola query batch en vez de loop N+1
-        const prevMonthsList: { year: number; month: number }[] = [];
-        let py = year;
-        let pm = month;
-        for (let i = 0; i < 6; i++) {
-          const p = prevMonth(py, pm);
-          py = p.year;
-          pm = p.month;
-          prevMonthsList.push({ year: py, month: pm });
-        }
-
-        const expenseLockKey = `${year}-${month}-expenses`;
-        const salaryLockKey = `${year}-${month}-salaries`;
-
-        // Seeding expenses
-        if (needsSeedExpenses && !seedingLocks.has(expenseLockKey)) {
-          seedingLocks.add(expenseLockKey);
-          try {
-            // Count query check
-            const { count, error: countError } = await supabase
-              .from("monthly_expenses_config")
-              .select("*", { count: "exact", head: true })
-              .eq("year", year)
-              .eq("month", month);
-
-            if (!countError && (count === null || count === 0)) {
-              // Query batch: trae expenses de hasta 6 meses anteriores de una vez
-              const { data: prevExpensesData } = await supabase
-                .from("monthly_expenses_config")
-                .select("*")
-                .in(
-                  "year",
-                  [...new Set(prevMonthsList.map((m) => m.year))]
-                )
-                .order("year", { ascending: false })
-                .order("month", { ascending: false });
-
-              let seeded = false;
-              if (prevExpensesData && prevExpensesData.length > 0) {
-                // Encontrar el mes más reciente con datos
-                for (const pm of prevMonthsList) {
-                  const monthData = prevExpensesData.filter(
-                    (e: any) => e.year === pm.year && e.month === pm.month
-                  );
-                  if (monthData.length > 0) {
-                    finalExpenses = await seedExpensesFromRows(monthData);
-                    seeded = true;
-                    break;
-                  }
-                }
-              }
-
-              // Si aún no hay datos, intentar desde las tablas base
-              if (!seeded) {
-                const { data } = await supabase
-                  .from("business_expenses")
-                  .select("name, amount, is_active, category, description")
-                  .order("name", { ascending: true });
-                if (data && data.length > 0) {
-                  const sourceExpenses = data.map((d: any) => ({
-                    ...d,
-                    id: "",
-                    year,
-                    month,
-                  }));
-                  finalExpenses = await seedExpensesFromRows(sourceExpenses);
-                }
-              }
-            } else {
-              // Ya fueron sembrados por otra petición, los leemos de la base de datos
-              const { data: refetched } = await supabase
-                .from("monthly_expenses_config")
-                .select("*")
-                .eq("year", year)
-                .eq("month", month)
-                .order("name", { ascending: true });
-              if (refetched) {
-                finalExpenses = refetched as MonthlyExpense[];
-              }
-            }
-          } catch (err) {
-            console.error("Error seeding expenses:", err);
-          } finally {
-            seedingLocks.delete(expenseLockKey);
-          }
-        } else if (needsSeedExpenses && seedingLocks.has(expenseLockKey)) {
-          // Si está bloqueado por otra petición, esperamos y consultamos de nuevo
-          await new Promise((resolve) => setTimeout(resolve, 500));
-          const { data: refetched } = await supabase
-            .from("monthly_expenses_config")
-            .select("*")
-            .eq("year", year)
-            .eq("month", month)
-            .order("name", { ascending: true });
-          if (refetched && refetched.length > 0) {
-            finalExpenses = refetched as MonthlyExpense[];
-          }
-        }
-
-        // Seeding salaries
-        if (needsSeedSalaries && !seedingLocks.has(salaryLockKey)) {
-          seedingLocks.add(salaryLockKey);
-          try {
-            // Count query check
-            const { count, error: countError } = await supabase
-              .from("monthly_salaries_config")
-              .select("*", { count: "exact", head: true })
-              .eq("year", year)
-              .eq("month", month);
-
-            if (!countError && (count === null || count === 0)) {
-              const { data: prevSalariesData } = await supabase
-                .from("monthly_salaries_config")
-                .select("*")
-                .in(
-                  "year",
-                  [...new Set(prevMonthsList.map((m) => m.year))]
-                )
-                .order("year", { ascending: false })
-                .order("month", { ascending: false });
-
-              let seeded = false;
-              if (prevSalariesData && prevSalariesData.length > 0) {
-                // Encontrar el mes más reciente con datos
-                for (const pm of prevMonthsList) {
-                  const monthData = prevSalariesData.filter(
-                    (s: any) => s.year === pm.year && s.month === pm.month
-                  );
-                  if (monthData.length > 0) {
-                    finalSalaries = await seedSalariesFromRows(monthData);
-                    seeded = true;
-                    break;
-                  }
-                }
-              }
-
-              // Si aún no hay datos, intentar desde las tablas base
-              if (!seeded) {
-                const { data } = await supabase
-                  .from("business_salaries")
-                  .select("name, amount, is_active, description")
-                  .order("name", { ascending: true });
-                if (data && data.length > 0) {
-                  const sourceSalaries = data.map((d: any) => ({
-                    ...d,
-                    id: "",
-                    year,
-                    month,
-                  }));
-                  finalSalaries = await seedSalariesFromRows(sourceSalaries);
-                }
-              }
-            } else {
-              // Ya fueron sembrados por otra petición, los leemos de la base de datos
-              const { data: refetched } = await supabase
-                .from("monthly_salaries_config")
-                .select("*")
-                .eq("year", year)
-                .eq("month", month)
-                .order("name", { ascending: true });
-              if (refetched) {
-                finalSalaries = refetched as MonthlySalary[];
-              }
-            }
-          } catch (err) {
-            console.error("Error seeding salaries:", err);
-          } finally {
-            seedingLocks.delete(salaryLockKey);
-          }
-        } else if (needsSeedSalaries && seedingLocks.has(salaryLockKey)) {
-          // Si está bloqueado por otra petición, esperamos y consultamos de nuevo
-          await new Promise((resolve) => setTimeout(resolve, 500));
-          const { data: refetched } = await supabase
-            .from("monthly_salaries_config")
-            .select("*")
-            .eq("year", year)
-            .eq("month", month)
-            .order("name", { ascending: true });
-          if (refetched && refetched.length > 0) {
-            finalSalaries = refetched as MonthlySalary[];
-          }
-        }
-
-        setSeeding(false);
-      }
-
-      setExpenses(finalExpenses);
-      setSalaries(finalSalaries);
-    } catch (err) {
-      console.error("Error fetching monthly expenses:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [year, month, seedExpensesFromRows, seedSalariesFromRows]);
-
+  // Auto-seed from previous months or base tables
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    if (loading || seedDone) return;
+    if (expenses.length > 0 || salaries.length > 0) {
+      setSeedDone(true);
+      return;
+    }
 
-  // ── Expenses CRUD ─────────────────────────────────────────────────────────
+    const seedData = async () => {
+      const expLock = `${year}-${month}-expenses`;
+      const salLock = `${year}-${month}-salaries`;
+      if (seedingLocks.has(expLock) && seedingLocks.has(salLock)) return;
 
-  const toggleExpense = useCallback(
-    async (id: string) => {
-      const expense = expenses.find((e) => e.id === id);
-      if (!expense) return;
-      const newVal = !expense.is_active;
-      setExpenses((prev) =>
-        prev.map((e) => (e.id === id ? { ...e, is_active: newVal } : e)),
-      );
-      const { error } = await supabase
-        .from("monthly_expenses_config")
-        .update({ is_active: newVal, updated_at: new Date().toISOString() })
-        .eq("id", id);
-      if (error) {
-        console.error("Error toggling expense:", error);
-        setExpenses((prev) =>
-          prev.map((e) => (e.id === id ? { ...e, is_active: !newVal } : e)),
-        );
+      setSeeding(true);
+
+      const prevMonths: { year: number; month: number }[] = [];
+      let py = year, pm = month;
+      for (let i = 0; i < 6; i++) {
+        const p = prevMonth(py, pm);
+        py = p.year;
+        pm = p.month;
+        prevMonths.push({ year: py, month: pm });
       }
-    },
-    [expenses],
-  );
 
-  const updateExpense = useCallback(
-    async (
-      id: string,
-      updates: {
-        name: string;
-        amount: number;
-        description?: string;
-        category?: string;
-      },
-    ) => {
-      const { error } = await supabase
-        .from("monthly_expenses_config")
-        .update({
-          name: updates.name,
-          amount: updates.amount,
-          description: updates.description || null,
-          category: updates.category || null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", id);
-      if (error) {
-        console.error("Error updating expense:", error);
-        return;
-      }
-      setExpenses((prev) =>
-        prev.map((e) =>
-          e.id === id
-            ? {
-                ...e,
-                name: updates.name,
-                amount: updates.amount,
-                description: updates.description || null,
-                category: updates.category || null,
+      // Seed expenses
+      if (!seedingLocks.has(expLock)) {
+        seedingLocks.add(expLock);
+        try {
+          let seeded = false;
+          for (const pm of prevMonths) {
+            const prev = await db.getAll<{ name: string; amount: number; is_active: number; category: string | null; description: string | null }>(
+              "SELECT name, amount, is_active, category, description FROM monthly_expenses_config WHERE year = ? AND month = ?",
+              [pm.year, pm.month]
+            );
+            if (prev.length > 0) {
+              for (const r of prev) {
+                await db.execute(
+                  "INSERT INTO monthly_expenses_config (id, year, month, name, amount, is_active, category, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                  [crypto.randomUUID(), year, month, r.name, r.amount, r.is_active, r.category, r.description, new Date().toISOString(), new Date().toISOString()]
+                );
               }
-            : e,
-        ),
-      );
-    },
-    [],
-  );
-
-  const addExpense = useCallback(
-    async (expense: {
-      name: string;
-      amount: number;
-      description?: string;
-      category?: string;
-    }) => {
-      const { data, error } = await supabase
-        .from("monthly_expenses_config")
-        .insert({
-          year,
-          month,
-          name: expense.name,
-          amount: expense.amount,
-          description: expense.description || null,
-          category: expense.category || null,
-          is_active: true,
-        })
-        .select()
-        .single();
-      if (error) {
-        console.error("Error adding expense:", error);
-        return;
+              seeded = true;
+              break;
+            }
+          }
+          if (!seeded) {
+            const base = await db.getAll<{ name: string; amount: number; is_active: number; category: string | null; description: string | null }>(
+              "SELECT name, amount, is_active, category, description FROM business_expenses ORDER BY name"
+            );
+            for (const r of base) {
+              await db.execute(
+                "INSERT INTO monthly_expenses_config (id, year, month, name, amount, is_active, category, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                [crypto.randomUUID(), year, month, r.name, r.amount, r.is_active, r.category, r.description, new Date().toISOString(), new Date().toISOString()]
+              );
+            }
+          }
+        } finally {
+          seedingLocks.delete(expLock);
+        }
       }
-      setExpenses((prev) => [...prev, data as MonthlyExpense]);
-    },
-    [year, month],
-  );
+
+      // Seed salaries
+      if (!seedingLocks.has(salLock)) {
+        seedingLocks.add(salLock);
+        try {
+          let seeded = false;
+          for (const pm of prevMonths) {
+            const prev = await db.getAll<{ name: string; amount: number; is_active: number; description: string | null }>(
+              "SELECT name, amount, is_active, description FROM monthly_salaries_config WHERE year = ? AND month = ?",
+              [pm.year, pm.month]
+            );
+            if (prev.length > 0) {
+              for (const r of prev) {
+                await db.execute(
+                  "INSERT INTO monthly_salaries_config (id, year, month, name, amount, is_active, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                  [crypto.randomUUID(), year, month, r.name, r.amount, r.is_active, r.description, new Date().toISOString(), new Date().toISOString()]
+                );
+              }
+              seeded = true;
+              break;
+            }
+          }
+          if (!seeded) {
+            const base = await db.getAll<{ name: string; amount: number; is_active: number; description: string | null }>(
+              "SELECT name, amount, is_active, description FROM business_salaries ORDER BY name"
+            );
+            for (const r of base) {
+              await db.execute(
+                "INSERT INTO monthly_salaries_config (id, year, month, name, amount, is_active, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                [crypto.randomUUID(), year, month, r.name, r.amount, r.is_active, r.description, new Date().toISOString(), new Date().toISOString()]
+              );
+            }
+          }
+        } finally {
+          seedingLocks.delete(salLock);
+        }
+      }
+
+      setSeedDone(true);
+      setSeeding(false);
+    };
+
+    seedData();
+  }, [loading, seedDone, expenses.length, salaries.length, year, month, db]);
+
+  // Reset seed state when month changes
+  useEffect(() => {
+    setSeedDone(false);
+  }, [year, month]);
+
+  // CRUD operations
+  const toggleExpense = useCallback(async (id: string) => {
+    const expense = expenses.find((e) => e.id === id);
+    if (!expense) return;
+    await db.execute(
+      "UPDATE monthly_expenses_config SET is_active = ?, updated_at = ? WHERE id = ?",
+      [expense.is_active ? 0 : 1, new Date().toISOString(), id]
+    );
+  }, [expenses, db]);
+
+  const updateExpense = useCallback(async (
+    id: string,
+    updates: { name: string; amount: number; description?: string; category?: string }
+  ) => {
+    await db.execute(
+      "UPDATE monthly_expenses_config SET name = ?, amount = ?, description = ?, category = ?, updated_at = ? WHERE id = ?",
+      [updates.name, updates.amount, updates.description || null, updates.category || null, new Date().toISOString(), id]
+    );
+  }, [db]);
+
+  const addExpense = useCallback(async (expense: {
+    name: string;
+    amount: number;
+    description?: string;
+    category?: string;
+  }) => {
+    await db.execute(
+      "INSERT INTO monthly_expenses_config (id, year, month, name, amount, is_active, category, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?)",
+      [crypto.randomUUID(), year, month, expense.name, expense.amount, expense.category || null, expense.description || null, new Date().toISOString(), new Date().toISOString()]
+    );
+  }, [year, month, db]);
 
   const deleteExpense = useCallback(async (id: string) => {
-    const { error } = await supabase
-      .from("monthly_expenses_config")
-      .delete()
-      .eq("id", id);
-    if (error) {
-      console.error("Error deleting expense:", error);
-      return;
-    }
-    setExpenses((prev) => prev.filter((e) => e.id !== id));
-  }, []);
+    await db.execute("DELETE FROM monthly_expenses_config WHERE id = ?", [id]);
+  }, [db]);
 
-  // ── Salaries CRUD ─────────────────────────────────────────────────────────
+  const toggleSalary = useCallback(async (id: string) => {
+    const salary = salaries.find((s) => s.id === id);
+    if (!salary) return;
+    await db.execute(
+      "UPDATE monthly_salaries_config SET is_active = ?, updated_at = ? WHERE id = ?",
+      [salary.is_active ? 0 : 1, new Date().toISOString(), id]
+    );
+  }, [salaries, db]);
 
-  const toggleSalary = useCallback(
-    async (id: string) => {
-      const salary = salaries.find((s) => s.id === id);
-      if (!salary) return;
-      const newVal = !salary.is_active;
-      setSalaries((prev) =>
-        prev.map((s) => (s.id === id ? { ...s, is_active: newVal } : s)),
-      );
-      const { error } = await supabase
-        .from("monthly_salaries_config")
-        .update({ is_active: newVal, updated_at: new Date().toISOString() })
-        .eq("id", id);
-      if (error) {
-        console.error("Error toggling salary:", error);
-        setSalaries((prev) =>
-          prev.map((s) => (s.id === id ? { ...s, is_active: !newVal } : s)),
-        );
-      }
-    },
-    [salaries],
-  );
+  const updateSalary = useCallback(async (
+    id: string,
+    updates: { name: string; amount: number; description?: string }
+  ) => {
+    await db.execute(
+      "UPDATE monthly_salaries_config SET name = ?, amount = ?, description = ?, updated_at = ? WHERE id = ?",
+      [updates.name, updates.amount, updates.description || null, new Date().toISOString(), id]
+    );
+  }, [db]);
 
-  const updateSalary = useCallback(
-    async (
-      id: string,
-      updates: { name: string; amount: number; description?: string },
-    ) => {
-      const { error } = await supabase
-        .from("monthly_salaries_config")
-        .update({
-          name: updates.name,
-          amount: updates.amount,
-          description: updates.description || null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", id);
-      if (error) {
-        console.error("Error updating salary:", error);
-        return;
-      }
-      setSalaries((prev) =>
-        prev.map((s) =>
-          s.id === id
-            ? {
-                ...s,
-                name: updates.name,
-                amount: updates.amount,
-                description: updates.description || null,
-              }
-            : s,
-        ),
-      );
-    },
-    [],
-  );
-
-  const addSalary = useCallback(
-    async (salary: { name: string; amount: number; description?: string }) => {
-      const { data, error } = await supabase
-        .from("monthly_salaries_config")
-        .insert({
-          year,
-          month,
-          name: salary.name,
-          amount: salary.amount,
-          description: salary.description || null,
-          is_active: true,
-        })
-        .select()
-        .single();
-      if (error) {
-        console.error("Error adding salary:", error);
-        return;
-      }
-      setSalaries((prev) => [...prev, data as MonthlySalary]);
-    },
-    [year, month],
-  );
+  const addSalary = useCallback(async (salary: { name: string; amount: number; description?: string }) => {
+    await db.execute(
+      "INSERT INTO monthly_salaries_config (id, year, month, name, amount, is_active, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?)",
+      [crypto.randomUUID(), year, month, salary.name, salary.amount, salary.description || null, new Date().toISOString(), new Date().toISOString()]
+    );
+  }, [year, month, db]);
 
   const deleteSalary = useCallback(async (id: string) => {
-    const { error } = await supabase
-      .from("monthly_salaries_config")
-      .delete()
-      .eq("id", id);
-    if (error) {
-      console.error("Error deleting salary:", error);
-      return;
-    }
-    setSalaries((prev) => prev.filter((s) => s.id !== id));
-  }, []);
+    await db.execute("DELETE FROM monthly_salaries_config WHERE id = ?", [id]);
+  }, [db]);
 
   return {
     expenses,

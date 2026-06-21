@@ -1,8 +1,5 @@
-import { create } from "zustand";
-import { supabase } from "@/lib/supabase";
-import { CACHE_DURATION } from "./store-constants";
+import { useQuery, usePowerSync } from "@powersync/react";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
 export interface SystemUser {
   id: string;
   username: string;
@@ -11,204 +8,104 @@ export interface SystemUser {
   is_active: boolean;
 }
 
-// ─── Store ────────────────────────────────────────────────────────────────────
-interface SystemUsersState {
-  usuarios: SystemUser[];
-  usuariosLoading: boolean;
-  usuariosLastFetched: number | null;
-
-  fetchUsuarios: () => Promise<void>;
-  toggleUserActive: (userId: string) => Promise<void>;
-  toggleUserAdmin: (userId: string) => Promise<void>;
-  updateUser: (userId: string, updates: { username: string; email: string }) => Promise<void>;
-  addUser: (user: { username: string; email: string; password: string }) => Promise<{
+export function useSystemUsersStore() {
+  const db = usePowerSync();
+  const { data: rawUsuarios, isLoading: usuariosLoading } = useQuery<{
     id: string;
     username: string;
     email: string;
-    is_admin: boolean;
-    is_active: boolean;
-    canLogin?: boolean;
-  }>;
-  deleteUser: (userId: string) => Promise<void>;
-  generatePassword: (userId: string) => Promise<string>;
-  invalidateUsuarios: () => void;
-}
+    is_admin: number;
+    is_active: number;
+  }>("SELECT id, username, email, is_admin, is_active FROM system_users ORDER BY username");
 
-export const useSystemUsersStore = create<SystemUsersState>((set, get) => ({
-  usuarios: [],
-  usuariosLoading: false,
-  usuariosLastFetched: null,
+  const usuarios: SystemUser[] = (rawUsuarios ?? []).map((u) => ({
+    id: u.id,
+    username: u.username,
+    email: u.email,
+    is_admin: !!u.is_admin,
+    is_active: !!u.is_active,
+  }));
 
-  fetchUsuarios: async () => {
-    const state = get();
-    const now = Date.now();
-
-    if (state.usuariosLastFetched && now - state.usuariosLastFetched < CACHE_DURATION) {
-      return;
-    }
-    if (state.usuariosLoading) return;
-
-    set({ usuariosLoading: true });
-
-    try {
-      const { data, error } = await supabase
-        .from("system_users")
-        .select("id, username, email, is_admin, is_active")
-        .order("username", { ascending: true });
-
-      if (error) throw error;
-
-      set({
-        usuarios: (data || []).map((u: any) => ({
-          id: u.id,
-          username: u.username,
-          email: u.email,
-          is_admin: u.is_admin,
-          is_active: u.is_active,
-        })),
-        usuariosLastFetched: Date.now(),
-        usuariosLoading: false,
-      });
-    } catch (error) {
-      console.error("Error fetching users:", error);
-      set({ usuariosLoading: false });
-    }
-  },
-
-  toggleUserActive: async (userId) => {
-    const state = get();
-    const user = state.usuarios.find((u) => u.id === userId);
+  const toggleUserActive = async (userId: string) => {
+    const user = usuarios.find((u) => u.id === userId);
     if (!user) return;
+    await db.execute("UPDATE system_users SET is_active = ? WHERE id = ?", [
+      user.is_active ? 0 : 1,
+      userId,
+    ]);
+  };
 
-    try {
-      const { error } = await supabase
-        .from("system_users")
-        .update({ is_active: !user.is_active })
-        .eq("id", userId);
-
-      if (error) throw error;
-
-      set({ usuarios: state.usuarios.map((u) => u.id === userId ? { ...u, is_active: !u.is_active } : u) });
-    } catch (error) {
-      console.error("Error toggling user active:", error);
-    }
-  },
-
-  toggleUserAdmin: async (userId) => {
-    const state = get();
-    const user = state.usuarios.find((u) => u.id === userId);
+  const toggleUserAdmin = async (userId: string) => {
+    const user = usuarios.find((u) => u.id === userId);
     if (!user) return;
+    await db.execute("UPDATE system_users SET is_admin = ? WHERE id = ?", [
+      user.is_admin ? 0 : 1,
+      userId,
+    ]);
+  };
 
-    try {
-      const { error } = await supabase
-        .from("system_users")
-        .update({ is_admin: !user.is_admin })
-        .eq("id", userId);
+  const updateUser = async (userId: string, updates: { username: string; email: string }) => {
+    await db.execute("UPDATE system_users SET username = ?, email = ? WHERE id = ?", [
+      updates.username,
+      updates.email,
+      userId,
+    ]);
+  };
 
-      if (error) throw error;
+  const addUser = async (user: { username: string; email: string; password: string }) => {
+    const response = await fetch("/api/users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username: user.username,
+        email: user.email,
+        password: user.password,
+        isAdmin: false,
+      }),
+    });
 
-      set({ usuarios: state.usuarios.map((u) => u.id === userId ? { ...u, is_admin: !u.is_admin } : u) });
-    } catch (error) {
-      console.error("Error toggling user admin:", error);
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || "Error al crear el usuario");
     }
-  },
 
-  updateUser: async (userId, updates) => {
-    try {
-      const { error } = await supabase
-        .from("system_users")
-        .update(updates)
-        .eq("id", userId);
+    return await response.json();
+  };
 
-      if (error) throw error;
+  const deleteUser = async (userId: string) => {
+    await db.execute("DELETE FROM system_users WHERE id = ?", [userId]);
+  };
 
-      const state = get();
-      set({ usuarios: state.usuarios.map((u) => u.id === userId ? { ...u, ...updates } : u) });
-    } catch (error) {
-      console.error("Error updating user:", error);
-    }
-  },
-
-  addUser: async (user) => {
-    try {
-      const response = await fetch("/api/users", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username: user.username,
-          email: user.email,
-          password: user.password,
-          isAdmin: false,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Error al crear el usuario");
-      }
-
-      const data = await response.json();
-
-      const state = get();
-      set({
-        usuarios: [
-          ...state.usuarios,
-          {
-            id: data.id,
-            username: data.username,
-            email: data.email,
-            is_admin: data.is_admin ?? false,
-            is_active: data.is_active ?? true,
-          },
-        ],
-      });
-      return data;
-    } catch (error) {
-      console.error("Error adding user:", error);
-      throw error;
-    }
-  },
-
-  deleteUser: async (userId) => {
-    try {
-      const { error } = await supabase
-        .from("system_users")
-        .delete()
-        .eq("id", userId);
-
-      if (error) throw error;
-
-      const state = get();
-      set({ usuarios: state.usuarios.filter((u) => u.id !== userId) });
-    } catch (error) {
-      console.error("Error deleting user:", error);
-    }
-  },
-
-  generatePassword: async (userId) => {
+  const generatePassword = async (userId: string) => {
     const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%";
     const array = new Uint32Array(12);
     crypto.getRandomValues(array);
     const password = Array.from(array, (x) => chars[x % chars.length]).join("");
 
-    try {
-      const response = await fetch("/api/users", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, newPassword: password }),
-      });
+    const response = await fetch("/api/users", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, newPassword: password }),
+    });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Error al actualizar la contraseña");
-      }
-
-      return password;
-    } catch (error) {
-      console.error("Error generating password:", error);
-      throw error;
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || "Error al actualizar la contrasena");
     }
-  },
 
-  invalidateUsuarios: () => set({ usuariosLastFetched: null }),
-}));
+    return password;
+  };
+
+  return {
+    usuarios,
+    usuariosLoading,
+    fetchUsuarios: async () => {},
+    toggleUserActive,
+    toggleUserAdmin,
+    updateUser,
+    addUser,
+    deleteUser,
+    generatePassword,
+    invalidateUsuarios: () => {},
+  };
+}

@@ -2,6 +2,7 @@
 // ⚠️ Queries y payloads EXACTOS del código original (useTrainingPlans.ts)
 
 import { useState, useEffect } from "react";
+import { usePowerSync } from "@powersync/react";
 import { supabase } from "@/lib/supabase";
 import { TrainingPlanSummary, TrainingPlan } from "@/lib/types/plans";
 import { toast } from "sonner";
@@ -38,8 +39,9 @@ interface SavePlanData {
 }
 
 export function useTrainingPlans() {
+  const db = usePowerSync();
   const [professorId, setProfessorId] = useState<string | null>(null);
-  const { 
+  const {
     plans, 
     plansLoading, 
     fetchPlans, 
@@ -63,9 +65,7 @@ export function useTrainingPlans() {
     getUser();
   }, [fetchPlans]);
 
-  // SAVE PLAN - Usa RPC atómica 'crear_plan_entrenamiento_completo'
-  // TODO (producción): Aplicar la migración supabase/migrations/20260523_atomic_training_plan_rpcs.sql
-  //                    antes de desplegar para que la RPC exista en la base de datos.
+  // SAVE PLAN - Local inserts via PowerSync (syncs automatically)
   const savePlan = async (
     planData: SavePlanData,
     existingPlanId?: string,
@@ -85,10 +85,73 @@ export function useTrainingPlans() {
       );
       const totalWeeks = Math.ceil(daysDiff / 7);
 
-      // Construir el payload para la RPC atómica.
-      // Los días llevan un 'temp_id' (el id temporal del cliente) que los ejercicios
-      // referencian en 'temp_day_id' para que la función Postgres construya el mapping.
-      const rpcPayload = {
+      const planId = crypto.randomUUID();
+      const now = new Date().toISOString();
+
+      // 1. Insert the plan
+      await db.execute(
+        `INSERT INTO training_plans (id, coach_id, title, description, start_date, end_date, total_days, days_per_week, total_weeks, plan_type, difficulty_level, is_template, is_archived, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          planId,
+          professorId,
+          planData.title,
+          planData.description || null,
+          formatLocalDate(planData.startDate),
+          formatLocalDate(planData.endDate),
+          totalDays,
+          daysPerWeek,
+          totalWeeks,
+          planData.isTemplate ? "template" : "custom",
+          null,
+          planData.isTemplate ? 1 : 0,
+          0,
+          now,
+        ]
+      );
+
+      // 2. Insert days and build temp_id -> real_id map
+      const dayIdMap = new Map<string, string>();
+      for (let i = 0; i < planData.days.length; i++) {
+        const day = planData.days[i];
+        const dayId = crypto.randomUUID();
+        dayIdMap.set(day.id, dayId);
+        await db.execute(
+          `INSERT INTO training_plan_days (id, plan_id, day_number, day_name, display_order)
+           VALUES (?, ?, ?, ?, ?)`,
+          [dayId, planId, day.number, day.name, i]
+        );
+      }
+
+      // 3. Insert exercises
+      for (const ex of planData.exercises) {
+        const realDayId = dayIdMap.get(ex.day_id);
+        if (!realDayId) continue;
+        await db.execute(
+          `INSERT INTO training_plan_exercises (id, day_id, stage_id, stage_name, exercise_name, video_url, series, reps, carga, pause, notes, coach_instructions, display_order, write_weight)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            crypto.randomUUID(),
+            realDayId,
+            ex.stage_id || null,
+            ex.stage_name,
+            ex.exercise_name,
+            ex.video_url || null,
+            ex.series,
+            ex.reps,
+            ex.carga || "-",
+            ex.pause,
+            ex.notes || null,
+            null,
+            0,
+            ex.write_weight ? 1 : 0,
+          ]
+        );
+      }
+
+      // Add to UI immediately (optimistic update)
+      optimisticAddPlan({
+        id: planId,
         coach_id: professorId,
         title: planData.title,
         description: planData.description || null,
@@ -100,54 +163,8 @@ export function useTrainingPlans() {
         plan_type: planData.isTemplate ? "template" : "custom",
         difficulty_level: null,
         is_template: planData.isTemplate,
-        days: planData.days.map((day, index) => ({
-          temp_id: day.id,         // ID temporal del cliente
-          day_number: day.number,
-          day_name: day.name,
-          display_order: index,
-        })),
-        exercises: planData.exercises
-          .map((ex) => ({
-            temp_day_id: ex.day_id,  // Referencia al temp_id del día
-            stage_id: ex.stage_id || null,
-            stage_name: ex.stage_name,
-            exercise_name: ex.exercise_name,
-            video_url: ex.video_url || null,
-            series: ex.series,
-            reps: ex.reps,
-            carga: ex.carga || "-",
-            pause: ex.pause,
-            notes: ex.notes || null,
-            coach_instructions: null,
-            display_order: 0,
-            write_weight: ex.write_weight ?? false,
-          }))
-          .filter(Boolean),
-      };
-
-      // Llamada atómica: si cualquier INSERT falla, la transacción se revierte
-      const { data: insertedPlan, error: rpcError } = await supabase
-        .rpc("crear_plan_entrenamiento_completo", { plan_data: rpcPayload });
-
-      if (rpcError) throw rpcError;
-      if (!insertedPlan) throw new Error("La RPC no retornó datos del plan");
-
-      // Add to UI immediately (optimistic update)
-      optimisticAddPlan({
-        id: insertedPlan.id,
-        coach_id: insertedPlan.coach_id,
-        title: insertedPlan.title,
-        description: insertedPlan.description,
-        start_date: insertedPlan.start_date,
-        end_date: insertedPlan.end_date,
-        total_days: insertedPlan.total_days,
-        days_per_week: insertedPlan.days_per_week,
-        total_weeks: insertedPlan.total_weeks,
-        plan_type: insertedPlan.plan_type,
-        difficulty_level: insertedPlan.difficulty_level,
-        is_template: insertedPlan.is_template,
-        is_archived: insertedPlan.is_archived,
-        created_at: insertedPlan.created_at,
+        is_archived: false,
+        created_at: now,
         assignedCount: 0,
       });
 
@@ -155,7 +172,7 @@ export function useTrainingPlans() {
       invalidatePlans();
 
       toast.success("Plan guardado exitosamente");
-      return insertedPlan.id;
+      return planId;
     } catch (error) {
       console.error("Error saving plan:", error);
       toast.error("Error al guardar el plan");
@@ -194,9 +211,7 @@ export function useTrainingPlans() {
     }
   };
 
-  // DUPLICATE PLAN - Usa RPC atómica 'duplicar_plan_entrenamiento' con optimistic update
-  // TODO (producción): Aplicar la migración supabase/migrations/20260523_atomic_training_plan_rpcs.sql
-  //                    antes de desplegar para que la RPC exista en la base de datos.
+  // DUPLICATE PLAN - Local read + inserts via PowerSync
   const duplicatePlan = async (planId: string): Promise<string | null> => {
     if (!professorId) {
       toast.error("Usuario no autenticado");
@@ -204,67 +219,97 @@ export function useTrainingPlans() {
     }
 
     try {
-      // Fetch original plan for optimistic update
-      const originalPlan = plans.find(p => p.id === planId);
-      if (!originalPlan) throw new Error("Plan no encontrado en cache");
+      // 1. Read the original plan locally
+      const originalPlans = await db.getAll<{
+        id: string; coach_id: string; title: string; description: string | null;
+        start_date: string; end_date: string; total_days: number; days_per_week: number;
+        total_weeks: number; plan_type: string; difficulty_level: string | null;
+        is_template: number; is_archived: number; created_at: string;
+      }>("SELECT * FROM training_plans WHERE id = ?", [planId]);
 
-      // Create optimistic plan with temporary ID
-      const tempId = `temp-${Date.now()}`;
-      const optimisticPlan: TrainingPlanSummary = {
-        ...originalPlan,
-        id: tempId,
-        title: `${originalPlan.title} (Copia)`,
-        created_at: new Date().toISOString(),
-        assignedCount: 0,
-      };
+      if (!originalPlans.length) throw new Error("Plan no encontrado");
+      const original = originalPlans[0];
 
-      // Add to UI immediately
-      optimisticAddPlan(optimisticPlan);
+      const newPlanId = crypto.randomUUID();
+      const now = new Date().toISOString();
 
-      // Llamada atómica: duplica plan + días + ejercicios en una sola transacción
-      const { data: newPlan, error: rpcError } = await supabase
-        .rpc("duplicar_plan_entrenamiento", {
-          p_plan_id: planId,
-          p_coach_id: professorId,
-        });
+      // 2. Insert new plan
+      await db.execute(
+        `INSERT INTO training_plans (id, coach_id, title, description, start_date, end_date, total_days, days_per_week, total_weeks, plan_type, difficulty_level, is_template, is_archived, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          newPlanId, professorId, `${original.title} (Copia)`, original.description,
+          original.start_date, original.end_date, original.total_days, original.days_per_week,
+          original.total_weeks, original.plan_type, original.difficulty_level,
+          original.is_template, 0, now,
+        ]
+      );
 
-      if (rpcError) throw rpcError;
-      if (!newPlan) throw new Error("La RPC no retornó el plan duplicado");
+      // 3. Read and copy days
+      const originalDays = await db.getAll<{
+        id: string; day_number: number; day_name: string; display_order: number;
+      }>("SELECT * FROM training_plan_days WHERE plan_id = ? ORDER BY display_order", [planId]);
 
-      // Replace optimistic plan with real one
-      optimisticDeletePlan(tempId);
+      for (const day of originalDays) {
+        const newDayId = crypto.randomUUID();
+        await db.execute(
+          `INSERT INTO training_plan_days (id, plan_id, day_number, day_name, display_order)
+           VALUES (?, ?, ?, ?, ?)`,
+          [newDayId, newPlanId, day.day_number, day.day_name, day.display_order]
+        );
+
+        // 4. Read and copy exercises for each day
+        const dayExercises = await db.getAll<{
+          stage_id: string | null; stage_name: string | null; exercise_name: string;
+          video_url: string | null; series: number; reps: string; carga: string;
+          pause: string; notes: string | null; coach_instructions: string | null;
+          display_order: number; write_weight: number;
+        }>("SELECT * FROM training_plan_exercises WHERE day_id = ? ORDER BY display_order", [day.id]);
+
+        for (const ex of dayExercises) {
+          await db.execute(
+            `INSERT INTO training_plan_exercises (id, day_id, stage_id, stage_name, exercise_name, video_url, series, reps, carga, pause, notes, coach_instructions, display_order, write_weight)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              crypto.randomUUID(), newDayId, ex.stage_id, ex.stage_name,
+              ex.exercise_name, ex.video_url, ex.series, ex.reps, ex.carga,
+              ex.pause, ex.notes, ex.coach_instructions, ex.display_order, ex.write_weight,
+            ]
+          );
+        }
+      }
+
+      // Optimistic UI update
       optimisticAddPlan({
-        id: newPlan.id,
-        coach_id: newPlan.coach_id,
-        title: newPlan.title,
-        description: newPlan.description,
-        start_date: newPlan.start_date,
-        end_date: newPlan.end_date,
-        total_days: newPlan.total_days,
-        days_per_week: newPlan.days_per_week,
-        total_weeks: newPlan.total_weeks,
-        plan_type: newPlan.plan_type,
-        difficulty_level: newPlan.difficulty_level,
-        is_template: newPlan.is_template,
-        is_archived: newPlan.is_archived,
-        created_at: newPlan.created_at,
+        id: newPlanId,
+        coach_id: professorId,
+        title: `${original.title} (Copia)`,
+        description: original.description,
+        start_date: original.start_date,
+        end_date: original.end_date,
+        total_days: original.total_days,
+        days_per_week: original.days_per_week,
+        total_weeks: original.total_weeks,
+        plan_type: original.plan_type,
+        difficulty_level: original.difficulty_level,
+        is_template: !!original.is_template,
+        is_archived: false,
+        created_at: now,
         assignedCount: 0,
       });
 
-      // Invalidate cache for next fetch
       invalidatePlans();
-
       toast.success("Plan duplicado exitosamente");
-      return newPlan.id;
+      return newPlanId;
     } catch (error) {
       console.error("Error duplicating plan:", error);
       toast.error("Error al duplicar el plan");
-      
+
       // Rollback - refetch to restore state
       if (professorId) {
         await fetchPlans(professorId);
       }
-      
+
       return null;
     }
   };

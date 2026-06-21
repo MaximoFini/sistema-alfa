@@ -1,130 +1,58 @@
-import { create } from "zustand";
-import { supabase } from "@/lib/supabase";
-import { CACHE_DURATION } from "./store-constants";
+import { useQuery, usePowerSync } from "@powersync/react";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
 export interface PaymentMethod {
   id: string;
   nombre: string;
   activo: boolean;
 }
 
-// ─── Store ────────────────────────────────────────────────────────────────────
-interface PaymentMethodsState {
-  metodos: PaymentMethod[];
-  metodosLoading: boolean;
-  metodosLastFetched: number | null;
+export function usePaymentMethodsStore() {
+  const db = usePowerSync();
+  const { data: rawMetodos, isLoading: metodosLoading } = useQuery<{
+    id: string;
+    name: string;
+    is_active: number;
+  }>("SELECT id, name, is_active FROM payment_methods ORDER BY name");
 
-  fetchMetodos: () => Promise<void>;
-  toggleMetodo: (metodoId: string) => Promise<void>;
-  updateMetodo: (metodoId: string, nombre: string) => Promise<void>;
-  addMetodo: (nombre: string) => Promise<void>;
-  deleteMetodo: (metodoId: string) => Promise<void>;
-  invalidateMetodos: () => void;
-}
+  const metodos: PaymentMethod[] = (rawMetodos ?? []).map((m) => ({
+    id: m.id,
+    nombre: m.name,
+    activo: !!m.is_active,
+  }));
 
-export const usePaymentMethodsStore = create<PaymentMethodsState>((set, get) => ({
-  metodos: [],
-  metodosLoading: false,
-  metodosLastFetched: null,
-
-  fetchMetodos: async () => {
-    const state = get();
-    const now = Date.now();
-
-    if (state.metodosLastFetched && now - state.metodosLastFetched < CACHE_DURATION) {
-      return;
-    }
-    if (state.metodosLoading) return;
-
-    set({ metodosLoading: true });
-
-    try {
-      const { data, error } = await supabase
-        .from("payment_methods")
-        .select("*")
-        .order("name", { ascending: true });
-
-      if (error) throw error;
-
-      set({
-        metodos: (data || []).map((m: any) => ({ id: m.id, nombre: m.name, activo: m.is_active })),
-        metodosLastFetched: Date.now(),
-        metodosLoading: false,
-      });
-    } catch (error) {
-      console.error("Error fetching payment methods:", error);
-      set({ metodosLoading: false });
-    }
-  },
-
-  toggleMetodo: async (metodoId) => {
-    const state = get();
-    const metodo = state.metodos.find((m) => m.id === metodoId);
+  const toggleMetodo = async (metodoId: string) => {
+    const metodo = metodos.find((m) => m.id === metodoId);
     if (!metodo) return;
+    await db.execute("UPDATE payment_methods SET is_active = ? WHERE id = ?", [
+      metodo.activo ? 0 : 1,
+      metodoId,
+    ]);
+  };
 
-    try {
-      const { error } = await supabase
-        .from("payment_methods")
-        .update({ is_active: !metodo.activo })
-        .eq("id", metodoId);
+  const updateMetodo = async (metodoId: string, nombre: string) => {
+    await db.execute("UPDATE payment_methods SET name = ? WHERE id = ?", [nombre, metodoId]);
+  };
 
-      if (error) throw error;
+  const addMetodo = async (nombre: string) => {
+    const id = crypto.randomUUID();
+    await db.execute(
+      "INSERT INTO payment_methods (id, name, is_active) VALUES (?, ?, 1)",
+      [id, nombre]
+    );
+  };
 
-      set({ metodos: state.metodos.map((m) => m.id === metodoId ? { ...m, activo: !m.activo } : m) });
-    } catch (error) {
-      console.error("Error toggling payment method:", error);
-    }
-  },
+  const deleteMetodo = async (metodoId: string) => {
+    await db.execute("DELETE FROM payment_methods WHERE id = ?", [metodoId]);
+  };
 
-  updateMetodo: async (metodoId, nombre) => {
-    try {
-      const { error } = await supabase
-        .from("payment_methods")
-        .update({ name: nombre })
-        .eq("id", metodoId);
-
-      if (error) throw error;
-
-      const state = get();
-      set({ metodos: state.metodos.map((m) => m.id === metodoId ? { ...m, nombre } : m) });
-    } catch (error) {
-      console.error("Error updating payment method:", error);
-    }
-  },
-
-  addMetodo: async (nombre) => {
-    try {
-      const { data, error } = await supabase
-        .from("payment_methods")
-        .insert({ name: nombre, is_active: true })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      const state = get();
-      set({ metodos: [...state.metodos, { id: data.id, nombre: data.name, activo: data.is_active }] });
-    } catch (error) {
-      console.error("Error adding payment method:", error);
-    }
-  },
-
-  deleteMetodo: async (metodoId) => {
-    try {
-      const { error } = await supabase
-        .from("payment_methods")
-        .delete()
-        .eq("id", metodoId);
-
-      if (error) throw error;
-
-      const state = get();
-      set({ metodos: state.metodos.filter((m) => m.id !== metodoId) });
-    } catch (error) {
-      console.error("Error deleting payment method:", error);
-    }
-  },
-
-  invalidateMetodos: () => set({ metodosLastFetched: null }),
-}));
+  return {
+    metodos,
+    metodosLoading,
+    fetchMetodos: async () => {},
+    toggleMetodo,
+    updateMetodo,
+    addMetodo,
+    deleteMetodo,
+    invalidateMetodos: () => {},
+  };
+}

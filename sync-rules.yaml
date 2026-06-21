@@ -1,0 +1,31 @@
+bucket_definitions:
+  # Datos globales de referencia - todos los usuarios autenticados
+  global_data:
+    # Empty parameters query = global bucket (all authenticated users get it)
+    parameters: SELECT
+    data:
+      - SELECT * FROM exercise_categories
+      - SELECT * FROM exercises
+      - SELECT * FROM exercise_stages
+      - SELECT * FROM product_categories
+      - SELECT * FROM subscription_plans
+      - SELECT * FROM payment_methods
+      - SELECT * FROM accepted_cards
+      - SELECT * FROM system_settings
+      - SELECT * FROM profiles
+      - SELECT * FROM productos
+      - SELECT * FROM alumnos
+      - SELECT * FROM pagos
+      - SELECT * FROM ventas
+      - SELECT * FROM asistencias
+      - SELECT * FROM monthly_expenses_config
+      - SELECT * FROM monthly_salaries_config
+      - SELECT * FROM business_expenses
+      - SELECT * FROM business_salaries
+      - SELECT * FROM estadisticas_mensuales
+      - SELECT * FROM system_users
+      - SELECT * FROM training_plans
+      - SELECT * FROM training_plan_days
+      - SELECT * FROM training_plan_exercises
+      - SELECT * FROM training_plan_assignments
+      - SELECT * FROM comunicacion_mensajes

@@ -6,6 +6,18 @@ const nextConfig = {
   staticPageGenerationTimeout: 60,
   poweredByHeader: false,
   compress: true,
+  serverExternalPackages: ["whatsapp-web.js", "puppeteer"],
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+          { key: "Cross-Origin-Embedder-Policy", value: "require-corp" },
+        ],
+      },
+    ];
+  },
   productionBrowserSourceMaps: false,
   onDemandEntries: {
     maxInactiveAge: 60 * 1000, // 60s
@@ -15,7 +27,7 @@ const nextConfig = {
   reactStrictMode: true,
   turbopack: {},
   experimental: {
-    optimizePackageImports: ["@radix-ui/react-*", "date-fns", "lucide-react"],
+    optimizePackageImports: ["@radix-ui/react-*", "date-fns", "lucide-react", "@powersync/web", "@powersync/react"],
     staticGenerationRetryCount: 1,
     // Optimizar fonts
     optimizeCss: true,

@@ -9,3 +9,14 @@ node_modules/
 .env*.local
 .DS_Store
 .env
+
+# Agent work directories
+.claude/
+.agents/
+
+# Generated PowerSync assets
+public/@powersync/
+public/powersync/
+public/worker/
+
+

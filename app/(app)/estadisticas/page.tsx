@@ -2197,58 +2197,39 @@ export default function EstadisticasPage() {
     setRankingTopFem(femTop10);
   }, []);
 
-  const fetchRanking = useCallback(() => {
+  const fetchRanking = useCallback(async () => {
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
     const hoyYear = hoy.getFullYear();
     const hoyMonth = hoy.getMonth() + 1;
+    const startDate = `${hoyYear}-${String(hoyMonth).padStart(2, "0")}-01`;
+    const endDate = hoy.toISOString().split("T")[0];
 
-    import("@/lib/supabase").then(({ supabase }) => {
-      supabase
-        .rpc("get_ranking_asistencias_mes", {
-          p_year: hoyYear,
-          p_month: hoyMonth,
-          p_limit: 10,
-        })
-        .then(({ data: rankingData, error }) => {
-          if (error) {
-            // Fallback: query directa si la RPC no existe aún
-            supabase
-              .from("asistencias")
-              .select("alumno_id, alumnos!inner(nombre, genero)")
-              .gte("fecha", `${hoyYear}-${String(hoyMonth).padStart(2, "0")}-01`)
-              .lte("fecha", hoy.toISOString().split("T")[0])
-              .limit(2000)
-              .then(({ data: asistencias }) => {
-                if (!asistencias) return;
-                const conteo = new Map<string, { nombre: string; count: number; genero: string }>();
-                for (const a of asistencias as any[]) {
-                  const id = a.alumno_id;
-                  if (!id) continue;
-                  const nombre = a.alumnos?.nombre || alumnoNombreMapRef.current.get(id) || "Alumno";
-                  const genero = a.alumnos?.genero || "Masculino";
-                  const prev = conteo.get(id);
-                  conteo.set(id, { nombre, count: (prev?.count ?? 0) + 1, genero });
-                }
-                procesarRanking(conteo);
-              });
-            return;
-          }
-
-          if (!rankingData) return;
-
-          // Transformar resultado de RPC al formato esperado
-          const conteo = new Map<string, { nombre: string; count: number; genero: string }>();
-          for (const row of rankingData as any[]) {
-            conteo.set(row.alumno_id, {
-              nombre: row.nombre,
-              count: Number(row.total_clases),
-              genero: row.genero || "Masculino",
-            });
-          }
-          procesarRanking(conteo);
+    try {
+      const { getPowerSyncDatabase } = await import("@/lib/powersync");
+      const db = getPowerSyncDatabase();
+      const rows = await db.getAll<{ alumno_id: string; nombre: string; genero: string; total: number }>(
+        `SELECT a.alumno_id, al.nombre, al.genero, COUNT(*) as total
+         FROM asistencias a
+         JOIN alumnos al ON al.id = a.alumno_id
+         WHERE a.fecha >= ? AND a.fecha <= ?
+         GROUP BY a.alumno_id
+         ORDER BY total DESC
+         LIMIT 10`,
+        [startDate, endDate]
+      );
+      const conteo = new Map<string, { nombre: string; count: number; genero: string }>();
+      for (const row of rows) {
+        conteo.set(row.alumno_id, {
+          nombre: row.nombre || "Alumno",
+          count: Number(row.total),
+          genero: row.genero || "Masculino",
         });
-    });
+      }
+      procesarRanking(conteo);
+    } catch (err) {
+      console.error("Error fetching ranking:", err);
+    }
   }, [procesarRanking]);
 
   useEffect(() => {
@@ -2256,28 +2237,6 @@ export default function EstadisticasPage() {
     fetchSettings();
   }, [fetchSettings]);
 
-  // Suscripción realtime a asistencias
-  useEffect(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let channel: any;
-    import("@/lib/supabase").then(({ supabase }) => {
-      channel = supabase
-        .channel("ranking-asistencias")
-        .on(
-          "postgres_changes",
-          { event: "*", schema: "public", table: "asistencias" },
-          () => fetchRanking(),
-        )
-        .subscribe();
-    });
-    return () => {
-      if (channel) {
-        import("@/lib/supabase").then(({ supabase }) =>
-          supabase.removeChannel(channel!),
-        );
-      }
-    };
-  }, [fetchRanking]);
 
   // Helper de plazos claros para mostrar fechas exactas en cada métrica
   const dateRangeLabel = useMemo(() => {
@@ -2700,116 +2659,59 @@ export default function EstadisticasPage() {
         let computedRankingTopFem: any[] = [];
 
         try {
-          const { data: rankingData, error: rankingError } = await supabase
-            .rpc("get_ranking_asistencias_mes", {
-              p_year: hoyYear,
-              p_month: hoyMonth,
-              p_limit: 10,
-            });
+          const { getPowerSyncDatabase } = await import("@/lib/powersync");
+          const psDb = getPowerSyncDatabase();
+          const startDate = `${hoyYear}-${String(hoyMonth).padStart(2, "0")}-01`;
+          const rankingRows = await psDb.getAll<{ alumno_id: string; nombre: string; genero: string; total: number }>(
+            `SELECT a.alumno_id, al.nombre, al.genero, COUNT(*) as total
+             FROM asistencias a
+             JOIN alumnos al ON al.id = a.alumno_id
+             WHERE a.fecha >= ? AND a.fecha <= ?
+             GROUP BY a.alumno_id
+             ORDER BY total DESC
+             LIMIT 10`,
+            [startDate, hoyStr]
+          );
 
-          let finalRankingData = rankingData;
+          const allEntries = rankingRows.map(row => [row.alumno_id, {
+            nombre: row.nombre || "Alumno",
+            count: Number(row.total),
+            genero: row.genero || "Masculino",
+          }] as const);
 
-          if (rankingError || !rankingData) {
-            // Fallback: query directa si la RPC no existe aún o falla
-            const { data: fallbackAsistencias } = await supabase
-              .from("asistencias")
-              .select("alumno_id, alumnos!inner(nombre, genero)")
-              .gte("fecha", `${hoyYear}-${String(hoyMonth).padStart(2, "0")}-01`)
-              .lte("fecha", hoyStr)
-              .limit(2000);
+          computedRankingTop5 = allEntries
+            .slice(0, 10)
+            .map(([, { nombre, count, genero }], i) => ({
+              pos: i + 1,
+              nombre,
+              inicial: nombre.charAt(0).toUpperCase(),
+              clases: count,
+              genero,
+            }));
 
-            if (fallbackAsistencias) {
-              const conteo = new Map<string, { nombre: string; count: number; genero: string }>();
-              for (const a of fallbackAsistencias as any[]) {
-                const id = a.alumno_id;
-                if (!id) continue;
-                const nombre = a.alumnos?.nombre || alumnoNombreMap.get(id) || "Alumno";
-                const genero = a.alumnos?.genero || "Masculino";
-                const prev = conteo.get(id);
-                conteo.set(id, { nombre, count: (prev?.count ?? 0) + 1, genero });
-              }
-              const allEntries = [...conteo.entries()];
-              computedRankingTop5 = allEntries
-                .sort((a, b) => b[1].count - a[1].count)
-                .slice(0, 10)
-                .map(([, { nombre, count, genero }], i) => ({
-                  pos: i + 1,
-                  nombre,
-                  inicial: nombre.charAt(0).toUpperCase(),
-                  clases: count,
-                  genero,
-                }));
+          computedRankingTopMasc = allEntries
+            .filter(([, val]) => val.genero === "Masculino")
+            .sort((a, b) => b[1].count - a[1].count)
+            .slice(0, 10)
+            .map(([, { nombre, count, genero }], i) => ({
+              pos: i + 1,
+              nombre,
+              inicial: nombre.charAt(0).toUpperCase(),
+              clases: count,
+              genero,
+            }));
 
-              computedRankingTopMasc = allEntries
-                .filter(([, val]) => val.genero === "Masculino")
-                .sort((a, b) => b[1].count - a[1].count)
-                .slice(0, 10)
-                .map(([, { nombre, count, genero }], i) => ({
-                  pos: i + 1,
-                  nombre,
-                  inicial: nombre.charAt(0).toUpperCase(),
-                  clases: count,
-                  genero,
-                }));
-
-              computedRankingTopFem = allEntries
-                .filter(([, val]) => val.genero === "Femenino")
-                .sort((a, b) => b[1].count - a[1].count)
-                .slice(0, 10)
-                .map(([, { nombre, count, genero }], i) => ({
-                  pos: i + 1,
-                  nombre,
-                  inicial: nombre.charAt(0).toUpperCase(),
-                  clases: count,
-                  genero,
-                }));
-            }
-          } else {
-            // Transformar resultado de RPC
-            const conteo = new Map<string, { nombre: string; count: number; genero: string }>();
-            for (const row of finalRankingData as any[]) {
-              conteo.set(row.alumno_id, {
-                nombre: row.nombre,
-                count: Number(row.total_clases),
-                genero: row.genero || "Masculino",
-              });
-            }
-            const allEntries = [...conteo.entries()];
-            computedRankingTop5 = allEntries
-              .sort((a, b) => b[1].count - a[1].count)
-              .slice(0, 10)
-              .map(([, { nombre, count, genero }], i) => ({
-                pos: i + 1,
-                nombre,
-                inicial: nombre.charAt(0).toUpperCase(),
-                clases: count,
-                genero,
-              }));
-
-            computedRankingTopMasc = allEntries
-              .filter(([, val]) => val.genero === "Masculino")
-              .sort((a, b) => b[1].count - a[1].count)
-              .slice(0, 10)
-              .map(([, { nombre, count, genero }], i) => ({
-                pos: i + 1,
-                nombre,
-                inicial: nombre.charAt(0).toUpperCase(),
-                clases: count,
-                genero,
-              }));
-
-            computedRankingTopFem = allEntries
-              .filter(([, val]) => val.genero === "Femenino")
-              .sort((a, b) => b[1].count - a[1].count)
-              .slice(0, 10)
-              .map(([, { nombre, count, genero }], i) => ({
-                pos: i + 1,
-                nombre,
-                inicial: nombre.charAt(0).toUpperCase(),
-                clases: count,
-                genero,
-              }));
-          }
+          computedRankingTopFem = allEntries
+            .filter(([, val]) => val.genero === "Femenino")
+            .sort((a, b) => b[1].count - a[1].count)
+            .slice(0, 10)
+            .map(([, { nombre, count, genero }], i) => ({
+              pos: i + 1,
+              nombre,
+              inicial: nombre.charAt(0).toUpperCase(),
+              clases: count,
+              genero,
+            }));
         } catch (rankErr) {
           console.error("Error fetching ranking:", rankErr);
         }

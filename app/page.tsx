@@ -29,6 +29,13 @@ export default function LoginPage() {
     }, 10000); // 10 segundos
 
     try {
+      if (!email.trim() || !password) {
+        clearTimeout(loadingTimeout);
+        setErrorMsg("Ingresa tu correo y contraseña.");
+        setLoading(false);
+        return;
+      }
+
       triggerHapticFeedback(HapticPresets.light);
 
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -138,6 +145,7 @@ export default function LoginPage() {
                   placeholder="ejemplo@correo.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  required
                   className="flex-1 py-3 text-sm bg-transparent outline-none text-gray-800 placeholder:text-gray-400"
                 />
               </div>
@@ -163,6 +171,7 @@ export default function LoginPage() {
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  required
                   className="flex-1 py-3 text-sm bg-transparent outline-none text-gray-800 placeholder:text-gray-400"
                 />
                 <button

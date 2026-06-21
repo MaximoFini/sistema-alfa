@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { usePowerSync } from "@powersync/react";
 import { supabase } from "@/lib/supabase";
 import { useDataCacheStore } from "@/stores/data-cache-store";
 import { useStaticDataStore } from "@/stores/static-data-store";
@@ -115,6 +116,7 @@ function ProductoModal({
     return [{ talle: "S", stock: "0" }];
   };
 
+  const db = usePowerSync();
   const [form, setForm] = useState<ProductoFormData>({
     nombre: producto?.nombre || "",
     precio_venta: producto?.precio_venta.toString() || "",
@@ -223,14 +225,15 @@ function ProductoModal({
       };
 
       if (producto) {
-        const { error } = await supabase
-          .from("productos")
-          .update(data)
-          .eq("id", producto.id);
-        if (error) throw error;
+        await db.execute(
+          `UPDATE productos SET nombre = ?, precio_venta = ?, precio_costo = ?, stock = ?, stock_minimo = ?, categoria = ?, talles = ?, updated_at = ? WHERE id = ?`,
+          [data.nombre, data.precio_venta, data.precio_costo, data.stock, data.stock_minimo, data.categoria, data.talles ? JSON.stringify(data.talles) : null, data.updated_at, producto.id]
+        );
       } else {
-        const { error } = await supabase.from("productos").insert([data]);
-        if (error) throw error;
+        await db.execute(
+          `INSERT INTO productos (id, nombre, precio_venta, precio_costo, stock, stock_minimo, categoria, talles, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [crypto.randomUUID(), data.nombre, data.precio_venta, data.precio_costo, data.stock, data.stock_minimo, data.categoria, data.talles ? JSON.stringify(data.talles) : null, data.updated_at]
+        );
       }
 
       onSaved();
@@ -521,6 +524,7 @@ function VentaModal({
   onSaved: () => void;
   productoId?: string;
 }) {
+  const db = usePowerSync();
   const [form, setForm] = useState<VentaFormData>({
     producto_id: productoId || "",
     cantidad: "1",
@@ -534,14 +538,9 @@ function VentaModal({
   const [aliasTransferencia, setAliasTransferencia] = useState("");
 
   // Usar el store de caché para métodos de pago
-  const { paymentMethods, fetchPaymentMethods } = useDataCacheStore();
+  const { paymentMethods } = useDataCacheStore();
   // Usar el store de datos estáticos para las tarjetas
-  const { acceptedCards, fetchAcceptedCards } = useStaticDataStore();
-
-  useEffect(() => {
-    fetchPaymentMethods();
-    fetchAcceptedCards();
-  }, [fetchPaymentMethods, fetchAcceptedCards]);
+  const { acceptedCards } = useStaticDataStore();
 
   const productoSeleccionado = productos.find((p) => p.id === form.producto_id);
   const esIndumentaria = productoSeleccionado?.categoria === "Indumentaria";
@@ -637,10 +636,22 @@ function VentaModal({
         alias_transferencia: esTransferencia ? (aliasTransferencia.trim() || null) : null,
       };
 
-      const { error: ventaError } = await supabase
-        .from("ventas")
-        .insert([ventaData]);
-      if (ventaError) throw ventaError;
+      await db.execute(
+        `INSERT INTO ventas (id, producto_id, cantidad, precio_unitario, precio_costo_unitario, medio_pago, notas, talle_vendido, tarjeta, alias_transferencia)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          crypto.randomUUID(),
+          ventaData.producto_id,
+          ventaData.cantidad,
+          ventaData.precio_unitario,
+          ventaData.precio_costo_unitario,
+          ventaData.medio_pago,
+          ventaData.notas,
+          ventaData.talle_vendido,
+          ventaData.tarjeta,
+          ventaData.alias_transferencia,
+        ]
+      );
 
       // Actualizar stock
       if (esIndumentaria && productoSeleccionado.talles) {
@@ -652,25 +663,16 @@ function VentaModal({
           0,
         );
 
-        const { error: stockError } = await supabase
-          .from("productos")
-          .update({
-            talles: nuevosTalles,
-            stock: nuevoStockTotal,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", form.producto_id);
-        if (stockError) throw stockError;
+        await db.execute(
+          `UPDATE productos SET talles = ?, stock = ?, updated_at = ? WHERE id = ?`,
+          [JSON.stringify(nuevosTalles), nuevoStockTotal, new Date().toISOString(), form.producto_id]
+        );
       } else {
         const nuevoStock = productoSeleccionado.stock - cantidad;
-        const { error: stockError } = await supabase
-          .from("productos")
-          .update({
-            stock: nuevoStock,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", form.producto_id);
-        if (stockError) throw stockError;
+        await db.execute(
+          `UPDATE productos SET stock = ?, updated_at = ? WHERE id = ?`,
+          [nuevoStock, new Date().toISOString(), form.producto_id]
+        );
       }
 
       onSaved();
@@ -922,6 +924,7 @@ export default function ProductosVentasPage() {
   const [showVentaModal, setShowVentaModal] = useState(false);
   const [ventaProductoId, setVentaProductoId] = useState<string | undefined>();
   const [productoEdit, setProductoEdit] = useState<Producto | undefined>();
+  const db = usePowerSync();
   const [searchTerm, setSearchTerm] = useState("");
   const [categories, setCategories] = useState<{ id: string; name: string; color?: string }[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
@@ -977,21 +980,12 @@ export default function ProductosVentasPage() {
         optimisticUpdateProducto(id, { activo: false });
       }
 
-      const { error } = await supabase
-        .from("productos")
-        .update({ activo: false, updated_at: new Date().toISOString() })
-        .eq("id", id);
-
-      if (error) throw error;
-
-      // Invalidar caché para refrescar desde el servidor
-      invalidateProductos();
-      fetchProductos();
+      await db.execute(
+        "UPDATE productos SET activo = ?, updated_at = ? WHERE id = ?",
+        [0, new Date().toISOString(), id]
+      );
     } catch (err) {
       alert("Error al eliminar el producto");
-      // Revertir cambio optimista
-      invalidateProductos();
-      fetchProductos();
     }
   }
 
@@ -1000,39 +994,21 @@ export default function ProductosVentasPage() {
       // Optimistic update
       optimisticUpdateProducto(producto.id, { activo: !producto.activo });
 
-      const { error } = await supabase
-        .from("productos")
-        .update({
-          activo: !producto.activo,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", producto.id);
-
-      if (error) throw error;
-
-      // Invalidar caché para refrescar desde el servidor
-      invalidateProductos();
-      fetchProductos();
+      await db.execute(
+        "UPDATE productos SET activo = ?, updated_at = ? WHERE id = ?",
+        [producto.activo ? 0 : 1, new Date().toISOString(), producto.id]
+      );
     } catch (err) {
       alert("Error al actualizar el producto");
-      // Revertir cambio optimista
-      invalidateProductos();
-      fetchProductos();
     }
   }
 
   function onProductoSaved() {
-    // Invalidar caché y refrescar
-    invalidateProductos();
-    fetchProductos();
+    // PowerSync reactive queries auto-update
   }
 
   function onVentaSaved() {
-    // Invalidar caché de ventas y productos (el stock puede cambiar)
-    invalidateVentas();
-    invalidateProductos();
-    fetchVentas();
-    fetchProductos();
+    // PowerSync reactive queries auto-update
   }
 
   const productosFiltrados = productos.filter((p) =>

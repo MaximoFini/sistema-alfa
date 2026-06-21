@@ -1,49 +1,20 @@
-// Hook de etapas de ejercicios - Migrado desde StabilitySistema
-// ⚠️ Query EXACTA del código original
-
-import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
+import { useQuery, usePowerSync } from "@powersync/react";
 import { ExerciseStage } from "@/lib/types/exercises";
 import { toast } from "sonner";
 
 export function useExerciseStages() {
-  const [stages, setStages] = useState<ExerciseStage[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const db = usePowerSync();
+  const { data: stages, isLoading } = useQuery<ExerciseStage>(
+    "SELECT id, name, color FROM exercise_stages ORDER BY name"
+  );
 
-  // FETCH - Query EXACTA del código original
-  const fetchStages = async () => {
-    setIsLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from("exercise_stages")
-        .select("id, name, color")
-        .order("name", { ascending: true });
-
-      if (error) throw error;
-
-      setStages(data || []);
-    } catch (error) {
-      console.error("Error fetching stages:", error);
-      toast.error("Error al cargar las etapas");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchStages();
-  }, []);
-
-  // CREATE - Query EXACTA del código original
   const createStage = async (name: string, color: string): Promise<boolean> => {
     try {
-      const { error } = await supabase
-        .from("exercise_stages")
-        .insert({ name, color });
-
-      if (error) throw error;
-
-      await fetchStages();
+      const id = crypto.randomUUID();
+      await db.execute(
+        "INSERT INTO exercise_stages (id, name, color) VALUES (?, ?, ?)",
+        [id, name, color]
+      );
       toast.success("Etapa creada");
       return true;
     } catch (error) {
@@ -54,9 +25,9 @@ export function useExerciseStages() {
   };
 
   return {
-    stages,
+    stages: (stages ?? []) as ExerciseStage[],
     isLoading,
-    refresh: fetchStages,
+    refresh: () => {},
     createStage,
   };
 }
