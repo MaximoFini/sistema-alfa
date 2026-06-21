@@ -128,18 +128,18 @@ export async function POST(request: NextRequest) {
       const horaLocal = `${hours}:${minutes}:${seconds}`;
       const fechaISO = `${fechaLocal}T${horaLocal}`;
 
-      // Actualizar fecha_ultima_asistencia
-      await supabase
-        .from("alumnos")
-        .update({ fecha_ultima_asistencia: fechaISO })
-        .eq("id", alumnoTyped.id);
-
-      // Crear registro en tabla asistencias
-      await supabase.from("asistencias").insert({
-        alumno_id: alumnoTyped.id,
-        fecha: fechaISO,
-        hora: horaLocal,
-      });
+      // Actualizar alumno e insertar asistencia en paralelo
+      await Promise.all([
+        supabase
+          .from("alumnos")
+          .update({ fecha_ultima_asistencia: fechaISO })
+          .eq("id", alumnoTyped.id),
+        supabase.from("asistencias").insert({
+          alumno_id: alumnoTyped.id,
+          fecha: fechaISO,
+          hora: horaLocal,
+        }),
+      ]);
 
       return NextResponse.json({
         found: true,
@@ -284,13 +284,18 @@ async function determinarEstado(
     };
   }
 
-  // Una sola query trae todos los planes — filtramos con JS
+  // Solo planes de los últimos 2 años + futuros — descarta histórico irrelevante
+  const dosAniosAtras = new Date();
+  dosAniosAtras.setFullYear(dosAniosAtras.getFullYear() - 2);
+  const fechaMinPlanes = dosAniosAtras.toISOString().split("T")[0];
+
   const { data: todosLosPlanes, error: errorPlanes } = await supabase
     .from("pagos")
     .select("fecha_inicio, fecha_vencimiento, actividad")
     .eq("alumno_id", alumno.id)
+    .gte("fecha_vencimiento", fechaMinPlanes)
     .order("fecha_inicio", { ascending: true })
-    .limit(50); // máximo razonable
+    .limit(50);
 
   if (errorPlanes) {
     console.error("Error buscando planes del alumno:", errorPlanes);
