@@ -1,4 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { NextRequest, NextResponse } from "next/server";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
@@ -55,6 +56,12 @@ function getFechaLocal(): string {
 
 export async function POST(request: NextRequest) {
   try {
+    // 30 escaneos por minuto por IP — más que suficiente para un scanner de gimnasio
+    const ip = getClientIp(request);
+    if (!checkRateLimit(`verificar-dni:${ip}`, 30, 60_000)) {
+      return NextResponse.json({ error: "Demasiadas solicitudes. Esperá un momento." }, { status: 429 });
+    }
+
     const { dni } = await request.json();
 
     if (!dni) {
@@ -128,18 +135,18 @@ export async function POST(request: NextRequest) {
       const horaLocal = `${hours}:${minutes}:${seconds}`;
       const fechaISO = `${fechaLocal}T${horaLocal}`;
 
-      // Actualizar fecha_ultima_asistencia
-      await supabase
-        .from("alumnos")
-        .update({ fecha_ultima_asistencia: fechaISO })
-        .eq("id", alumnoTyped.id);
-
-      // Crear registro en tabla asistencias
-      await supabase.from("asistencias").insert({
-        alumno_id: alumnoTyped.id,
-        fecha: fechaISO,
-        hora: horaLocal,
-      });
+      // Actualizar alumno e insertar asistencia en paralelo
+      await Promise.all([
+        supabase
+          .from("alumnos")
+          .update({ fecha_ultima_asistencia: fechaISO })
+          .eq("id", alumnoTyped.id),
+        supabase.from("asistencias").insert({
+          alumno_id: alumnoTyped.id,
+          fecha: fechaISO,
+          hora: horaLocal,
+        }),
+      ]);
 
       return NextResponse.json({
         found: true,
@@ -284,13 +291,18 @@ async function determinarEstado(
     };
   }
 
-  // Una sola query trae todos los planes — filtramos con JS
+  // Solo planes de los últimos 2 años + futuros — descarta histórico irrelevante
+  const dosAniosAtras = new Date();
+  dosAniosAtras.setFullYear(dosAniosAtras.getFullYear() - 2);
+  const fechaMinPlanes = dosAniosAtras.toISOString().split("T")[0];
+
   const { data: todosLosPlanes, error: errorPlanes } = await supabase
     .from("pagos")
     .select("fecha_inicio, fecha_vencimiento, actividad")
     .eq("alumno_id", alumno.id)
+    .gte("fecha_vencimiento", fechaMinPlanes)
     .order("fecha_inicio", { ascending: true })
-    .limit(50); // máximo razonable
+    .limit(50);
 
   if (errorPlanes) {
     console.error("Error buscando planes del alumno:", errorPlanes);

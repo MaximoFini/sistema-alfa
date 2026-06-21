@@ -1,4 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { NextRequest, NextResponse } from "next/server";
 
 // Función auxiliar para obtener fecha local en formato YYYY-MM-DD
@@ -31,6 +32,15 @@ interface TrialRegistrationData {
 
 export async function POST(request: NextRequest) {
   try {
+    // 5 registros cada 10 minutos por IP — frena abuso del formulario público
+    const ip = getClientIp(request);
+    if (!checkRateLimit(`trial-registration:${ip}`, 5, 10 * 60_000)) {
+      return NextResponse.json(
+        { error: "Demasiados intentos. Esperá unos minutos e intentá nuevamente." },
+        { status: 429 },
+      );
+    }
+
     const body: TrialRegistrationData = await request.json();
 
     // Validar campos requeridos

@@ -102,6 +102,8 @@ export async function GET(request: Request) {
       ventasDelMes?.reduce((sum, venta) => sum + Number(venta.total || 0), 0) || 0;
 
     const activeMethods = activePaymentMethods?.map((m) => m.name) || [];
+    // Map lowercase → nombre original para lookup O(1) en vez de O(n) por pago
+    const activeMethodsLookup = new Map(activeMethods.map((m) => [m.toLowerCase(), m]));
 
     // Calcular distribución de formas de pago dinámicas
     const formasPagoMap = new Map<string, number>();
@@ -114,9 +116,7 @@ export async function GET(request: Request) {
     // Agrupar pagos
     pagosDelMes?.forEach((pago) => {
       const medio = pago.medio_pago || "Sin especificar";
-      const matched = activeMethods.find(
-        (m) => m.toLowerCase() === medio.toLowerCase()
-      );
+      const matched = activeMethodsLookup.get(medio.toLowerCase());
       if (matched) {
         formasPagoMap.set(matched, (formasPagoMap.get(matched) || 0) + Number(pago.precio || 0));
       } else {
@@ -127,9 +127,7 @@ export async function GET(request: Request) {
     // Agrupar ventas
     ventasDelMes?.forEach((venta) => {
       const medio = venta.medio_pago || "Sin especificar";
-      const matched = activeMethods.find(
-        (m) => m.toLowerCase() === medio.toLowerCase()
-      );
+      const matched = activeMethodsLookup.get(medio.toLowerCase());
       if (matched) {
         formasPagoMap.set(matched, (formasPagoMap.get(matched) || 0) + Number(venta.total || 0));
       } else {
@@ -286,18 +284,26 @@ export async function GET(request: Request) {
     }
     // ─── Fin Tarea 3B ─────────────────────────────────────────────────────────
 
-    return NextResponse.json({
-      ingresosMes,
-      ingresosBrutos,
-      ticketPromedio,
-      deudaTotal,
-      alumnosActivos,
-      variacion,
-      ingresosMesAnterior,
-      alumnosConDeuda: alumnosConDeudaCount,
-      formasPago,
-      ingresosHistorial,
-    });
+    return NextResponse.json(
+      {
+        ingresosMes,
+        ingresosBrutos,
+        ticketPromedio,
+        deudaTotal,
+        alumnosActivos,
+        variacion,
+        ingresosMesAnterior,
+        alumnosConDeuda: alumnosConDeudaCount,
+        formasPago,
+        ingresosHistorial,
+      },
+      {
+        headers: {
+          // Sirve datos cacheados 30s; hasta 60s más los sirve mientras refresca en background
+          "Cache-Control": "private, max-age=30, stale-while-revalidate=60",
+        },
+      },
+    );
   } catch (error) {
     console.error("Error fetching financial stats:", error);
     return NextResponse.json(

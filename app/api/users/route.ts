@@ -4,10 +4,13 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { createClient } from "@supabase/supabase-js";
 
 const SALT_ROUNDS = 10;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-// Cliente con privilegios de admin para crear usuarios en Supabase Auth
-// IMPORTANTE: Necesitas agregar SUPABASE_SERVICE_ROLE_KEY en tus variables de entorno
-const getAdminClient = () => {
+// Singleton del cliente admin — se reutiliza entre requests en el mismo proceso
+let _adminClient: ReturnType<typeof createClient> | null = null;
+
+function getAdminClient() {
+  if (_adminClient) return _adminClient;
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -18,24 +21,37 @@ const getAdminClient = () => {
     return null;
   }
 
-  return createClient(supabaseUrl, serviceRoleKey, {
+  _adminClient = createClient(supabaseUrl, serviceRoleKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
     },
   });
-};
+  return _adminClient;
+}
 
-// Helper para verificar que el llamador es admin autenticado
+// Cache de roles: evita consultar profiles en cada request dentro del mismo proceso
+const roleCache = new Map<string, { role: string; expiresAt: number }>();
+const ROLE_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutos
+
 async function requireAdminSession(supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>) {
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return null;
+
+  const cached = roleCache.get(user.id);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.role === "Administrador" ? user : null;
+  }
 
   const { data: profile } = await supabase
     .from("profiles")
     .select("role")
     .eq("id", user.id)
     .single();
+
+  if (profile?.role) {
+    roleCache.set(user.id, { role: profile.role, expiresAt: Date.now() + ROLE_CACHE_TTL_MS });
+  }
 
   if (profile?.role !== "Administrador") return null;
   return user;
@@ -69,8 +85,7 @@ export async function POST(request: Request) {
     }
 
     // Validar formato de email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
+    if (!EMAIL_REGEX.test(email)) {
       return NextResponse.json(
         { error: "El formato del email no es válido" },
         { status: 400 },
@@ -284,8 +299,7 @@ export async function PUT(request: Request) {
     }
 
     // Validar formato de email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
+    if (!EMAIL_REGEX.test(email)) {
       return NextResponse.json(
         { error: "El formato del email no es válido" },
         { status: 400 },
