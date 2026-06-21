@@ -30,16 +30,28 @@ function getAdminClient() {
   return _adminClient;
 }
 
-// Helper para verificar que el llamador es admin autenticado
+// Cache de roles: evita consultar profiles en cada request dentro del mismo proceso
+const roleCache = new Map<string, { role: string; expiresAt: number }>();
+const ROLE_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutos
+
 async function requireAdminSession(supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>) {
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return null;
+
+  const cached = roleCache.get(user.id);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.role === "Administrador" ? user : null;
+  }
 
   const { data: profile } = await supabase
     .from("profiles")
     .select("role")
     .eq("id", user.id)
     .single();
+
+  if (profile?.role) {
+    roleCache.set(user.id, { role: profile.role, expiresAt: Date.now() + ROLE_CACHE_TTL_MS });
+  }
 
   if (profile?.role !== "Administrador") return null;
   return user;

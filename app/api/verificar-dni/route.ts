@@ -1,4 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { NextRequest, NextResponse } from "next/server";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
@@ -55,6 +56,12 @@ function getFechaLocal(): string {
 
 export async function POST(request: NextRequest) {
   try {
+    // 30 escaneos por minuto por IP — más que suficiente para un scanner de gimnasio
+    const ip = getClientIp(request);
+    if (!checkRateLimit(`verificar-dni:${ip}`, 30, 60_000)) {
+      return NextResponse.json({ error: "Demasiadas solicitudes. Esperá un momento." }, { status: 429 });
+    }
+
     const { dni } = await request.json();
 
     if (!dni) {

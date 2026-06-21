@@ -117,7 +117,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    after(() => runSendingProcess(dbRecord.id, mensaje.trim(), alumnos));
+    after(async () => {
+      try {
+        await runSendingProcess(dbRecord.id, mensaje.trim(), alumnos);
+      } catch (err) {
+        console.error("[WhatsApp] Error fatal en runSendingProcess:", err);
+        await supabaseAdmin
+          .from("comunicacion_mensajes")
+          .update({ estado: "error" })
+          .eq("id", dbRecord.id);
+      }
+    });
 
     return NextResponse.json({
       success: true,

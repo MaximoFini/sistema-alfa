@@ -284,18 +284,26 @@ export async function GET(request: Request) {
     }
     // ─── Fin Tarea 3B ─────────────────────────────────────────────────────────
 
-    return NextResponse.json({
-      ingresosMes,
-      ingresosBrutos,
-      ticketPromedio,
-      deudaTotal,
-      alumnosActivos,
-      variacion,
-      ingresosMesAnterior,
-      alumnosConDeuda: alumnosConDeudaCount,
-      formasPago,
-      ingresosHistorial,
-    });
+    return NextResponse.json(
+      {
+        ingresosMes,
+        ingresosBrutos,
+        ticketPromedio,
+        deudaTotal,
+        alumnosActivos,
+        variacion,
+        ingresosMesAnterior,
+        alumnosConDeuda: alumnosConDeudaCount,
+        formasPago,
+        ingresosHistorial,
+      },
+      {
+        headers: {
+          // Sirve datos cacheados 30s; hasta 60s más los sirve mientras refresca en background
+          "Cache-Control": "private, max-age=30, stale-while-revalidate=60",
+        },
+      },
+    );
   } catch (error) {
     console.error("Error fetching financial stats:", error);
     return NextResponse.json(
