@@ -187,7 +187,8 @@ export async function POST(request: NextRequest) {
 
 // Endpoint GET para obtener las actividades disponibles (opcional, para el formulario)
 export async function GET() {
-  return NextResponse.json({
-    actividades: ACTIVIDADES_PERMITIDAS,
-  });
+  return NextResponse.json(
+    { actividades: ACTIVIDADES_PERMITIDAS },
+    { headers: { "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400" } },
+  );
 }

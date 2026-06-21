@@ -1,7 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    unoptimized: true,
+    unoptimized: false,
+    formats: ["image/avif", "image/webp"],
   },
   staticPageGenerationTimeout: 60,
   poweredByHeader: false,

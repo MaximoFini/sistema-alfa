@@ -1,13 +1,18 @@
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getWhatsAppClient, whatsappStatusStore, formatWhatsappNumber } from "@/lib/whatsapp-client";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-// Crear cliente de servicio para operaciones en segundo plano
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+let _supabaseAdmin: ReturnType<typeof createClient> | null = null;
+function getSupabaseAdmin() {
+  if (!_supabaseAdmin) {
+    _supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+  }
+  return _supabaseAdmin;
+}
 
 function diasDesde(fechaStr: string | null): number | null {
   if (!fechaStr) return null;
@@ -64,7 +69,7 @@ async function runSendingProcess(msgId: string, textTemplate: string, alumnos: a
   const finalEstado = successCount > 0 ? "enviado" : "error";
   console.log(`[WhatsApp] Envío finalizado. Éxitos: ${successCount}, Fallidos: ${failCount}. Estado final: ${finalEstado}`);
 
-  await supabaseAdmin
+  await getSupabaseAdmin()
     .from("comunicacion_mensajes")
     .update({ estado: finalEstado })
     .eq("id", msgId);
@@ -98,7 +103,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Crear el registro inicial en la base de datos
-    const { data: dbRecord, error: dbError } = await supabaseAdmin
+    const { data: dbRecord, error: dbError } = await getSupabaseAdmin()
       .from("comunicacion_mensajes")
       .insert({
         texto: mensaje.trim(),
@@ -118,8 +123,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Ejecutar el proceso de envío en segundo plano
-    runSendingProcess(dbRecord.id, mensaje.trim(), alumnos);
+    after(() => runSendingProcess(dbRecord.id, mensaje.trim(), alumnos));
 
     return NextResponse.json({
       success: true,

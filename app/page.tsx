@@ -103,13 +103,14 @@ export default function LoginPage() {
         {/* Subtle texture overlay */}
 
         <div className="relative z-10 flex flex-col items-center gap-4">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <Image
             src="/logo-sin-fondo-completo.webp"
             alt="Alfa Club Logo"
-            width={320}
-            style={{ height: "auto" }}
+            width={420}
+            height={594}
+            style={{ width: "320px", height: "auto" }}
             className="drop-shadow-2xl"
+            priority
           />
         </div>
       </div>
@@ -119,12 +120,12 @@ export default function LoginPage() {
         <div className="w-full max-w-sm">
           {/* Mobile logo */}
           <div className="flex justify-center mb-8 lg:hidden">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <Image
               src="/logo-sin-fondo-completo.webp"
               alt="Alfa Club Logo"
-              width={120}
-              style={{ height: "auto" }}
+              width={420}
+              height={594}
+              style={{ width: "120px", height: "auto" }}
             />
           </div>
 

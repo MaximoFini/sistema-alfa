@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, memo } from "react";
+import { useState, useEffect, memo, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
@@ -1236,7 +1236,7 @@ export default function AlumnosList() {
   }
 
   // Enriquecer datos con UI derivada
-  const alumnosEnriquecidos = alumnos.map(enriquecerAlumno);
+  const alumnosEnriquecidos = useMemo(() => alumnos.map(enriquecerAlumno), [alumnos]);
 
   // La variable alumnosMostrados debe ser directamente el listado de alumnos devuelto por la caché de Zustand
   const alumnosMostrados = alumnosEnriquecidos;
