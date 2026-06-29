@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 
 import { ArrowLeft, UserCircle2, Sparkles, CheckCircle } from "lucide-react";
@@ -9,6 +9,7 @@ import TabAsistencias from "./TabAsistencias";
 import TabPagos from "./TabPagos";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
+import { useQuery, usePowerSync } from "@powersync/react";
 
 interface Alumno {
   id: string;
@@ -27,7 +28,8 @@ interface Alumno {
   fecha_ultimo_inicio: string | null;
   clases_gracia_disponibles: number;
   clases_gracia_usadas: number;
-  es_prueba?: boolean | null;
+  es_prueba?: boolean | number | null;
+  activo?: boolean | number | null;
   actividad_interes?: string | null;
   cus_completado: boolean;
   cus_clases_presentadas: number;
@@ -56,8 +58,8 @@ interface Pago {
 
 export default function AlumnoPerfil({
   alumno: alumnoInicial,
-  asistencias,
-  pagos,
+  asistencias: asistenciasIniciales,
+  pagos: pagosIniciales,
   diasInactivo,
 }: {
   alumno: Alumno;
@@ -66,63 +68,88 @@ export default function AlumnoPerfil({
   diasInactivo: number;
 }) {
   const router = useRouter();
+  const db = usePowerSync();
   const [convirtiendo, setConvirtiendo] = useState(false);
-  const [alumno, setAlumno] = useState(alumnoInicial);
   const [showConvertModal, setShowConvertModal] = useState(false);
   const [autoOpenPaymentModal, setAutoOpenPaymentModal] = useState(false);
+
+  // Query reactive del alumno actual
+  const { data: rawAlumnos } = useQuery<any>(
+    "SELECT * FROM alumnos WHERE id = ?",
+    [alumnoInicial.id]
+  );
+  const dbAlumno = rawAlumnos?.[0];
+
+  const alumno = useMemo(() => {
+    if (!dbAlumno) return alumnoInicial;
+    return {
+      ...dbAlumno,
+      activo: dbAlumno.activo !== 0,
+      es_prueba: dbAlumno.es_prueba !== 0,
+      cus_completado: dbAlumno.cus_completado !== 0,
+      clases_gracia_disponibles: dbAlumno.clases_gracia_disponibles ?? 0,
+      clases_gracia_usadas: dbAlumno.clases_gracia_usadas ?? 0,
+      cus_clases_presentadas: dbAlumno.cus_clases_presentadas ?? 0,
+    };
+  }, [dbAlumno, alumnoInicial]);
+
+  // Query reactive de asistencias
+  const { data: rawAsistencias } = useQuery<any>(
+    "SELECT id, alumno_id, fecha, hora FROM asistencias WHERE alumno_id = ? ORDER BY fecha DESC",
+    [alumnoInicial.id]
+  );
+  const asistencias = rawAsistencias ?? asistenciasIniciales;
+
+  // Query reactive de pagos
+  const { data: rawPagos } = useQuery<any>(
+    "SELECT id, alumno_id, actividad, precio, fecha_cobro, medio_pago, fecha_inicio, fecha_vencimiento FROM pagos WHERE alumno_id = ? ORDER BY fecha_cobro DESC",
+    [alumnoInicial.id]
+  );
+  const pagos = rawPagos ?? pagosIniciales;
+
   const esPrueba = alumno.es_prueba === true;
 
-  // Sync state when prop updates (e.g. from router.refresh or other server fetches)
-  useEffect(() => {
-    setAlumno(alumnoInicial);
-  }, [alumnoInicial]);
-
-  // Función para actualizar el alumno cuando se registra un cobro
+  // Función para actualizar el alumno (no-op now since we use useQuery)
   function handleAlumnoActualizado(datosActualizados: Partial<Alumno>) {
-    setAlumno((prev) => ({ ...prev, ...datosActualizados }));
+    // No-op
   }
 
   async function handleConvertir() {
     setConvirtiendo(true);
-
-    // Cambios optimistas e inmediatos
-    setAlumno((prev) => ({ ...prev, es_prueba: false }));
     setAutoOpenPaymentModal(true);
     setShowConvertModal(false);
 
-    // Actualizar es_prueba a false
-    const { error } = await supabase
-      .from("alumnos")
-      .update({ es_prueba: false })
-      .eq("id", alumno.id);
-
-    setConvirtiendo(false);
-
-    if (error) {
-      alert("Error al convertir el alumno: " + error.message);
-      return;
+    try {
+      await db.execute(
+        "UPDATE alumnos SET es_prueba = 0, activo = 1 WHERE id = ?",
+        [alumno.id]
+      );
+    } catch (error: any) {
+      alert("Error al convertir el alumno: " + (error.message || error));
+      setAutoOpenPaymentModal(false);
+    } finally {
+      setConvirtiendo(false);
     }
-
-    // Refresh para cargar el estado actualizado
-    router.refresh();
   }
 
   return (
     <div className="min-h-screen bg-background">
       {/* Banner de Clase de Prueba */}
       {esPrueba && (
-        <div className="bg-[#fb923c] px-4 md:px-8 py-4 flex items-center justify-between gap-4">
+        <div className={`px-4 md:px-8 py-4 flex items-center justify-between gap-4 transition-colors ${alumno.activo === false ? "bg-red-500" : "bg-[#fb923c]"}`}>
           <div className="flex items-center gap-3">
             <Sparkles size={24} className="text-white shrink-0" />
             <div>
               <p className="text-white font-bold text-sm md:text-base">
-                Clase de Prueba
+                {alumno.activo === false ? "Clase de Prueba - Límite Alcanzado" : "Clase de Prueba"}
                 {alumno.actividad_interes
                   ? ` • ${alumno.actividad_interes}`
                   : ""}
               </p>
               <p className="text-white/90 text-xs md:text-sm">
-                Este prospecto todavía no se ha inscrito formalmente
+                {alumno.activo === false 
+                  ? "Ya asistió a su clase de prueba. Debe convertirse a alumno regular." 
+                  : "Este prospecto todavía no se ha inscrito formalmente"}
               </p>
             </div>
           </div>

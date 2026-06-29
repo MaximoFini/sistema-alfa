@@ -259,9 +259,9 @@ export default function RegistrarCobroModal({
         ]
       );
 
-      // Actualizar alumno con el nuevo plan (y reiniciar counter de gracia)
+      // Actualizar alumno con el nuevo plan (y reiniciar counter de gracia, y marcar como activo)
       await db.execute(
-        `UPDATE alumnos SET abono_ultima_inscripcion = ?, fecha_proximo_vencimiento = ?, actividad_proximo_vencimiento = ?, fecha_ultimo_inicio = ?, clases_gracia_disponibles = ?, clases_gracia_usadas = ?, es_prueba = ? WHERE id = ?`,
+        `UPDATE alumnos SET abono_ultima_inscripcion = ?, fecha_proximo_vencimiento = ?, actividad_proximo_vencimiento = ?, fecha_ultimo_inicio = ?, clases_gracia_disponibles = ?, clases_gracia_usadas = ?, es_prueba = ?, activo = 1 WHERE id = ?`,
         [
           pagoForm.actividad,
           fechaProximoVencimiento,

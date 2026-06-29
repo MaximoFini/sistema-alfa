@@ -29,8 +29,8 @@ CREATE INDEX IF NOT EXISTS idx_alumnos_activo
 CREATE INDEX IF NOT EXISTS idx_alumnos_es_prueba 
   ON alumnos(es_prueba) WHERE es_prueba = false;
 
-CREATE INDEX IF NOT EXISTS idx_alumnos_dni 
-  ON alumnos(dni);
+-- idx_alumnos_dni eliminado: cubierto por la constraint UNIQUE alumnos_dni_unique
+-- (ver add_unique_constraint_dni_alumnos.sql)
 
 -- 4. estadisticas_mensuales: ordenamiento frecuente
 CREATE INDEX IF NOT EXISTS idx_estadisticas_year_month 

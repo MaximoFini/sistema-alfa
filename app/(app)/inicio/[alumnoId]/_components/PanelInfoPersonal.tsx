@@ -49,6 +49,8 @@ interface Alumno {
   email: string | null;
   telefono_emergencia: string | null;
   observaciones: string | null;
+  activo?: boolean | number | null;
+  es_prueba?: boolean | number | null;
 }
 
 function formatFecha(dateStr: string | null): string {
@@ -179,13 +181,24 @@ export default function PanelInfoPersonal({
     ? new Date(alumno.fecha_proximo_vencimiento)
     : null;
 
-  // El alumno está activo si no ha pasado el periodo de gracia después del vencimiento
+  // El alumno está activo si no ha pasado el periodo de gracia después del vencimiento o si tiene clases de gracia disponibles
   let estaActivo = false;
-  if (vencimiento) {
-    vencimiento.setHours(0, 0, 0, 0); // Normalizar a medianoche
-    const vencimientoConGracia = new Date(vencimiento);
-    vencimientoConGracia.setDate(vencimientoConGracia.getDate() + diasInactivo);
-    estaActivo = vencimientoConGracia >= hoy;
+  let tienePlanActivoHoy = false;
+  if (alumno.activo === false || alumno.activo === 0) {
+    estaActivo = false;
+  } else if (alumno.es_prueba === true) {
+    estaActivo = true; // Trials are active until set to inactive
+  } else {
+    if (vencimiento) {
+      vencimiento.setHours(0, 0, 0, 0); // Normalizar a medianoche
+      tienePlanActivoHoy = vencimiento >= hoy;
+      const vencimientoConGracia = new Date(vencimiento);
+      vencimientoConGracia.setDate(vencimientoConGracia.getDate() + diasInactivo);
+      estaActivo = vencimientoConGracia >= hoy;
+    }
+    if (!estaActivo && (clasesGraciaDisponibles ?? 0) > (clasesGraciaUsadas ?? 0)) {
+      estaActivo = true;
+    }
   }
 
   const initials = getInitials(alumno.nombre);
@@ -322,7 +335,7 @@ export default function PanelInfoPersonal({
     setOtorgandoGracia(true);
     try {
       await db.execute(
-        "UPDATE alumnos SET clases_gracia_disponibles = ?, clases_gracia_usadas = ? WHERE id = ?",
+        "UPDATE alumnos SET clases_gracia_disponibles = ?, clases_gracia_usadas = ?, activo = 1 WHERE id = ?",
         [2, 0, alumno.id]
       );
     } catch (e: any) {
@@ -340,6 +353,7 @@ export default function PanelInfoPersonal({
       onAlumnoActualizado({
         clases_gracia_disponibles: 2,
         clases_gracia_usadas: 0,
+        activo: true,
       });
     }
     setOtorgandoGracia(false);
@@ -469,6 +483,19 @@ export default function PanelInfoPersonal({
           {estaActivo ? "Activo" : "Inactivo"}
         </span>
 
+        {/* Warning de límite alcanzado */}
+        {!estaActivo && (
+          <div className="w-full mt-2 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-center">
+            <p className="text-xs font-bold text-red-600">
+              {alumno.es_prueba === true 
+                ? "Límite de clases de prueba alcanzado" 
+                : (clasesGraciaDisponibles > 0 && clasesGraciaUsadas >= clasesGraciaDisponibles)
+                  ? "Clases de gracia al límite"
+                  : "Membresía vencida o inactivo"}
+            </p>
+          </div>
+        )}
+
         {/* Botones de acción */}
         <div className="flex gap-2 w-full mt-2">
           <button
@@ -501,8 +528,8 @@ export default function PanelInfoPersonal({
           </button>
         </div>
 
-        {/* Clases de gracia — visible solo si el alumno está inactivo */}
-        {!estaActivo && (
+        {/* Clases de gracia — visible si no tiene plan activo hoy */}
+        {!tienePlanActivoHoy && (
           <div className="w-full mt-1 p-3 rounded-xl bg-orange-500/10 border border-orange-500/20 flex flex-col gap-2">
             <p className="text-xs font-bold text-orange-600 uppercase tracking-wider">
               Clases de Gracia

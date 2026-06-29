@@ -15,6 +15,7 @@ import { triggerHapticFeedback, HapticPresets } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 import { ModalWithHistory } from "@/components/ModalWithHistory";
 import RegistrarCobroModal from "./RegistrarCobroModal";
+import { useQuery, usePowerSync } from "@powersync/react";
 
 interface Pago {
   id: string;
@@ -74,11 +75,18 @@ export default function TabPagos({
   autoOpenModal,
 }: Props) {
   const router = useRouter();
-  const [pagos, setPagos] = useState<Pago[]>(pagosIniciales);
+  const db = usePowerSync();
   const [modalAbierto, setModalAbierto] = useState(false);
   const [showConfirmBajaModal, setShowConfirmBajaModal] = useState(false);
   const [pagoParaBaja, setPagoParaBaja] = useState<Pago | null>(null);
   const [procesandoBaja, setProcesandoBaja] = useState(false);
+
+  // Query reactive de pagos
+  const { data: rawPagos } = useQuery<any>(
+    "SELECT id, alumno_id, actividad, precio, fecha_cobro, medio_pago, fecha_inicio, fecha_vencimiento FROM pagos WHERE alumno_id = ? ORDER BY fecha_cobro DESC",
+    [alumnoId]
+  );
+  const pagos = rawPagos ?? pagosIniciales;
 
   // Hook to automatically open the modal if autoOpenModal is true
   useEffect(() => {
@@ -86,19 +94,6 @@ export default function TabPagos({
       setModalAbierto(true);
     }
   }, [autoOpenModal]);
-
-  // Refrescar pagos desde la base de datos
-  async function refrescarPagos() {
-    const { data } = await supabase
-      .from("pagos")
-      .select("*")
-      .eq("alumno_id", alumnoId)
-      .order("fecha_cobro", { ascending: false });
-
-    if (data) {
-      setPagos(data);
-    }
-  }
 
   function handleConfirmarBaja(pago: Pago) {
     triggerHapticFeedback(HapticPresets.medium);
@@ -113,108 +108,44 @@ export default function TabPagos({
     setProcesandoBaja(true);
 
     try {
-      // 1. Eliminar el pago
-      const { error: deleteError } = await supabase
-        .from("pagos")
-        .delete()
-        .eq("id", pagoParaBaja.id);
+      // 1. Eliminar el pago en local
+      await db.execute("DELETE FROM pagos WHERE id = ?", [pagoParaBaja.id]);
 
-      if (deleteError) {
-        throw new Error("Error al eliminar el pago: " + deleteError.message);
-      }
-
-      // 2. Obtener los pagos restantes del alumno ordenados por fecha de vencimiento desc
-      const { data: pagosRestantes, error: fetchError } = await supabase
-        .from("pagos")
-        .select("*")
-        .eq("alumno_id", alumnoId)
-        .order("fecha_vencimiento", { ascending: false });
-
-      if (fetchError) {
-        throw new Error("Error al obtener pagos restantes: " + fetchError.message);
-      }
+      // 2. Obtener los pagos restantes ordenados por fecha de vencimiento desc
+      const pagosRestantes = await db.getAll<any>(
+        "SELECT * FROM pagos WHERE alumno_id = ? ORDER BY fecha_vencimiento DESC",
+        [alumnoId]
+      );
 
       // 3. Recalcular campos del alumno
-      let updateData: any = {};
+      let updateParams: any[] = [];
+      let sqlUpdate = "";
       if (pagosRestantes && pagosRestantes.length > 0) {
         const latestPago = pagosRestantes[0];
-        updateData = {
-          abono_ultima_inscripcion: latestPago.actividad,
-          fecha_proximo_vencimiento: latestPago.fecha_vencimiento,
-          actividad_proximo_vencimiento: latestPago.actividad,
-          fecha_ultimo_inicio: latestPago.fecha_inicio,
-        };
+        sqlUpdate = "UPDATE alumnos SET abono_ultima_inscripcion = ?, fecha_proximo_vencimiento = ?, actividad_proximo_vencimiento = ?, fecha_ultimo_inicio = ? WHERE id = ?";
+        updateParams = [latestPago.actividad, latestPago.fecha_vencimiento, latestPago.actividad, latestPago.fecha_inicio, alumnoId];
       } else {
-        updateData = {
-          abono_ultima_inscripcion: null,
-          fecha_proximo_vencimiento: null,
-          actividad_proximo_vencimiento: null,
-          fecha_ultimo_inicio: null,
-        };
+        sqlUpdate = "UPDATE alumnos SET abono_ultima_inscripcion = NULL, fecha_proximo_vencimiento = NULL, actividad_proximo_vencimiento = NULL, fecha_ultimo_inicio = NULL WHERE id = ?";
+        updateParams = [alumnoId];
       }
 
-      // 4. Actualizar alumno en la base de datos
-      const { error: errorUpdate } = await supabase
-        .from("alumnos")
-        .update(updateData)
-        .eq("id", alumnoId);
-
-      if (errorUpdate) {
-        throw new Error("Error al actualizar datos del alumno: " + errorUpdate.message);
-      }
-
-      // 5. Actualizar el estado local de pagos
-      setPagos(pagosRestantes || []);
-
-      // 6. Notificar al componente padre que actualice el estado del alumno
-      if (onAlumnoActualizado) {
-        const { data: alumnoActualizado } = await supabase
-          .from("alumnos")
-          .select(
-            "clases_gracia_disponibles, clases_gracia_usadas, fecha_proximo_vencimiento, actividad_proximo_vencimiento, fecha_ultimo_inicio, abono_ultima_inscripcion, es_prueba",
-          )
-          .eq("id", alumnoId)
-          .single();
-
-        if (alumnoActualizado) {
-          onAlumnoActualizado(alumnoActualizado);
-        }
-      }
+      // 4. Actualizar alumno en local
+      await db.execute(sqlUpdate, updateParams);
 
       triggerHapticFeedback(HapticPresets.success);
       setShowConfirmBajaModal(false);
       setPagoParaBaja(null);
-      
-      // 7. Refrescar la página
-      router.refresh();
-
     } catch (err: any) {
-      console.error("Error al dar de baja el plan:", err);
+      console.error("Error al dar de baja el pago:", err);
       triggerHapticFeedback(HapticPresets.error);
-      alert(err.message || "Error inesperado al dar de baja el plan");
+      alert(err.message || "Error inesperado al dar de baja el pago");
     } finally {
       setProcesandoBaja(false);
     }
   }
 
   async function handleCobroGuardado() {
-    // Refrescar pagos
-    await refrescarPagos();
-
-    // Obtener los datos actualizados del alumno desde la base de datos
-    if (onAlumnoActualizado) {
-      const { data: alumnoActualizado } = await supabase
-        .from("alumnos")
-        .select(
-          "clases_gracia_disponibles, clases_gracia_usadas, fecha_proximo_vencimiento, actividad_proximo_vencimiento, fecha_ultimo_inicio, abono_ultima_inscripcion, es_prueba",
-        )
-        .eq("id", alumnoId)
-        .single();
-
-      if (alumnoActualizado) {
-        onAlumnoActualizado(alumnoActualizado);
-      }
-    }
+    // No-op because useQuery is fully reactive!
   }
 
   if (pagos.length === 0) {

@@ -83,7 +83,7 @@ const estadoConfig: Record<
   periodo_gracia: {
     label: "Ingreso permitido: Clase de cortesía",
     description:
-      "Ests usando una clase de gracia. Recordá renovar tu plan para seguir entrenando sin interrupciones.",
+      "Estás usando una clase de gracia. Recordá renovar tu plan para seguir entrenando sin interrupciones.",
     icon: Info,
     bg: "bg-blue-50",
     border: "border-blue-200",

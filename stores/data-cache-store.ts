@@ -51,6 +51,8 @@ export interface AlumnoRow {
   activo?: boolean | null;
   cus_completado?: boolean | null;
   cus_clases_presentadas?: number | null;
+  clases_gracia_disponibles?: number | null;
+  clases_gracia_usadas?: number | null;
   ultimaAsistencia: {
     fecha: string;
     hora: string | null;

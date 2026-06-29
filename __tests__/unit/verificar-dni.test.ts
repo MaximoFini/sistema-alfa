@@ -268,6 +268,61 @@ describe("POST /api/verificar-dni — determinarEstado", () => {
     expect(a.yaUsoClasePrueba).toBe(true);
     expect(a.estado).toBe("vencido");
   });
+
+  // ── UV-11: sin planes registrados pero con clases de gracia disponibles ──
+  it("UV-11 — alumno sin planes pero con gracia disponible → estado periodo_gracia", async () => {
+    const alumno = makeAlumno({ clases_gracia_disponibles: 2, clases_gracia_usadas: 0 });
+    setupMock(alumno, []);
+
+    const res = await POST(makeRequest({ dni: "12345678" }) as never);
+    expect((res as unknown as { status: number }).status).toBe(200);
+    const body = (res as unknown as { body: Record<string, unknown> }).body;
+    const a = body.alumno as Record<string, unknown>;
+    expect(a.estado).toBe("periodo_gracia");
+    expect(a.clasesGracia).toBeDefined();
+    expect((a.clasesGracia as { usadas: number }).usadas).toBe(1);
+  });
+
+  // ── UV-12: menor con CUS pendiente y gracia disponible ──────────────────
+  it("UV-12 — menor con CUS pendiente y gracia disponible → consume ambas clases", async () => {
+    const alumno = makeAlumno({
+      fecha_nacimiento: makePastDate(365 * 15), // 15 años
+      cus_completado: false,
+      cus_clases_presentadas: 1,
+      clases_gracia_disponibles: 2,
+      clases_gracia_usadas: 0,
+    });
+    setupMock(alumno, []); // sin planes
+
+    const res = await POST(makeRequest({ dni: "12345678" }) as never);
+    expect((res as unknown as { status: number }).status).toBe(200);
+    const body = (res as unknown as { body: Record<string, unknown> }).body;
+    const a = body.alumno as Record<string, unknown>;
+    
+    // Debería ser advertencia por CUS pendiente
+    expect(a.estado).toBe("advertencia");
+    // CUS clases presentadas aumenta
+    expect(a.cusClasesPresentadas).toBe(2);
+    // Y la gracia está definida (se consume)
+    expect(a.clasesGracia).toBeDefined();
+    expect((a.clasesGracia as { usadas: number }).usadas).toBe(1);
+  });
+
+  // ── UV-13: alumno inactivo en la base de datos ──────────────────────────
+  it("UV-13 — alumno con activo = false → bloqueado independientemente de planes/gracia", async () => {
+    const alumno = makeAlumno({
+      activo: false,
+      clases_gracia_disponibles: 2,
+      clases_gracia_usadas: 0,
+    });
+    setupMock(alumno, []);
+
+    const res = await POST(makeRequest({ dni: "12345678" }) as never);
+    expect((res as unknown as { status: number }).status).toBe(200);
+    const body = (res as unknown as { body: Record<string, unknown> }).body;
+    const a = body.alumno as Record<string, unknown>;
+    expect(a.estado).toBe("vencido");
+  });
 });
 
 export {};

@@ -1,9 +1,3 @@
-import { fileURLToPath } from "url";
-import { dirname } from "path";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
@@ -32,9 +26,7 @@ const nextConfig = {
   },
   // Optimizaciones para caché y performance
   reactStrictMode: true,
-  turbopack: {
-    root: __dirname,
-  },
+  turbopack: {},
   experimental: {
     optimizePackageImports: ["@radix-ui/react-*", "date-fns", "lucide-react", "@powersync/web", "@powersync/react"],
     staticGenerationRetryCount: 1,

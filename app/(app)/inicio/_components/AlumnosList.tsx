@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, memo, useMemo } from "react";
+import { useQuery } from "@powersync/react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
@@ -1151,6 +1152,16 @@ const AlumnoCard = memo(function AlumnoCard({ alumno }: { alumno: AlumnoConUI })
                 PRUEBA
               </span>
             )}
+            {esPrueba && esInactivo && (
+              <span className="inline-flex items-center gap-1 text-xs font-bold text-red-800 bg-red-100 border border-red-300 px-2 py-0.5 rounded-full shrink-0 animate-pulse">
+                LÍMITE ALCANZADO
+              </span>
+            )}
+            {!esPrueba && esInactivo && (alumno.clases_gracia_disponibles ?? 0) > 0 && (alumno.clases_gracia_usadas ?? 0) >= (alumno.clases_gracia_disponibles ?? 0) && (
+              <span className="inline-flex items-center gap-1 text-xs font-bold text-red-800 bg-red-100 border border-red-300 px-2 py-0.5 rounded-full shrink-0 animate-pulse">
+                GRACIA AL LÍMITE
+              </span>
+            )}
             {/* Badge CUS Pendiente — solo para menores sin CUS */}
             {alumno.edad_actual != null &&
               alumno.edad_actual < 18 &&
@@ -1214,48 +1225,86 @@ export default function AlumnosList() {
   const queryActual = queryParam;
 
   const [showModal, setShowModal] = useState(false);
-  const [alumnos, setAlumnos] = useState<AlumnoRow[]>([]);
-  const [alumnosLoading, setAlumnosLoading] = useState(false);
-  const [totalPaginas, setTotalPaginas] = useState(1);
-  const [totalRegistros, setTotalRegistros] = useState(0);
-
-  const { getAlumnos } = useDataCacheStore();
-
   const porPagina = POR_PAGINA;
+  const offset = (paginaActual - 1) * porPagina;
+  const safeQuery = queryActual.replace(/[^a-zA-Z0-9áéíóúüñÁÉÍÓÚÜÑ\s]/g, "");
 
-  // Fetch cuando cambia la página o el query
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      setAlumnosLoading(true);
-      try {
-        const hoy = new Date();
-        const fechaHoyStr = hoy.toLocaleDateString("en-CA");
-        const result = await getAlumnos(paginaActual, queryActual, fechaHoyStr);
-        if (!cancelled) {
-          setAlumnos(result.alumnos);
-          setTotalRegistros(result.totalRegistros);
-          setTotalPaginas(result.totalPaginas);
-        }
-      } catch (err) {
-        console.error("Error fetching alumnos:", err);
-      } finally {
-        if (!cancelled) setAlumnosLoading(false);
-      }
+  // Build the dynamic count and select queries
+  const hoy = new Date();
+  const fechaHoyStr = hoy.toLocaleDateString("en-CA");
+
+  const { countQuery, selectQuery, queryParams } = useMemo(() => {
+    let countQuery = "";
+    let selectQuery = "";
+    let queryParams: any[] = [];
+
+    if (safeQuery) {
+      countQuery = `SELECT COUNT(*) as cnt FROM alumnos WHERE nombre LIKE '%' || ? || '%' OR dni LIKE '%' || ? || '%'`;
+      selectQuery = `SELECT id, nombre, edad_actual, fecha_registro, dni, es_prueba, actividad_interes, activo, cus_completado, cus_clases_presentadas, fecha_ultima_asistencia, clases_gracia_disponibles, clases_gracia_usadas
+                     FROM alumnos
+                     WHERE nombre LIKE '%' || ? || '%' OR dni LIKE '%' || ? || '%'
+                     ORDER BY fecha_ultima_asistencia DESC NULLS LAST, nombre ASC
+                     LIMIT ? OFFSET ?`;
+      queryParams = [safeQuery, safeQuery];
+    } else {
+      countQuery = `SELECT COUNT(*) as cnt FROM alumnos WHERE fecha_ultima_asistencia LIKE ? || '%'`;
+      selectQuery = `SELECT id, nombre, edad_actual, fecha_registro, dni, es_prueba, actividad_interes, activo, cus_completado, cus_clases_presentadas, fecha_ultima_asistencia, clases_gracia_disponibles, clases_gracia_usadas
+                     FROM alumnos
+                     WHERE fecha_ultima_asistencia LIKE ? || '%'
+                     ORDER BY fecha_ultima_asistencia DESC, nombre ASC
+                     LIMIT ? OFFSET ?`;
+      queryParams = [fechaHoyStr];
     }
-    load();
-    return () => { cancelled = true; };
-  }, [paginaActual, queryActual, getAlumnos]);
+    return { countQuery, selectQuery, queryParams };
+  }, [safeQuery, fechaHoyStr]);
+
+  // Execute reactive count query
+  const { data: countResult } = useQuery<{ cnt: number }>(countQuery, queryParams);
+  const totalRegistros = countResult?.[0]?.cnt ?? 0;
+  const totalPaginas = Math.max(1, Math.ceil(totalRegistros / porPagina));
+
+  // Execute reactive select query
+  const selectParams = useMemo(() => [...queryParams, porPagina, offset], [queryParams, offset]);
+  const { data: rawAlumnosResult, isLoading: alumnosLoading } = useQuery<any>(selectQuery, selectParams);
+
+  // Map raw DB rows to AlumnoRow structure
+  const alumnos = useMemo(() => {
+    return (rawAlumnosResult ?? []).map((row: any) => {
+      let fechaAsistencia = "";
+      let horaAsistencia: string | null = null;
+
+      if (row.fecha_ultima_asistencia) {
+        if (row.fecha_ultima_asistencia.includes("T")) {
+          const parts = row.fecha_ultima_asistencia.split("T");
+          fechaAsistencia = parts[0];
+          horaAsistencia = parts[1] || null;
+        } else {
+          fechaAsistencia = row.fecha_ultima_asistencia;
+        }
+      }
+
+      return {
+        id: row.id,
+        nombre: row.nombre,
+        edad_actual: row.edad_actual,
+        fecha_registro: row.fecha_registro,
+        dni: row.dni,
+        es_prueba: row.es_prueba != null ? !!row.es_prueba : null,
+        actividad_interes: row.actividad_interes,
+        activo: row.activo != null ? !!row.activo : null,
+        cus_completado: row.cus_completado != null ? !!row.cus_completado : null,
+        cus_clases_presentadas: row.cus_clases_presentadas,
+        clases_gracia_disponibles: row.clases_gracia_disponibles ?? 0,
+        clases_gracia_usadas: row.clases_gracia_usadas ?? 0,
+        ultimaAsistencia: row.fecha_ultima_asistencia
+          ? { fecha: fechaAsistencia, hora: horaAsistencia }
+          : null,
+      };
+    });
+  }, [rawAlumnosResult]);
 
   function handleGuardado() {
-    // Reload current page after saving
-    const hoy = new Date();
-    const fechaHoyStr = hoy.toLocaleDateString("en-CA");
-    getAlumnos(paginaActual, queryActual, fechaHoyStr).then((result) => {
-      setAlumnos(result.alumnos);
-      setTotalRegistros(result.totalRegistros);
-      setTotalPaginas(result.totalPaginas);
-    }).catch(console.error);
+    // No-op because useQuery is fully reactive and updates itself!
   }
 
   // Enriquecer datos con UI derivada

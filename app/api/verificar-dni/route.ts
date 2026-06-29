@@ -139,7 +139,10 @@ export async function POST(request: NextRequest) {
       await Promise.all([
         supabase
           .from("alumnos")
-          .update({ fecha_ultima_asistencia: fechaISO })
+          .update({
+            fecha_ultima_asistencia: fechaISO,
+            activo: false
+          })
           .eq("id", alumnoTyped.id),
         supabase.from("asistencias").insert({
           alumno_id: alumnoTyped.id,
@@ -191,16 +194,20 @@ export async function POST(request: NextRequest) {
       const horaLocal = `${hours}:${minutes}:${seconds}`;
       const fechaISO = `${fechaLocal}T${horaLocal}`;
 
-      const updateData: Record<string, string | number> = { fecha_ultima_asistencia: fechaISO };
+      const updateData: Record<string, string | number | boolean> = { fecha_ultima_asistencia: fechaISO };
       let nuevoCusClasesPresentadas = alumnoTyped.cus_clases_presentadas ?? 0;
       if (esMenorDeEdad && alumnoTyped.cus_completado === false) {
         nuevoCusClasesPresentadas += 1;
         updateData.cus_clases_presentadas = nuevoCusClasesPresentadas;
       }
 
-      // Si es período de gracia, incrementar el contador de clases usadas directamente en el mismo update
-      if (estado === "periodo_gracia") {
-        updateData.clases_gracia_usadas = (alumnoTyped.clases_gracia_usadas ?? 0) + 1;
+      // Si está utilizando una clase de gracia, incrementar el contador de clases de gracia usadas
+      if (clasesGracia) {
+        const nuevasUsadas = (alumnoTyped.clases_gracia_usadas ?? 0) + 1;
+        updateData.clases_gracia_usadas = nuevasUsadas;
+        if (nuevasUsadas >= (alumnoTyped.clases_gracia_disponibles ?? 0)) {
+          updateData.activo = false;
+        }
       }
 
       // Ejecutar actualización del alumno e inserción de asistencia en paralelo
@@ -279,6 +286,11 @@ async function determinarEstado(
 }> {
   const hoy = getFechaLocal(); // YYYY-MM-DD
 
+  // Si el alumno está marcado como inactivo, está bloqueado (vencido)
+  if (alumno.activo === false) {
+    return { estado: "vencido" };
+  }
+
   // Validar si el alumno es menor y si el CUS está vencido (bloqueado)
   const esMenorDeEdad = alumno.fecha_nacimiento
     ? calcularEdad(alumno.fecha_nacimiento) < 18
@@ -309,8 +321,23 @@ async function determinarEstado(
     return { estado: "vencido" };
   }
 
-  // Sin ningún plan registrado → bloquear
+  // Sin ningún plan registrado → bloquear (a menos que tenga clases de gracia disponibles)
   if (!todosLosPlanes || todosLosPlanes.length === 0) {
+    const disponibles = alumno.clases_gracia_disponibles ?? 0;
+    const usadas = alumno.clases_gracia_usadas ?? 0;
+
+    if (disponibles > 0 && usadas < disponibles) {
+      if (esMenorDeEdad && alumno.cus_completado === false && (alumno.cus_clases_presentadas ?? 0) < 3) {
+        return {
+          estado: "advertencia",
+          clasesGracia: { usadas: usadas + 1, disponibles },
+        };
+      }
+      return {
+        estado: "periodo_gracia",
+        clasesGracia: { usadas: usadas + 1, disponibles },
+      };
+    }
     return { estado: "vencido", razonBloqueo: "sin_plan" };
   }
 
