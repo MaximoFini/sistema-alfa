@@ -5,11 +5,14 @@ export default function InicioLoading() {
   return (
     <div className="relative min-h-screen">
       {/* Fondo logo — igual que AlumnosList */}
-      <div className="fixed inset-0 flex items-center justify-center top-16 md:top-0 pointer-events-none z-0 overflow-hidden">
+      <div 
+        className="fixed bottom-0 right-0 flex items-center justify-center top-[210px] md:top-[150px] pointer-events-none z-0 overflow-hidden transition-[left] duration-75 ease-linear"
+        style={{ left: "var(--sidebar-width, 0px)" }}
+      >
         <img
           src="/logo-sin-fondo-completo.webp"
           alt=""
-          className="w-[80vw] md:w-[450px] opacity-[0.06] object-contain ml-0"
+          className="w-[80vw] md:w-[450px] opacity-[0.06] object-contain"
         />
       </div>
 

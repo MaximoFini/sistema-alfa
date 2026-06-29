@@ -119,7 +119,14 @@ export default function NuevoAlumnoModal({
   }
 
   function setPagoField(field: keyof PagoForm, value: string) {
-    setPagoForm((f) => ({ ...f, [field]: value }));
+    setPagoForm((f) => {
+      const next = { ...f, [field]: value };
+      if (field === "medioPago") {
+        next.tarjeta = "";
+        next.aliasTransferencia = "";
+      }
+      return next;
+    });
     setErrors((e) => ({ ...e, [field]: "" }));
   }
 
@@ -898,11 +905,23 @@ export default function NuevoAlumnoModal({
                       className="w-full border border-gray-200 rounded-lg px-4 py-3 text-base md:text-sm outline-none min-h-[44px] focus:border-red-400 focus:ring-2 focus:ring-red-50 bg-white appearance-none"
                     >
                       <option value="">Seleccionar tarjeta...</option>
-                      {acceptedCards.map((card) => (
-                        <option key={card.id} value={card.name}>
-                          {card.name}
-                        </option>
-                      ))}
+                      {acceptedCards
+                        .filter((card) => {
+                          const mpLower = pagoForm.medioPago.toLowerCase();
+                          const cardLower = card.name.toLowerCase();
+                          if (mpLower.includes("crédito") || mpLower.includes("credito")) {
+                            return cardLower.includes("crédito") || cardLower.includes("credito");
+                          }
+                          if (mpLower.includes("débito") || mpLower.includes("debito")) {
+                            return cardLower.includes("débito") || cardLower.includes("debito");
+                          }
+                          return true;
+                        })
+                        .map((card) => (
+                          <option key={card.id} value={card.name}>
+                            {card.name}
+                          </option>
+                        ))}
                     </select>
                     <ChevronDown
                       size={16}

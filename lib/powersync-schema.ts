@@ -38,6 +38,8 @@ const pagos = new Table({
   medio_pago: column.text,
   fecha_inicio: column.text,
   fecha_vencimiento: column.text,
+  tarjeta: column.text,
+  alias_transferencia: column.text,
 });
 
 const ventas = new Table({

@@ -199,6 +199,17 @@ function ProductoModal({
       return;
     }
 
+    if (!producto) {
+      const stockFinalCalculado = esIndumentaria
+        ? form.tallesStock.reduce((acc, t) => acc + (parseInt(t.stock) || 0), 0)
+        : parseInt(form.stock) || 0;
+
+      if (stockFinalCalculado <= 0) {
+        setError("El stock inicial debe ser mayor a 0");
+        return;
+      }
+    }
+
     setLoading(true);
 
     try {
@@ -808,7 +819,11 @@ function VentaModal({
             </label>
             <select
               value={form.medio_pago}
-              onChange={(e) => setForm({ ...form, medio_pago: e.target.value })}
+              onChange={(e) => {
+                setForm({ ...form, medio_pago: e.target.value });
+                setTarjeta("");
+                setAliasTransferencia("");
+              }}
               className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-50 transition-all"
             >
               <option value="">Seleccionar pago...</option>
@@ -832,11 +847,23 @@ function VentaModal({
                   className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-50 transition-all bg-white appearance-none pr-10"
                 >
                   <option value="">Seleccionar tarjeta...</option>
-                  {acceptedCards.map((card) => (
-                    <option key={card.id} value={card.name}>
-                      {card.name}
-                    </option>
-                  ))}
+                  {acceptedCards
+                    .filter((card) => {
+                      const mpLower = form.medio_pago.toLowerCase();
+                      const cardLower = card.name.toLowerCase();
+                      if (mpLower.includes("crédito") || mpLower.includes("credito")) {
+                        return cardLower.includes("crédito") || cardLower.includes("credito");
+                      }
+                      if (mpLower.includes("débito") || mpLower.includes("debito")) {
+                        return cardLower.includes("débito") || cardLower.includes("debito");
+                      }
+                      return true;
+                    })
+                    .map((card) => (
+                      <option key={card.id} value={card.name}>
+                        {card.name}
+                      </option>
+                    ))}
                 </select>
                 <ChevronDown
                   size={16}
@@ -1024,11 +1051,14 @@ export default function ProductosVentasPage() {
 
   return (
     <div className="relative min-h-screen">
-      <div className="fixed inset-0 flex items-center justify-center top-16 md:top-0 pointer-events-none z-0 overflow-hidden">
+      <div 
+        className="fixed bottom-0 right-0 flex items-center justify-center top-[240px] md:top-[180px] pointer-events-none z-0 overflow-hidden transition-[left] duration-75 ease-linear"
+        style={{ left: "var(--sidebar-width, 0px)" }}
+      >
         <img
-          src="/Mejor%20logo.png"
+          src="/logo-sin-fondo-completo.webp"
           alt="Sistema Alfa Background"
-          className="w-[80vw] md:w-[450px] opacity-[0.35] object-contain ml-0 md:translate-x-[128px]"
+          className="w-[80vw] md:w-[450px] opacity-[0.06] object-contain"
         />
       </div>
 

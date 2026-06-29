@@ -132,19 +132,49 @@ export function useDataCacheStore() {
 
 
   // Helper to get alumnos data imperatively
-  const getAlumnos = useCallback(async (page: number, query: string) => {
+  const getAlumnos = useCallback(async (page: number, query: string, todayStr?: string) => {
     const safeQuery = query.replace(/[^a-zA-Z0-9áéíóúüñÁÉÍÓÚÜÑ\s]/g, "");
     const offset = (page - 1) * POR_PAGINA_ALUMNOS;
 
+    let countQuery = "";
+    let selectQuery = "";
+    let queryParams: any[] = [];
+
+    if (safeQuery) {
+      countQuery = `SELECT COUNT(*) as cnt FROM alumnos WHERE nombre LIKE '%' || ? || '%' OR dni LIKE '%' || ? || '%'`;
+      selectQuery = `SELECT id, nombre, edad_actual, fecha_registro, dni, es_prueba, actividad_interes, activo, cus_completado, cus_clases_presentadas, fecha_ultima_asistencia
+                     FROM alumnos
+                     WHERE nombre LIKE '%' || ? || '%' OR dni LIKE '%' || ? || '%'
+                     ORDER BY fecha_ultima_asistencia DESC NULLS LAST, nombre ASC
+                     LIMIT ? OFFSET ?`;
+      queryParams = [safeQuery, safeQuery];
+    } else {
+      if (todayStr) {
+        countQuery = `SELECT COUNT(*) as cnt FROM alumnos WHERE fecha_ultima_asistencia LIKE ? || '%'`;
+        selectQuery = `SELECT id, nombre, edad_actual, fecha_registro, dni, es_prueba, actividad_interes, activo, cus_completado, cus_clases_presentadas, fecha_ultima_asistencia
+                       FROM alumnos
+                       WHERE fecha_ultima_asistencia LIKE ? || '%'
+                       ORDER BY fecha_ultima_asistencia DESC, nombre ASC
+                       LIMIT ? OFFSET ?`;
+        queryParams = [todayStr];
+      } else {
+        countQuery = "SELECT COUNT(*) as cnt FROM alumnos";
+        selectQuery = `SELECT id, nombre, edad_actual, fecha_registro, dni, es_prueba, actividad_interes, activo, cus_completado, cus_clases_presentadas, fecha_ultima_asistencia
+                       FROM alumnos
+                       ORDER BY fecha_ultima_asistencia DESC NULLS LAST, nombre ASC
+                       LIMIT ? OFFSET ?`;
+        queryParams = [];
+      }
+    }
+
     const countResult = await db.getAll<{ cnt: number }>(
-      safeQuery
-        ? `SELECT COUNT(*) as cnt FROM alumnos WHERE nombre LIKE '%' || ? || '%' OR dni LIKE '%' || ? || '%'`
-        : "SELECT COUNT(*) as cnt FROM alumnos",
-      safeQuery ? [safeQuery, safeQuery] : []
+      countQuery,
+      queryParams
     );
     const totalRegistros = countResult[0]?.cnt ?? 0;
     const totalPaginas = Math.max(1, Math.ceil(totalRegistros / POR_PAGINA_ALUMNOS));
 
+    const selectParams = [...queryParams, POR_PAGINA_ALUMNOS, offset];
     const rawAlumnos = await db.getAll<{
       id: string;
       nombre: string | null;
@@ -157,35 +187,38 @@ export function useDataCacheStore() {
       cus_completado: number | null;
       cus_clases_presentadas: number | null;
       fecha_ultima_asistencia: string | null;
-    }>(
-      safeQuery
-        ? `SELECT id, nombre, edad_actual, fecha_registro, dni, es_prueba, actividad_interes, activo, cus_completado, cus_clases_presentadas, fecha_ultima_asistencia
-           FROM alumnos
-           WHERE nombre LIKE '%' || ? || '%' OR dni LIKE '%' || ? || '%'
-           ORDER BY fecha_ultima_asistencia DESC NULLS LAST, nombre ASC
-           LIMIT ? OFFSET ?`
-        : `SELECT id, nombre, edad_actual, fecha_registro, dni, es_prueba, actividad_interes, activo, cus_completado, cus_clases_presentadas, fecha_ultima_asistencia
-           FROM alumnos
-           ORDER BY fecha_ultima_asistencia DESC NULLS LAST, nombre ASC
-           LIMIT ? OFFSET ?`,
-      safeQuery ? [safeQuery, safeQuery, POR_PAGINA_ALUMNOS, offset] : [POR_PAGINA_ALUMNOS, offset]
-    );
+    }>(selectQuery, selectParams);
 
-    const alumnos: AlumnoRow[] = rawAlumnos.map((row) => ({
-      id: row.id,
-      nombre: row.nombre,
-      edad_actual: row.edad_actual,
-      fecha_registro: row.fecha_registro,
-      dni: row.dni,
-      es_prueba: row.es_prueba != null ? !!row.es_prueba : null,
-      actividad_interes: row.actividad_interes,
-      activo: row.activo != null ? !!row.activo : null,
-      cus_completado: row.cus_completado != null ? !!row.cus_completado : null,
-      cus_clases_presentadas: row.cus_clases_presentadas,
-      ultimaAsistencia: row.fecha_ultima_asistencia
-        ? { fecha: row.fecha_ultima_asistencia, hora: null }
-        : null,
-    }));
+    const alumnos: AlumnoRow[] = rawAlumnos.map((row) => {
+      let fechaAsistencia = "";
+      let horaAsistencia: string | null = null;
+
+      if (row.fecha_ultima_asistencia) {
+        if (row.fecha_ultima_asistencia.includes("T")) {
+          const parts = row.fecha_ultima_asistencia.split("T");
+          fechaAsistencia = parts[0];
+          horaAsistencia = parts[1] || null;
+        } else {
+          fechaAsistencia = row.fecha_ultima_asistencia;
+        }
+      }
+
+      return {
+        id: row.id,
+        nombre: row.nombre,
+        edad_actual: row.edad_actual,
+        fecha_registro: row.fecha_registro,
+        dni: row.dni,
+        es_prueba: row.es_prueba != null ? !!row.es_prueba : null,
+        actividad_interes: row.actividad_interes,
+        activo: row.activo != null ? !!row.activo : null,
+        cus_completado: row.cus_completado != null ? !!row.cus_completado : null,
+        cus_clases_presentadas: row.cus_clases_presentadas,
+        ultimaAsistencia: row.fecha_ultima_asistencia
+          ? { fecha: fechaAsistencia, hora: horaAsistencia }
+          : null,
+      };
+    });
 
     return { alumnos, totalRegistros, totalPaginas };
   }, [db]);

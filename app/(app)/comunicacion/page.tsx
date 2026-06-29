@@ -450,11 +450,14 @@ export default function ComunicacionPage() {
   return (
     <div className="relative min-h-screen">
       {/* Fondo con marca de agua */}
-      <div className="fixed inset-0 flex items-center justify-center top-16 md:top-0 pointer-events-none z-0 overflow-hidden">
+      <div 
+        className="fixed bottom-0 right-0 flex items-center justify-center top-[160px] md:top-[100px] pointer-events-none z-0 overflow-hidden transition-[left] duration-75 ease-linear"
+        style={{ left: "var(--sidebar-width, 0px)" }}
+      >
         <img
-          src="/Mejor%20logo.png"
+          src="/logo-sin-fondo-completo.webp"
           alt="Sistema Alfa Background"
-          className="w-[80vw] md:w-[450px] opacity-[0.35] object-contain ml-0 md:translate-x-[128px]"
+          className="w-[80vw] md:w-[450px] opacity-[0.06] object-contain"
         />
       </div>
 

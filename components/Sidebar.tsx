@@ -44,6 +44,28 @@ export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const mediaQuery = window.matchMedia("(min-width: 768px)");
+    
+    const updateWidth = () => {
+      if (mediaQuery.matches) {
+        document.documentElement.style.setProperty(
+          "--sidebar-width",
+          collapsed ? "64px" : "224px"
+        );
+      } else {
+        document.documentElement.style.setProperty("--sidebar-width", "0px");
+      }
+    };
+
+    updateWidth();
+    mediaQuery.addEventListener("change", updateWidth);
+    return () => mediaQuery.removeEventListener("change", updateWidth);
+  }, [collapsed]);
+
   const { user, role } = useAuth(); // Usar hook con caché
   const [planOpen, setPlanOpen] = useState(
     pathname.startsWith("/planificacion"),

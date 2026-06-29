@@ -189,7 +189,7 @@ function HistorialModal({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-5xl w-full h-[85vh] max-h-[85vh] overflow-hidden flex flex-col p-0 bg-white rounded-2xl border border-gray-100 shadow-2xl">
+      <DialogContent showCloseButton={false} className="sm:max-w-5xl w-full h-[85vh] max-h-[85vh] overflow-hidden flex flex-col p-0 bg-white rounded-2xl border border-gray-100 shadow-2xl">
         {/* Header */}
         <div className="p-6 border-b border-gray-100 flex items-center justify-between shrink-0 bg-white">
           <div className="flex items-center gap-3">
@@ -565,7 +565,7 @@ function RetencionHistorialModal({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-5xl w-full h-[85vh] max-h-[85vh] overflow-hidden flex flex-col p-0 bg-white rounded-2xl border border-gray-100 shadow-2xl">
+      <DialogContent showCloseButton={false} className="sm:max-w-5xl w-full h-[85vh] max-h-[85vh] overflow-hidden flex flex-col p-0 bg-white rounded-2xl border border-gray-100 shadow-2xl">
         {/* Header */}
         <div className="p-6 border-b border-gray-100 flex items-center justify-between shrink-0 bg-white">
           <div className="flex items-center gap-3">
@@ -953,7 +953,7 @@ function RankingHistorialModal({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-5xl w-full h-[85vh] max-h-[85vh] overflow-hidden flex flex-col p-0 bg-white rounded-2xl border border-gray-100 shadow-2xl">
+      <DialogContent showCloseButton={false} className="sm:max-w-5xl w-full h-[85vh] max-h-[85vh] overflow-hidden flex flex-col p-0 bg-white rounded-2xl border border-gray-100 shadow-2xl">
         {/* Header */}
         <div className="p-6 border-b border-gray-100 flex items-center justify-between shrink-0 bg-white">
           <div className="flex items-center gap-3">
@@ -1220,7 +1220,7 @@ const growthPct =
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-5xl w-full h-[85vh] max-h-[85vh] overflow-hidden flex flex-col p-0 bg-white rounded-2xl border border-gray-100 shadow-2xl">
+      <DialogContent showCloseButton={false} className="sm:max-w-5xl w-full h-[85vh] max-h-[85vh] overflow-hidden flex flex-col p-0 bg-white rounded-2xl border border-gray-100 shadow-2xl">
         {/* Header */}
         <div className="p-6 border-b border-gray-100 flex items-center justify-between shrink-0 bg-white">
           <div className="flex items-center gap-3">
@@ -1600,7 +1600,7 @@ function AsistenciasHorarioHistorialModal({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-5xl w-full h-[85vh] max-h-[85vh] overflow-hidden flex flex-col p-0 bg-white rounded-2xl border border-gray-100 shadow-2xl">
+      <DialogContent showCloseButton={false} className="sm:max-w-5xl w-full h-[85vh] max-h-[85vh] overflow-hidden flex flex-col p-0 bg-white rounded-2xl border border-gray-100 shadow-2xl">
         {/* Header */}
         <div className="p-6 border-b border-gray-100 flex items-center justify-between shrink-0 bg-white">
           <div className="flex items-center gap-3">
@@ -1618,36 +1618,12 @@ function AsistenciasHorarioHistorialModal({
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="flex bg-gray-100 rounded-lg p-1 gap-1 shrink-0">
-              <button
-                onClick={() => setVista("individual")}
-                className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
-                  vista === "individual"
-                    ? "bg-white text-gray-900 shadow-sm"
-                    : "text-gray-500 hover:text-gray-700"
-                }`}
-              >
-                Vista Mensual
-              </button>
-              <button
-                onClick={() => setVista("comparativo")}
-                className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
-                  vista === "comparativo"
-                    ? "bg-white text-gray-900 shadow-sm"
-                    : "text-gray-500 hover:text-gray-700"
-                }`}
-              >
-                Comparar Últimos 3 Meses
-              </button>
-            </div>
-            <button
-              onClick={onClose}
-              className="w-8 h-8 rounded-lg hover:bg-gray-100 border border-gray-200/60 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors shrink-0"
-            >
-              <X size={18} />
-            </button>
-          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-lg hover:bg-gray-100 border border-gray-200/60 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors shrink-0"
+          >
+            <X size={18} />
+          </button>
         </div>
 
         <div className="p-6 overflow-y-auto flex-1 bg-gray-50/50 flex flex-col">
@@ -1660,72 +1636,150 @@ function AsistenciasHorarioHistorialModal({
               No hay datos históricos registrados de asistencia por hora.
             </div>
           ) : (
-            <div className="flex-1 flex flex-col gap-4">
-              {vista === "individual" ? (
-                <>
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-                    <span className="text-sm font-semibold text-gray-700">Seleccionar Mes:</span>
-                    <select
-                      value={selectedMonthKey}
-                      onChange={(e) => setSelectedMonthKey(e.target.value)}
-                      className="bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-gray-900 font-semibold focus:outline-none focus:ring-2 focus:ring-red-500"
-                    >
-                      {data.map((r) => (
-                        <option key={`${r.year}-${r.month}`} value={`${r.year}-${r.month}`}>
-                          {MESES_ABREV[r.month - 1]} {r.year}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+            <div className="flex-1 flex flex-col">
+              {/* Barra de herramientas / controles */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-white rounded-xl border border-gray-100 shadow-xs mb-4">
+                {/* Selector de vista */}
+                <div className="flex bg-gray-100 rounded-lg p-1 gap-1 shrink-0 self-start sm:self-auto">
+                  <button
+                    onClick={() => setVista("individual")}
+                    className={`px-4 py-2 rounded-md text-xs font-bold transition-all duration-200 ${
+                      vista === "individual"
+                        ? "bg-white text-gray-900 shadow-sm"
+                        : "text-gray-500 hover:text-gray-700"
+                    }`}
+                  >
+                    Vista Mensual
+                  </button>
+                  <button
+                    onClick={() => setVista("comparativo")}
+                    className={`px-4 py-2 rounded-md text-xs font-bold transition-all duration-200 ${
+                      vista === "comparativo"
+                        ? "bg-white text-gray-900 shadow-sm"
+                        : "text-gray-500 hover:text-gray-700"
+                    }`}
+                  >
+                    Comparar Últimos 3 Meses
+                  </button>
+                </div>
 
-                  <div className="flex-1 min-h-[300px] flex flex-col bg-white rounded-2xl border border-gray-100 p-4 mt-2">
-                    <ResponsiveContainer width="100%" height={320}>
-                      <BarChart data={currentMonthData} barSize={32}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
-                        <XAxis dataKey="horario" tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
-                        <YAxis tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} allowDecimals={false} />
-                        <Tooltip formatter={(v: number) => [`${v} asistencias`, "Asistencia"]} cursor={{ fill: "#f9fafb" }} />
-                        <Bar dataKey="alumnos" fill="#DC2626" radius={[6, 6, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
+                {/* Controles del lado derecho */}
+                {vista === "individual" ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                      Mes a analizar:
+                    </span>
+                    <div className="relative flex items-center">
+                      <Calendar size={14} className="absolute left-3 text-gray-400 pointer-events-none" />
+                      <select
+                        value={selectedMonthKey}
+                        onChange={(e) => setSelectedMonthKey(e.target.value)}
+                        className="bg-white border border-gray-200 rounded-xl pl-9 pr-8 py-1.5 text-xs text-gray-700 font-bold focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 appearance-none transition-all cursor-pointer"
+                      >
+                        {data.map((r) => (
+                          <option key={`${r.year}-${r.month}`} value={`${r.year}-${r.month}`}>
+                            {MESES_ABREV[r.month - 1]} {r.year}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown size={14} className="absolute right-3 text-gray-400 pointer-events-none" />
+                    </div>
                   </div>
-                </>
-              ) : (
-                <>
-                  <div className="flex flex-wrap gap-4 mb-2">
+                ) : (
+                  <div className="flex flex-wrap gap-2">
                     {ultimosTresLabels.map((label, idx) => (
-                      <div key={label} className="flex items-center gap-2">
+                      <div key={label} className="flex items-center gap-1.5 px-2.5 py-1 bg-gray-50 border border-gray-100 rounded-lg">
                         <div
-                          className="w-3 h-3 rounded-full"
+                          className="w-2 h-2 rounded-full"
                           style={{ backgroundColor: comparativoColors[idx] }}
                         />
-                        <span className="text-xs font-semibold text-gray-600">{label}</span>
+                        <span className="text-[11px] font-bold text-gray-600">{label}</span>
                       </div>
                     ))}
                   </div>
+                )}
+              </div>
 
-                  <div className="flex-1 min-h-[300px] flex flex-col bg-white rounded-2xl border border-gray-100 p-4">
-                    <ResponsiveContainer width="100%" height={320}>
-                      <LineChart data={comparativoData}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
-                        <XAxis dataKey="horario" tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
-                        <YAxis tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} allowDecimals={false} />
-                        <Tooltip formatter={(v: number) => [`${v} alumnos`]} />
-                        {ultimosTresLabels.map((label, idx) => (
-                          <Line
-                            key={label}
-                            type="monotone"
-                            dataKey={label}
-                            stroke={comparativoColors[idx]}
-                            strokeWidth={2.5}
-                            dot={{ r: 4, strokeWidth: 0 }}
-                            activeDot={{ r: 6 }}
-                          />
-                        ))}
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                </>
+              {/* Contenedor del gráfico */}
+              {vista === "individual" ? (
+                <div className="flex-1 min-h-[350px] flex flex-col bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={currentMonthData} barSize={28} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
+                      <XAxis 
+                        dataKey="horario" 
+                        tick={{ fontSize: 10, fill: "#9ca3af", fontWeight: 600 }} 
+                        axisLine={false} 
+                        tickLine={false} 
+                        dy={10}
+                      />
+                      <YAxis 
+                        tick={{ fontSize: 10, fill: "#9ca3af", fontWeight: 600 }} 
+                        axisLine={false} 
+                        tickLine={false} 
+                        allowDecimals={false} 
+                        dx={-5}
+                      />
+                      <Tooltip 
+                        contentStyle={{
+                          backgroundColor: "#fff",
+                          border: "1px solid #f3f4f6",
+                          borderRadius: "12px",
+                          boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05)"
+                        }}
+                        labelStyle={{ fontWeight: "bold", color: "#111827", fontSize: "12px" }}
+                        itemStyle={{ color: "#DC2626", fontWeight: "600", fontSize: "12px" }}
+                        formatter={(v: number) => [`${v} asistencias`, "Asistencia"]} 
+                        cursor={{ fill: "#f9fafb", radius: 4 }} 
+                      />
+                      <Bar dataKey="alumnos" fill="#DC2626" radius={[6, 6, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="flex-1 min-h-[350px] flex flex-col bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={comparativoData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
+                      <XAxis 
+                        dataKey="horario" 
+                        tick={{ fontSize: 10, fill: "#9ca3af", fontWeight: 600 }} 
+                        axisLine={false} 
+                        tickLine={false} 
+                        dy={10}
+                      />
+                      <YAxis 
+                        tick={{ fontSize: 10, fill: "#9ca3af", fontWeight: 600 }} 
+                        axisLine={false} 
+                        tickLine={false} 
+                        allowDecimals={false} 
+                        dx={-5}
+                      />
+                      <Tooltip 
+                        contentStyle={{
+                          backgroundColor: "#fff",
+                          border: "1px solid #f3f4f6",
+                          borderRadius: "12px",
+                          boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05)"
+                        }}
+                        labelStyle={{ fontWeight: "bold", color: "#111827", fontSize: "12px" }}
+                        itemStyle={{ fontSize: "12px", fontWeight: "600" }}
+                        formatter={(v: number) => [`${v} alumnos`]} 
+                      />
+                      {ultimosTresLabels.map((label, idx) => (
+                        <Line
+                          key={label}
+                          type="monotone"
+                          dataKey={label}
+                          stroke={comparativoColors[idx]}
+                          strokeWidth={3}
+                          dot={{ r: 4, strokeWidth: 0 }}
+                          activeDot={{ r: 6, strokeWidth: 0 }}
+                        />
+                      ))}
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
               )}
             </div>
           )}
@@ -1821,7 +1875,7 @@ function GeneroHistorialModal({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-5xl w-full h-[85vh] max-h-[85vh] overflow-hidden flex flex-col p-0 bg-white rounded-2xl border border-gray-100 shadow-2xl">
+      <DialogContent showCloseButton={false} className="sm:max-w-5xl w-full h-[85vh] max-h-[85vh] overflow-hidden flex flex-col p-0 bg-white rounded-2xl border border-gray-100 shadow-2xl">
         {/* Header */}
         <div className="p-6 border-b border-gray-100 flex items-center justify-between shrink-0 bg-white">
           <div className="flex items-center gap-3">

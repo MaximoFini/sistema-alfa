@@ -24,6 +24,11 @@ import {
   Loader2,
   Maximize2,
   X,
+  ArrowUpRight,
+  ArrowDownRight,
+  Calculator,
+  Calendar,
+  Trophy,
 } from "lucide-react";
 import {
   Dialog,
@@ -768,7 +773,7 @@ function FinanzasHistorialModal({
     null,
   );
 
-  const YEAR_COLORS = ["#DC2626", "#2563eb", "#16a34a", "#d97706", "#7c3aed"];
+  const YEAR_COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#8b5cf6", "#ec4899"];
 
   const chartData = MESES_ABREV.map((mes, i) => {
     const point: Record<string, number | string> = { mes };
@@ -792,12 +797,12 @@ function FinanzasHistorialModal({
 
   return (
     <Dialog open={open} onOpenChange={(v: boolean) => !v && onClose()}>
-      <DialogContent className="max-w-5xl w-full h-[85vh] max-h-[85vh] overflow-hidden flex flex-col p-0 bg-white rounded-2xl border border-gray-100 shadow-2xl">
+      <DialogContent showCloseButton={false} className="max-w-[96vw] xl:max-w-7xl w-full h-[85vh] max-h-[85vh] overflow-hidden flex flex-col p-0 bg-white rounded-2xl border border-gray-100 shadow-2xl">
         {/* Header */}
         <div className="p-6 border-b border-gray-100 flex items-center justify-between shrink-0 bg-white">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center border border-orange-100 shrink-0">
-              <TrendingUp size={20} className="text-orange-600" />
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center border border-emerald-100/60 shrink-0">
+              <TrendingUp size={20} className="text-emerald-600" />
             </div>
             <div>
               <DialogHeader>
@@ -821,221 +826,270 @@ function FinanzasHistorialModal({
         </div>
 
         {/* Body */}
-        <div className="p-6 overflow-y-auto flex-1 flex flex-col bg-gray-50/50">
+        <div className="p-6 overflow-y-auto flex-1 flex flex-col bg-gray-50/50 gap-6">
           {/* KPI row */}
           {!loading && data.length > 0 && (
-            <div className="grid grid-cols-3 gap-4 mb-6 shrink-0">
-              <div className="bg-white border border-gray-100 rounded-xl p-4 flex flex-col gap-1 shadow-sm">
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                  Promedio Neto {hoyYear}
-                </span>
-                <span className="text-2xl font-extrabold text-gray-900 leading-none mt-1">
-                  {currentAvg !== null ? `$${currentAvg.toLocaleString("es")}` : "—"}
-                </span>
-                {growthPct !== null && (
-                  <span
-                    className="text-xs font-semibold mt-1"
-                    style={{ color: growthPct >= 0 ? "#16a34a" : "#DC2626" }}
-                  >
-                    {growthPct >= 0 ? "▲" : "▼"} {Math.abs(growthPct)}% vs {hoyYear - 1}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 shrink-0">
+              {/* Card 1: Promedio */}
+              <div className="bg-white border border-gray-100 rounded-2xl p-5 flex items-center justify-between shadow-xs relative overflow-hidden group">
+                <div className="absolute -right-4 -bottom-4 w-20 h-20 bg-emerald-50/40 rounded-full transition-transform group-hover:scale-110 duration-500" />
+                <div className="flex flex-col gap-1.5 z-10">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                    Promedio Neto {hoyYear}
                   </span>
-                )}
+                  <span className="text-2xl font-extrabold text-gray-900 leading-none">
+                    {currentAvg !== null ? `$${currentAvg.toLocaleString("es")}` : "—"}
+                  </span>
+                  {growthPct !== null && (
+                    <div className="mt-1">
+                      <span
+                        className={`inline-flex items-center gap-0.5 text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+                          growthPct >= 0
+                            ? "bg-emerald-50 text-emerald-700"
+                            : "bg-red-50 text-red-700"
+                        }`}
+                      >
+                        {growthPct >= 0 ? "▲" : "▼"} {Math.abs(growthPct)}% vs {hoyYear - 1}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center border border-emerald-100/50 text-emerald-600 shrink-0 z-10 shadow-3xs">
+                  <Calculator size={18} />
+                </div>
               </div>
-              <div className="bg-white border border-gray-100 rounded-xl p-4 flex flex-col gap-1 shadow-sm">
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                  Máximo histórico Neto
-                </span>
-                <span className="text-2xl font-extrabold text-gray-900 leading-none mt-1">
-                  {bestSnap ? `$${bestSnap.ingresos_mes.toLocaleString("es")}` : "—"}
-                </span>
-                {bestSnap && (
-                  <span className="text-xs text-gray-400 mt-1 font-medium">
-                    {MESES_ABREV[bestSnap.month - 1]} {bestSnap.year}
+
+              {/* Card 2: Maximo */}
+              <div className="bg-white border border-gray-100 rounded-2xl p-5 flex items-center justify-between shadow-xs relative overflow-hidden group">
+                <div className="absolute -right-4 -bottom-4 w-20 h-20 bg-amber-50/40 rounded-full transition-transform group-hover:scale-110 duration-500" />
+                <div className="flex flex-col gap-1.5 z-10">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                    Máximo histórico Neto
                   </span>
-                )}
+                  <span className="text-2xl font-extrabold text-gray-900 leading-none">
+                    {bestSnap ? `$${bestSnap.ingresos_mes.toLocaleString("es")}` : "—"}
+                  </span>
+                  {bestSnap && (
+                    <div className="mt-1">
+                      <span className="inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700">
+                        {MESES_ABREV[bestSnap.month - 1]} {bestSnap.year}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center border border-amber-100/50 text-amber-600 shrink-0 z-10 shadow-3xs">
+                  <Trophy size={18} />
+                </div>
               </div>
-              <div className="bg-white border border-gray-100 rounded-xl p-4 flex flex-col gap-1 shadow-sm">
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                  Años registrados
-                </span>
-                <span className="text-2xl font-extrabold text-gray-900 leading-none mt-1">
-                  {years.length}
-                </span>
-                {years.length > 0 && (
-                  <span className="text-xs text-gray-400 mt-1 font-medium">
-                    {Math.min(...years)} – {Math.max(...years)}
+
+              {/* Card 3: Años */}
+              <div className="bg-white border border-gray-100 rounded-2xl p-5 flex items-center justify-between shadow-xs relative overflow-hidden group">
+                <div className="absolute -right-4 -bottom-4 w-20 h-20 bg-blue-50/40 rounded-full transition-transform group-hover:scale-110 duration-500" />
+                <div className="flex flex-col gap-1.5 z-10">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                    Años registrados
                   </span>
-                )}
+                  <span className="text-2xl font-extrabold text-gray-900 leading-none">
+                    {years.length}
+                  </span>
+                  {years.length > 0 && (
+                    <div className="mt-1">
+                      <span className="inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">
+                        {Math.min(...years)} – {Math.max(...years)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center border border-blue-100/50 text-blue-600 shrink-0 z-10 shadow-3xs">
+                  <Calendar size={18} />
+                </div>
               </div>
             </div>
           )}
 
-          {/* Toggle */}
-          <div className="flex gap-2 mb-5 shrink-0">
-            {(["tabla", "grafico"] as const).map((v) => (
-              <button
-                key={v}
-                onClick={() => setVista(v)}
-                className={`text-sm px-5 py-2 rounded-lg font-semibold transition-colors ${
-                  vista === v
-                    ? "bg-gray-900 text-white"
-                    : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-                }`}
-              >
-                {v === "tabla" ? "Tabla" : "Gráfico"}
-              </button>
-            ))}
+          {/* Toggle & Legend */}
+          <div className="flex flex-wrap items-center justify-between gap-4 shrink-0">
+            <div className="bg-gray-100/80 p-1 rounded-xl flex inline-flex">
+              {(["tabla", "grafico"] as const).map((v) => (
+                <button
+                  key={v}
+                  onClick={() => setVista(v)}
+                  className={`text-sm px-4 py-1.5 rounded-lg font-semibold transition-all duration-200 ${
+                    vista === v
+                      ? "bg-white text-gray-900 shadow-xs"
+                      : "text-gray-500 hover:text-gray-900"
+                  }`}
+                >
+                  {v === "tabla" ? "Tabla" : "Gráfico"}
+                </button>
+              ))}
+            </div>
+
+            {vista === "tabla" && !loading && data.length > 0 && (
+              <div className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-xl border border-gray-100 shadow-3xs">
+                <span className="text-[11px] text-gray-400 font-medium">Menos</span>
+                {[0.08, 0.25, 0.45, 0.65, 0.85].map((t) => (
+                  <div
+                    key={t}
+                    className="w-4 h-4 rounded-sm"
+                    style={{ backgroundColor: `rgba(16, 185, 129, ${t})` }}
+                  />
+                ))}
+                <span className="text-[11px] text-gray-400 font-medium">Más</span>
+              </div>
+            )}
           </div>
 
           {loading && (
             <div className="flex items-center justify-center flex-1 text-gray-300 text-base">
-              Cargando...
+              <Loader2 className="animate-spin text-emerald-500 mr-2" size={20} />
+              Cargando historial...
             </div>
           )}
 
           {!loading && data.length === 0 && (
-            <div className="flex items-center justify-center flex-1 text-gray-400 text-base">
-              No hay datos de historial todavía.
+            <div className="flex flex-col items-center justify-center flex-1 bg-white border border-gray-100 rounded-2xl p-8 text-center text-gray-400 shadow-xs">
+              <Calendar size={40} className="text-gray-300 mb-2" />
+              <p className="text-sm font-medium">No hay datos de historial todavía.</p>
             </div>
           )}
 
           {/* ── Heatmap tabla ── */}
           {!loading && data.length > 0 && vista === "tabla" && (
-            <div className="flex-1 flex flex-col">
-              <div className="flex items-center justify-end gap-2 mb-4">
-                <span className="text-xs text-gray-400">Menos</span>
-                {[0.08, 0.25, 0.45, 0.65, 0.85].map((t) => (
-                  <div
-                    key={t}
-                    className="w-6 h-6 rounded"
-                    style={{ backgroundColor: `rgba(220,38,38,${t})` }}
-                  />
-                ))}
-                <span className="text-xs text-gray-400">Más</span>
-              </div>
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr>
-                    <th className="text-left pb-3 pr-6 text-xs font-semibold text-gray-400 uppercase tracking-wide w-16">
-                      Año
-                    </th>
-                    {MESES_ABREV.map((m) => (
-                      <th
-                        key={m}
-                        className="text-center pb-3 px-1 text-xs font-semibold text-gray-400 uppercase tracking-wide"
-                      >
-                        {m}
+            <div className="flex-1 flex flex-col bg-white border border-gray-100 rounded-2xl shadow-xs overflow-hidden">
+              <div className="overflow-x-auto pb-1 custom-scrollbar">
+                <style dangerouslySetInnerHTML={{ __html: `
+                  .custom-scrollbar::-webkit-scrollbar {
+                    height: 6px;
+                  }
+                  .custom-scrollbar::-webkit-scrollbar-track {
+                    background: transparent;
+                  }
+                  .custom-scrollbar::-webkit-scrollbar-thumb {
+                    background-color: rgba(156, 163, 175, 0.25);
+                    border-radius: 9999px;
+                  }
+                  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+                    background-color: rgba(156, 163, 175, 0.45);
+                  }
+                `}} />
+                
+                <table className="w-full border-collapse table-fixed min-w-[780px]">
+                  <thead>
+                    <tr className="bg-gray-50/75 border-b border-gray-100">
+                      <th className="py-3 px-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider w-16">
+                        Año
                       </th>
-                    ))}
-                    <th className="text-right pb-3 pl-5 text-xs font-semibold text-gray-400 uppercase tracking-wide">
-                      Prom.
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {years.map((y) => {
-                    const rowData = data.filter((r) => r.year === y);
-                    const rowAvg = rowData.length
-                      ? Math.round(
-                          rowData.reduce((s, r) => s + r.ingresos_mes, 0) /
-                            rowData.length,
-                        )
-                      : null;
-                    return (
-                      <tr key={y}>
-                        <td className="py-1.5 pr-6">
-                          <span
-                            className="text-base font-bold"
-                            style={{
-                              color: y === hoyYear ? "#DC2626" : "#9ca3af",
-                            }}
-                          >
-                            {y}
-                          </span>
-                        </td>
-                        {MESES_ABREV.map((_, i) => {
-                          const snap = data.find(
-                            (r) => r.year === y && r.month === i + 1,
-                          );
-                          const isCurrent = y === hoyYear && i + 1 === hoyMonth;
-                          const t =
-                            snap && maxVal > minVal
-                              ? (snap.ingresos_mes - minVal) /
-                                (maxVal - minVal)
-                              : snap
-                                ? 0.5
-                                : null;
-                          return (
-                            <td key={i} className="px-1 py-1.5">
-                              <div
-                                className="rounded-lg flex items-center justify-center text-sm font-bold relative group cursor-help"
-                                title={
-                                  snap && snap.es_importado
-                                    ? `Dato importado: $${snap.ingresos_mes.toLocaleString("es")}\nOrigen: ${snap.origen_importacion || "Otro sistema"}\nFecha: ${snap.fecha_importacion ? new Date(snap.fecha_importacion).toLocaleDateString("es") : "—"}${snap.notas_importacion ? `\nNotas: ${snap.notas_importacion}` : ""}`
-                                    : undefined
-                                }
-                                style={{
-                                  height: 44,
-                                  ...(t !== null
-                                    ? {
-                                        backgroundColor: isCurrent
-                                          ? "#DC2626"
-                                          : `rgba(220,38,38,${0.06 + t * 0.58})`,
-                                        color: isCurrent
-                                          ? "#fff"
-                                          : t > 0.55
-                                            ? "#fff"
-                                            : "#374151",
-                                        boxShadow: isCurrent
-                                          ? "0 0 0 2px #DC2626"
-                                          : "none",
-                                      }
-                                    : {
-                                        backgroundColor: "#f9fafb",
-                                        color: "#d1d5db",
-                                      }),
-                                }}
-                              >
-                                {snap ? formatMontoHeatmap(snap.ingresos_mes) : "—"}
-                                {snap?.es_importado && (
-                                  <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-orange-400 shadow-sm animate-pulse" />
-                                )}
-                              </div>
-                            </td>
-                          );
-                        })}
-                        <td className="pl-5 py-1.5 text-right">
-                          <span className="text-sm font-bold text-gray-400">
-                            {rowAvg !== null ? `$${rowAvg.toLocaleString("es")}` : "—"}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                      {MESES_ABREV.map((m) => (
+                        <th
+                          key={m}
+                          className="py-3 px-1 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider"
+                        >
+                          {m}
+                        </th>
+                      ))}
+                      <th className="py-3 px-4 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider w-20 border-l border-gray-100 bg-gray-50/30">
+                        Prom.
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {years.map((y) => {
+                      const rowData = data.filter((r) => r.year === y);
+                      const rowAvg = rowData.length
+                        ? Math.round(
+                            rowData.reduce((s, r) => s + r.ingresos_mes, 0) /
+                              rowData.length,
+                          )
+                        : null;
+                      return (
+                        <tr key={y} className="hover:bg-gray-50/10 transition-colors">
+                          <td className="px-4 py-2.5 align-middle">
+                            <span
+                              className={`text-xs font-extrabold px-2 py-0.5 rounded-md inline-flex ${
+                                y === hoyYear
+                                  ? "bg-emerald-50 text-emerald-700 border border-emerald-100/50"
+                                  : "text-gray-400 bg-gray-50 border border-gray-100/50"
+                              }`}
+                            >
+                              {y}
+                            </span>
+                          </td>
+                          {MESES_ABREV.map((_, i) => {
+                            const snap = data.find(
+                              (r) => r.year === y && r.month === i + 1,
+                            );
+                            const isCurrent = y === hoyYear && i + 1 === hoyMonth;
+                            const t =
+                              snap && maxVal > minVal
+                                ? (snap.ingresos_mes - minVal) /
+                                  (maxVal - minVal)
+                                : snap
+                                  ? 0.5
+                                  : null;
+                            return (
+                              <td key={i} className="px-0.5 py-2.5 align-middle">
+                                <div
+                                  className="rounded-lg flex items-center justify-center text-[12px] font-bold relative group cursor-help transition-all duration-200 hover:scale-[1.05] hover:shadow-2xs"
+                                  title={
+                                    snap && snap.es_importado
+                                      ? `Dato importado: $${snap.ingresos_mes.toLocaleString("es")}\nOrigen: ${snap.origen_importacion || "Otro sistema"}\nFecha: ${snap.fecha_importacion ? new Date(snap.fecha_importacion).toLocaleDateString("es") : "—"}${snap.notas_importacion ? `\nNotas: ${snap.notas_importacion}` : ""}`
+                                      : undefined
+                                  }
+                                  style={{
+                                    height: 38,
+                                    ...(t !== null
+                                      ? {
+                                          backgroundColor: `rgba(16, 185, 129, ${0.05 + t * 0.75})`,
+                                          color: t > 0.55 ? "#fff" : "#064e3b",
+                                          boxShadow: isCurrent
+                                            ? "inset 0 0 0 2px #059669"
+                                            : "none",
+                                        }
+                                      : {
+                                          backgroundColor: "#f9fafb",
+                                          color: "#cbd5e1",
+                                        }),
+                                  }}
+                                >
+                                  {snap ? formatMontoHeatmap(snap.ingresos_mes) : "—"}
+                                  {snap?.es_importado && (
+                                    <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-amber-500 ring-2 ring-white shadow-3xs" />
+                                  )}
+                                </div>
+                              </td>
+                            );
+                          })}
+                          <td className="px-4 py-2.5 text-right align-middle border-l border-gray-100 bg-gray-50/10" title={rowAvg !== null ? `$${rowAvg.toLocaleString("es")}` : undefined}>
+                            <span className="text-xs font-bold text-gray-500">
+                              {rowAvg !== null ? formatMontoHeatmap(rowAvg) : "—"}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 
           {/* ── Gráfico ── */}
           {!loading && data.length > 0 && vista === "grafico" && (
-            <div className="flex-1 flex flex-col">
-              <div className="flex flex-wrap gap-5 mb-5">
+            <div className="flex-1 flex flex-col bg-white border border-gray-100 rounded-2xl p-6 shadow-xs gap-5">
+              <div className="flex flex-wrap gap-3">
                 {years.map((y, idx) => (
-                  <div key={y} className="flex items-center gap-2.5">
+                  <div key={y} className="flex items-center gap-2 bg-gray-50 hover:bg-gray-100/80 px-2.5 py-1 rounded-lg border border-gray-100 transition-colors">
                     <div
-                      className="w-8 rounded-full"
+                      className="w-2.5 h-2.5 rounded-full shrink-0"
                       style={{
                         backgroundColor: YEAR_COLORS[idx % YEAR_COLORS.length],
-                        height: y === hoyYear ? 4 : 2,
-                        opacity: y === hoyYear ? 1 : 0.6,
                       }}
                     />
                     <span
-                      className="text-sm font-semibold"
-                      style={{
-                        color: y === hoyYear ? YEAR_COLORS[0] : "#9ca3af",
-                      }}
+                      className={`text-xs font-semibold ${
+                        y === hoyYear ? "text-gray-900 font-bold" : "text-gray-500"
+                      }`}
                     >
                       {y}
                       {y === hoyYear ? " (actual)" : ""}
@@ -1043,56 +1097,60 @@ function FinanzasHistorialModal({
                   </div>
                 ))}
               </div>
-              <ResponsiveContainer width="100%" height={360}>
-                <LineChart data={chartData}>
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke="#f5f5f5"
-                    vertical={false}
-                  />
-                  <XAxis
-                    dataKey="mes"
-                    tick={{ fontSize: 13, fill: "#9ca3af" }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <YAxis
-                    tick={{ fontSize: 13, fill: "#9ca3af" }}
-                    axisLine={false}
-                    tickLine={false}
-                    tickFormatter={(v) => `$${v / 1000}k`}
-                  />
-                  <Tooltip
-                    formatter={(v: number) => [`$${v.toLocaleString("es")}`, "Ingresos"]}
-                    contentStyle={{
-                      borderRadius: 8,
-                      border: "1px solid #f0f0f0",
-                      fontSize: 14,
-                    }}
-                  />
-                  {years.map((y, idx) => (
-                    <Line
-                      key={y}
-                      type="monotone"
-                      dataKey={String(y)}
-                      stroke={YEAR_COLORS[idx % YEAR_COLORS.length]}
-                      strokeWidth={y === hoyYear ? 3 : 1.5}
-                      strokeOpacity={y === hoyYear ? 1 : 0.5}
-                      dot={
-                        y === hoyYear
-                          ? {
-                              r: 4,
-                              fill: YEAR_COLORS[0],
-                              strokeWidth: 0,
-                            }
-                          : false
-                      }
-                      activeDot={{ r: 5 }}
-                      connectNulls
+              <div className="flex-1 min-h-[320px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="#f8fafc"
+                      vertical={false}
                     />
-                  ))}
-                </LineChart>
-              </ResponsiveContainer>
+                    <XAxis
+                      dataKey="mes"
+                      tick={{ fontSize: 11, fill: "#94a3b8", fontWeight: 500 }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      tick={{ fontSize: 11, fill: "#94a3b8", fontWeight: 500 }}
+                      axisLine={false}
+                      tickLine={false}
+                      tickFormatter={(v) => `$${v / 1000}k`}
+                    />
+                    <Tooltip
+                      formatter={(v: number) => [`$${v.toLocaleString("es")}`, "Ingresos"]}
+                      contentStyle={{
+                        backgroundColor: "rgba(255, 255, 255, 0.98)",
+                        borderRadius: 12,
+                        border: "1px solid #f1f5f9",
+                        boxShadow: "0 4px 12px -2px rgba(0,0,0,0.05), 0 2px 6px -1px rgba(0,0,0,0.03)",
+                        fontSize: 12,
+                      }}
+                    />
+                    {years.map((y, idx) => (
+                      <Line
+                        key={y}
+                        type="monotone"
+                        dataKey={String(y)}
+                        stroke={YEAR_COLORS[idx % YEAR_COLORS.length]}
+                        strokeWidth={y === hoyYear ? 3 : 1.5}
+                        strokeOpacity={y === hoyYear ? 1 : 0.6}
+                        dot={
+                          y === hoyYear
+                            ? {
+                                r: 4,
+                                fill: YEAR_COLORS[idx % YEAR_COLORS.length],
+                                strokeWidth: 0,
+                              }
+                            : false
+                        }
+                        activeDot={{ r: 5 }}
+                        connectNulls
+                      />
+                    ))}
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           )}
         </div>
@@ -1100,7 +1158,7 @@ function FinanzasHistorialModal({
         <div className="p-4 border-t border-gray-100 flex justify-end bg-white shrink-0">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white font-bold text-xs rounded-xl transition-all active:scale-95"
+            className="px-5 py-2 bg-gray-900 hover:bg-gray-800 text-white font-bold text-xs rounded-xl transition-all active:scale-95 shadow-xs"
           >
             Cerrar
           </button>

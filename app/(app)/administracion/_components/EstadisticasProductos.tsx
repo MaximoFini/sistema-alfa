@@ -13,6 +13,7 @@ import {
   Loader2,
   Maximize2,
   X,
+  History,
 } from "lucide-react";
 import {
   PieChart,
@@ -162,6 +163,9 @@ export default function EstadisticasProductos() {
   );
   const [loading, setLoading] = useState(!isCacheValid);
   const [showHistorialModal, setShowHistorialModal] = useState(false);
+  const [showVentasHistorialModal, setShowVentasHistorialModal] = useState(false);
+  const [showProductosVendidosHistorialModal, setShowProductosVendidosHistorialModal] = useState(false);
+  const [showProductosActivosHistorialModal, setShowProductosActivosHistorialModal] = useState(false);
 
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth() + 1;
@@ -310,7 +314,7 @@ export default function EstadisticasProductos() {
           {/* Fila de Tarjetas KPI */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* KPI Ventas Totales */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm flex flex-col justify-between min-h-[140px]">
+          <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm flex flex-col justify-between min-h-[140px] hover:shadow-md transition-shadow relative group">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
                 Ventas del Mes
@@ -323,9 +327,29 @@ export default function EstadisticasProductos() {
               <p className="text-3xl font-extrabold text-gray-900 leading-none">
                 ${totalVentas.toFixed(2)}
               </p>
-              <p className="text-[10px] text-gray-400 mt-1.5 font-medium">
-                {ventas.length} transacciones registradas
-              </p>
+              <div className="flex items-center justify-between mt-1.5">
+                <p className="text-[10px] text-gray-400 font-medium">
+                  {ventas.length} transacciones registradas
+                </p>
+                <button
+                  onClick={() => setShowVentasHistorialModal(true)}
+                  className="text-xs text-gray-400 hover:text-gray-700 font-semibold flex items-center gap-1.5 transition-colors"
+                >
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    className="shrink-0"
+                  >
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                    <path d="M3 3v5h5" />
+                  </svg>
+                  Ver historial
+                </button>
+              </div>
             </div>
           </div>
 
@@ -335,17 +359,8 @@ export default function EstadisticasProductos() {
               <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
                 Ganancias del Mes
               </span>
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={() => setShowHistorialModal(true)}
-                  className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600 transition-colors"
-                  title="Ver historial de ganancias"
-                >
-                  <Maximize2 size={14} />
-                </button>
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-green-50">
-                  <TrendingUp size={16} className="text-green-600" />
-                </div>
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-green-50">
+                <TrendingUp size={16} className="text-green-600" />
               </div>
             </div>
             <div className="mt-4">
@@ -362,8 +377,20 @@ export default function EstadisticasProductos() {
                 </p>
                 <button
                   onClick={() => setShowHistorialModal(true)}
-                  className="text-[10px] text-orange-500 font-bold hover:underline flex items-center gap-0.5"
+                  className="text-xs text-gray-400 hover:text-gray-700 font-semibold flex items-center gap-1.5 transition-colors"
                 >
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    className="shrink-0"
+                  >
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                    <path d="M3 3v5h5" />
+                  </svg>
                   Ver historial
                 </button>
               </div>
@@ -371,7 +398,7 @@ export default function EstadisticasProductos() {
           </div>
 
           {/* KPI Productos Vendidos */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm flex flex-col justify-between min-h-[140px]">
+          <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm flex flex-col justify-between min-h-[140px] hover:shadow-md transition-shadow relative group">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
                 Productos Vendidos
@@ -384,14 +411,34 @@ export default function EstadisticasProductos() {
               <p className="text-3xl font-extrabold text-gray-900 leading-none">
                 {totalProductosVendidos}
               </p>
-              <p className="text-[10px] text-gray-400 mt-1.5 font-medium">
-                Unidades totales vendidas este mes
-              </p>
+              <div className="flex items-center justify-between mt-1.5">
+                <p className="text-[10px] text-gray-400 font-medium">
+                  Unidades totales vendidas este mes
+                </p>
+                <button
+                  onClick={() => setShowProductosVendidosHistorialModal(true)}
+                  className="text-xs text-gray-400 hover:text-gray-700 font-semibold flex items-center gap-1.5 transition-colors"
+                >
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    className="shrink-0"
+                  >
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                    <path d="M3 3v5h5" />
+                  </svg>
+                  Ver historial
+                </button>
+              </div>
             </div>
           </div>
 
           {/* KPI Productos Activos */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm flex flex-col justify-between min-h-[140px]">
+          <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm flex flex-col justify-between min-h-[140px] hover:shadow-md transition-shadow relative group">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
                 Productos Activos
@@ -404,13 +451,33 @@ export default function EstadisticasProductos() {
               <p className="text-3xl font-extrabold text-gray-900 leading-none">
                 {productos.filter((p) => p.activo).length}
               </p>
-              <p className="text-[10px] text-gray-400 mt-1.5 font-medium">
-                {
-                  productos.filter((p) => p.activo && p.stock <= p.stock_minimo)
-                    .length
-                }{" "}
-                con stock bajo actualmente
-              </p>
+              <div className="flex items-center justify-between mt-1.5">
+                <p className="text-[10px] text-gray-400 font-medium">
+                  {
+                    productos.filter((p) => p.activo && p.stock <= p.stock_minimo)
+                      .length
+                  }{" "}
+                  con stock bajo actualmente
+                </p>
+                <button
+                  onClick={() => setShowProductosActivosHistorialModal(true)}
+                  className="text-xs text-gray-400 hover:text-gray-700 font-semibold flex items-center gap-1.5 transition-colors"
+                >
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    className="shrink-0"
+                  >
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                    <path d="M3 3v5h5" />
+                  </svg>
+                  Ver historial
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -590,6 +657,24 @@ export default function EstadisticasProductos() {
         open={showHistorialModal}
         onClose={() => setShowHistorialModal(false)}
       />
+
+      {/* Historial de Ventas Modal */}
+      <ProductosVentasHistorialModal
+        open={showVentasHistorialModal}
+        onClose={() => setShowVentasHistorialModal(false)}
+      />
+
+      {/* Historial de Productos Vendidos Modal */}
+      <ProductosVendidosHistorialModal
+        open={showProductosVendidosHistorialModal}
+        onClose={() => setShowProductosVendidosHistorialModal(false)}
+      />
+
+      {/* Historial de Productos Activos Modal */}
+      <ProductosActivosHistorialModal
+        open={showProductosActivosHistorialModal}
+        onClose={() => setShowProductosActivosHistorialModal(false)}
+      />
     </div>
   );
 }
@@ -665,7 +750,7 @@ function ProductosGananciasHistorialModal({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-4xl w-full h-[80vh] max-h-[80vh] overflow-hidden flex flex-col p-0 bg-white rounded-2xl border border-gray-100 shadow-2xl">
+      <DialogContent showCloseButton={false} className="max-w-4xl w-full h-[80vh] max-h-[80vh] overflow-hidden flex flex-col p-0 bg-white rounded-2xl border border-gray-100 shadow-2xl">
         {/* Header */}
         <div className="p-6 border-b border-gray-100 flex items-center justify-between shrink-0 bg-white">
           <div className="flex items-center gap-3">
@@ -778,6 +863,642 @@ function ProductosGananciasHistorialModal({
                         key={y}
                         dataKey={String(y)}
                         name={`Ganancia ${y}`}
+                        fill={YEAR_COLORS[idx % YEAR_COLORS.length]}
+                        radius={[4, 4, 0, 0]}
+                      />
+                    ))}
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Componente Modal del Historial de Ventas ─────────────────────────────────
+interface MonthlyVenta {
+  year: number;
+  month: number;
+  total: number;
+}
+
+function ProductosVentasHistorialModal({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
+  const [data, setData] = useState<MonthlyVenta[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [vista, setVista] = useState<"tabla" | "grafico">("tabla");
+
+  useEffect(() => {
+    if (!open) return;
+    setLoading(true);
+
+    supabase
+      .from("ventas")
+      .select("total, created_at")
+      .order("created_at", { ascending: true })
+      .then(({ data: rows, error }) => {
+        if (error) {
+          console.error("Error cargando historial de ventas:", error);
+          setLoading(false);
+          return;
+        }
+
+        // Agrupar por mes y año
+        const grouped = (rows || []).reduce((acc: Record<string, MonthlyVenta>, v) => {
+          if (!v.created_at) return acc;
+          const d = new Date(v.created_at);
+          const year = d.getFullYear();
+          const month = d.getMonth() + 1;
+          const key = `${year}-${month}`;
+
+          if (!acc[key]) {
+            acc[key] = { year, month, total: 0 };
+          }
+          acc[key].total += Number(v.total) || 0;
+          return acc;
+        }, {});
+
+        // Convertir a array y ordenar de más reciente a más antiguo
+        const sorted = Object.values(grouped).sort((a, b) => {
+          if (b.year !== a.year) return b.year - a.year;
+          return b.month - a.month;
+        });
+
+        setData(sorted);
+        setLoading(false);
+      });
+  }, [open]);
+
+  const years = [...new Set(data.map((r) => r.year))].sort((a, b) => b - a);
+
+  // Preparar datos del gráfico
+  const chartData = MONTH_NAMES.map((monthName, idx) => {
+    const point: Record<string, any> = { mes: monthName.slice(0, 3) };
+    years.forEach((y) => {
+      const found = data.find((r) => r.year === y && r.month === idx + 1);
+      if (found) {
+        point[String(y)] = found.total;
+      }
+    });
+    return point;
+  });
+
+  const YEAR_COLORS = ["#EA580C", "#2563EB", "#16A34A", "#D97706", "#8B5CF6"];
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent showCloseButton={false} className="max-w-4xl w-full h-[80vh] max-h-[80vh] overflow-hidden flex flex-col p-0 bg-white rounded-2xl border border-gray-100 shadow-2xl">
+        {/* Header */}
+        <div className="p-6 border-b border-gray-100 flex items-center justify-between shrink-0 bg-white">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center border border-orange-100 shrink-0">
+              <DollarSign size={20} className="text-orange-600" />
+            </div>
+            <div>
+              <DialogHeader>
+                <DialogTitle className="text-base font-bold text-gray-900 leading-none">
+                  Historial de Ventas — Productos
+                </DialogTitle>
+              </DialogHeader>
+              <p className="text-xs text-gray-400 font-medium mt-1">
+                Evolución de ventas brutas mensuales por productos
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-lg hover:bg-gray-100 border border-gray-200/60 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors shrink-0"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="p-6 overflow-y-auto flex-1 flex flex-col bg-gray-50/50">
+          {/* Selector de Vista */}
+          <div className="flex gap-2 mb-4 shrink-0">
+            <button
+              onClick={() => setVista("tabla")}
+              className={`text-sm px-5 py-2 rounded-lg font-semibold transition-colors ${
+                vista === "tabla"
+                  ? "bg-gray-900 text-white"
+                  : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+              }`}
+            >
+              Tabla
+            </button>
+            <button
+              onClick={() => setVista("grafico")}
+              className={`text-sm px-5 py-2 rounded-lg font-semibold transition-colors ${
+                vista === "grafico"
+                  ? "bg-gray-900 text-white"
+                  : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+              }`}
+            >
+              Gráfico
+            </button>
+          </div>
+
+          {loading ? (
+            <div className="flex-1 flex items-center justify-center py-12">
+              <div className="text-center">
+                <Loader2 size={36} className="text-orange-500 animate-spin mx-auto mb-2" />
+                <p className="text-sm text-gray-500 font-medium">Cargando historial...</p>
+              </div>
+            </div>
+          ) : data.length === 0 ? (
+            <div className="flex-1 flex items-center justify-center py-12 text-gray-400 text-sm">
+              No hay registros de ventas anteriores para mostrar.
+            </div>
+          ) : vista === "tabla" ? (
+            <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden flex-1 flex flex-col">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-gray-50/75 border-b border-gray-100 text-gray-400 text-[10px] font-bold uppercase tracking-wider">
+                      <th className="px-6 py-4">Año</th>
+                      <th className="px-6 py-4">Mes</th>
+                      <th className="px-6 py-4 text-right">Ventas Brutas</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 text-sm">
+                    {data.map((row, idx) => (
+                      <tr key={idx} className="hover:bg-gray-50/25 transition-colors">
+                        <td className="px-6 py-4 font-semibold text-gray-600">{row.year}</td>
+                        <td className="px-6 py-4 font-semibold text-gray-900">
+                          {MONTH_NAMES[row.month - 1]}
+                        </td>
+                        <td className="px-6 py-4 text-right font-extrabold text-orange-600">
+                          ${row.total.toFixed(2)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm flex-1 flex flex-col justify-center min-h-[300px]">
+              <div className="w-full h-[320px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData} barSize={16}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+                    <XAxis dataKey="mes" tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
+                    <YAxis
+                      tick={{ fontSize: 11, fill: "#9ca3af" }}
+                      axisLine={false}
+                      tickLine={false}
+                      tickFormatter={(v) => `$${v}`}
+                    />
+                    <RechartsTooltip
+                      formatter={(v: number) => [`$${v.toFixed(2)}`, "Ventas"]}
+                      cursor={{ fill: "#f9fafb" }}
+                    />
+                    <Legend />
+                    {years.map((y, idx) => (
+                      <Bar
+                        key={y}
+                        dataKey={String(y)}
+                        name={`Ventas ${y}`}
+                        fill={YEAR_COLORS[idx % YEAR_COLORS.length]}
+                        radius={[4, 4, 0, 0]}
+                      />
+                    ))}
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Componente Modal del Historial de Productos Vendidos ─────────────────────
+interface MonthlyProductosVendidos {
+  year: number;
+  month: number;
+  cantidad: number;
+}
+
+function ProductosVendidosHistorialModal({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
+  const [data, setData] = useState<MonthlyProductosVendidos[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [vista, setVista] = useState<"tabla" | "grafico">("tabla");
+
+  useEffect(() => {
+    if (!open) return;
+    setLoading(true);
+
+    supabase
+      .from("ventas")
+      .select("cantidad, created_at")
+      .order("created_at", { ascending: true })
+      .then(({ data: rows, error }) => {
+        if (error) {
+          console.error("Error cargando historial de productos vendidos:", error);
+          setLoading(false);
+          return;
+        }
+
+        // Agrupar por mes y año
+        const grouped = (rows || []).reduce((acc: Record<string, MonthlyProductosVendidos>, v) => {
+          if (!v.created_at) return acc;
+          const d = new Date(v.created_at);
+          const year = d.getFullYear();
+          const month = d.getMonth() + 1;
+          const key = `${year}-${month}`;
+
+          if (!acc[key]) {
+            acc[key] = { year, month, cantidad: 0 };
+          }
+          acc[key].cantidad += v.cantidad || 0;
+          return acc;
+        }, {});
+
+        // Convertir a array y ordenar de más reciente a más antiguo
+        const sorted = Object.values(grouped).sort((a, b) => {
+          if (b.year !== a.year) return b.year - a.year;
+          return b.month - a.month;
+        });
+
+        setData(sorted);
+        setLoading(false);
+      });
+  }, [open]);
+
+  const years = [...new Set(data.map((r) => r.year))].sort((a, b) => b - a);
+
+  // Preparar datos del gráfico
+  const chartData = MONTH_NAMES.map((monthName, idx) => {
+    const point: Record<string, any> = { mes: monthName.slice(0, 3) };
+    years.forEach((y) => {
+      const found = data.find((r) => r.year === y && r.month === idx + 1);
+      if (found) {
+        point[String(y)] = found.cantidad;
+      }
+    });
+    return point;
+  });
+
+  const YEAR_COLORS = ["#D97706", "#2563EB", "#16A34A", "#DC2626", "#8B5CF6"];
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent showCloseButton={false} className="max-w-4xl w-full h-[80vh] max-h-[80vh] overflow-hidden flex flex-col p-0 bg-white rounded-2xl border border-gray-100 shadow-2xl">
+        {/* Header */}
+        <div className="p-6 border-b border-gray-100 flex items-center justify-between shrink-0 bg-white">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center border border-orange-100 shrink-0">
+              <Package size={20} className="text-orange-600" />
+            </div>
+            <div>
+              <DialogHeader>
+                <DialogTitle className="text-base font-bold text-gray-900 leading-none">
+                  Historial de Productos Vendidos
+                </DialogTitle>
+              </DialogHeader>
+              <p className="text-xs text-gray-400 font-medium mt-1">
+                Evolución de cantidad de unidades totales vendidas por mes
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-lg hover:bg-gray-100 border border-gray-200/60 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors shrink-0"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="p-6 overflow-y-auto flex-1 flex flex-col bg-gray-50/50">
+          {/* Selector de Vista */}
+          <div className="flex gap-2 mb-4 shrink-0">
+            <button
+              onClick={() => setVista("tabla")}
+              className={`text-sm px-5 py-2 rounded-lg font-semibold transition-colors ${
+                vista === "tabla"
+                  ? "bg-gray-900 text-white"
+                  : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+              }`}
+            >
+              Tabla
+            </button>
+            <button
+              onClick={() => setVista("grafico")}
+              className={`text-sm px-5 py-2 rounded-lg font-semibold transition-colors ${
+                vista === "grafico"
+                  ? "bg-gray-900 text-white"
+                  : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+              }`}
+            >
+              Gráfico
+            </button>
+          </div>
+
+          {loading ? (
+            <div className="flex-1 flex items-center justify-center py-12">
+              <div className="text-center">
+                <Loader2 size={36} className="text-orange-500 animate-spin mx-auto mb-2" />
+                <p className="text-sm text-gray-500 font-medium">Cargando historial...</p>
+              </div>
+            </div>
+          ) : data.length === 0 ? (
+            <div className="flex-1 flex items-center justify-center py-12 text-gray-400 text-sm">
+              No hay registros de ventas anteriores para mostrar unidades vendidas.
+            </div>
+          ) : vista === "tabla" ? (
+            <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden flex-1 flex flex-col">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-gray-50/75 border-b border-gray-100 text-gray-400 text-[10px] font-bold uppercase tracking-wider">
+                      <th className="px-6 py-4">Año</th>
+                      <th className="px-6 py-4">Mes</th>
+                      <th className="px-6 py-4 text-right">Unidades Vendidas</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 text-sm">
+                    {data.map((row, idx) => (
+                      <tr key={idx} className="hover:bg-gray-50/25 transition-colors">
+                        <td className="px-6 py-4 font-semibold text-gray-600">{row.year}</td>
+                        <td className="px-6 py-4 font-semibold text-gray-900">
+                          {MONTH_NAMES[row.month - 1]}
+                        </td>
+                        <td className="px-6 py-4 text-right font-extrabold text-orange-600">
+                          {row.cantidad} uds
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm flex-1 flex flex-col justify-center min-h-[300px]">
+              <div className="w-full h-[320px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData} barSize={16}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+                    <XAxis dataKey="mes" tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
+                    <YAxis
+                      tick={{ fontSize: 11, fill: "#9ca3af" }}
+                      axisLine={false}
+                      tickLine={false}
+                      tickFormatter={(v) => String(v)}
+                    />
+                    <RechartsTooltip
+                      formatter={(v: number) => [String(v), "Unidades"]}
+                      cursor={{ fill: "#f9fafb" }}
+                    />
+                    <Legend />
+                    {years.map((y, idx) => (
+                      <Bar
+                        key={y}
+                        dataKey={String(y)}
+                        name={`Unidades ${y}`}
+                        fill={YEAR_COLORS[idx % YEAR_COLORS.length]}
+                        radius={[4, 4, 0, 0]}
+                      />
+                    ))}
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Componente Modal del Historial de Productos Activos ──────────────────────
+interface MonthlyActiveProducts {
+  year: number;
+  month: number;
+  activos: number;
+}
+
+function ProductosActivosHistorialModal({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
+  const [data, setData] = useState<MonthlyActiveProducts[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [vista, setVista] = useState<"tabla" | "grafico">("tabla");
+
+  useEffect(() => {
+    if (!open) return;
+    setLoading(true);
+
+    supabase
+      .from("productos")
+      .select("activo, created_at")
+      .order("created_at", { ascending: true })
+      .then(({ data: rows, error }) => {
+        if (error) {
+          console.error("Error cargando historial de productos activos:", error);
+          setLoading(false);
+          return;
+        }
+
+        // Determinar año y mes de inicio
+        let startYear = new Date().getFullYear();
+        let startMonth = new Date().getMonth() + 1;
+
+        const validDates = (rows || [])
+          .map((r) => (r.created_at ? new Date(r.created_at) : null))
+          .filter(Boolean) as Date[];
+
+        if (validDates.length > 0) {
+          const minDate = new Date(Math.min(...validDates.map((d) => d.getTime())));
+          startYear = minDate.getFullYear();
+          startMonth = minDate.getMonth() + 1;
+        }
+
+        const endYear = new Date().getFullYear();
+        const endMonth = new Date().getMonth() + 1;
+
+        const list: { year: number; month: number }[] = [];
+        let y = startYear;
+        let m = startMonth;
+        while (y < endYear || (y === endYear && m <= endMonth)) {
+          list.push({ year: y, month: m });
+          m++;
+          if (m > 12) {
+            m = 1;
+            y++;
+          }
+        }
+
+        const result: MonthlyActiveProducts[] = list.map(({ year, month }) => {
+          const limitDate = new Date(year, month, 0, 23, 59, 59, 999);
+          const activos = (rows || []).filter(
+            (p) => p.activo && p.created_at && new Date(p.created_at) <= limitDate
+          ).length;
+          return { year, month, activos };
+        });
+
+        const sorted = result.sort((a, b) => {
+          if (b.year !== a.year) return b.year - a.year;
+          return b.month - a.month;
+        });
+
+        setData(sorted);
+        setLoading(false);
+      });
+  }, [open]);
+
+  const years = [...new Set(data.map((r) => r.year))].sort((a, b) => b - a);
+
+  // Preparar datos del gráfico
+  const chartData = MONTH_NAMES.map((monthName, idx) => {
+    const point: Record<string, any> = { mes: monthName.slice(0, 3) };
+    years.forEach((y) => {
+      const found = data.find((r) => r.year === y && r.month === idx + 1);
+      if (found) {
+        point[String(y)] = found.activos;
+      }
+    });
+    return point;
+  });
+
+  const YEAR_COLORS = ["#2563EB", "#16A34A", "#D97706", "#DC2626", "#8B5CF6"];
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent showCloseButton={false} className="max-w-4xl w-full h-[80vh] max-h-[80vh] overflow-hidden flex flex-col p-0 bg-white rounded-2xl border border-gray-100 shadow-2xl">
+        {/* Header */}
+        <div className="p-6 border-b border-gray-100 flex items-center justify-between shrink-0 bg-white">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center border border-orange-100 shrink-0">
+              <Package size={20} className="text-orange-600" />
+            </div>
+            <div>
+              <DialogHeader>
+                <DialogTitle className="text-base font-bold text-gray-900 leading-none">
+                  Historial de Productos Activos
+                </DialogTitle>
+              </DialogHeader>
+              <p className="text-xs text-gray-400 font-medium mt-1">
+                Evolución de cantidad de productos activos registrados en el sistema
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-lg hover:bg-gray-100 border border-gray-200/60 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors shrink-0"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="p-6 overflow-y-auto flex-1 flex flex-col bg-gray-50/50">
+          {/* Selector de Vista */}
+          <div className="flex gap-2 mb-4 shrink-0">
+            <button
+              onClick={() => setVista("tabla")}
+              className={`text-sm px-5 py-2 rounded-lg font-semibold transition-colors ${
+                vista === "tabla"
+                  ? "bg-gray-900 text-white"
+                  : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+              }`}
+            >
+              Tabla
+            </button>
+            <button
+              onClick={() => setVista("grafico")}
+              className={`text-sm px-5 py-2 rounded-lg font-semibold transition-colors ${
+                vista === "grafico"
+                  ? "bg-gray-900 text-white"
+                  : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+              }`}
+            >
+              Gráfico
+            </button>
+          </div>
+
+          {loading ? (
+            <div className="flex-1 flex items-center justify-center py-12">
+              <div className="text-center">
+                <Loader2 size={36} className="text-orange-500 animate-spin mx-auto mb-2" />
+                <p className="text-sm text-gray-500 font-medium">Cargando historial...</p>
+              </div>
+            </div>
+          ) : data.length === 0 ? (
+            <div className="flex-1 flex items-center justify-center py-12 text-gray-400 text-sm">
+              No hay registros de productos para mostrar.
+            </div>
+          ) : vista === "tabla" ? (
+            <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden flex-1 flex flex-col">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-gray-50/75 border-b border-gray-100 text-gray-400 text-[10px] font-bold uppercase tracking-wider">
+                      <th className="px-6 py-4">Año</th>
+                      <th className="px-6 py-4">Mes</th>
+                      <th className="px-6 py-4 text-right">Productos Activos</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 text-sm">
+                    {data.map((row, idx) => (
+                      <tr key={idx} className="hover:bg-gray-50/25 transition-colors">
+                        <td className="px-6 py-4 font-semibold text-gray-600">{row.year}</td>
+                        <td className="px-6 py-4 font-semibold text-gray-900">
+                          {MONTH_NAMES[row.month - 1]}
+                        </td>
+                        <td className="px-6 py-4 text-right font-extrabold text-blue-600">
+                          {row.activos} activos
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm flex-1 flex flex-col justify-center min-h-[300px]">
+              <div className="w-full h-[320px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData} barSize={16}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+                    <XAxis dataKey="mes" tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
+                    <YAxis
+                      tick={{ fontSize: 11, fill: "#9ca3af" }}
+                      axisLine={false}
+                      tickLine={false}
+                      tickFormatter={(v) => String(v)}
+                    />
+                    <RechartsTooltip
+                      formatter={(v: number) => [String(v), "Activos"]}
+                      cursor={{ fill: "#f9fafb" }}
+                    />
+                    <Legend />
+                    {years.map((y, idx) => (
+                      <Bar
+                        key={y}
+                        dataKey={String(y)}
+                        name={`Activos ${y}`}
                         fill={YEAR_COLORS[idx % YEAR_COLORS.length]}
                         radius={[4, 4, 0, 0]}
                       />
