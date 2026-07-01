@@ -5,6 +5,8 @@ import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { CheckCircle2, XCircle, Clock, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { usePowerSync } from "@powersync/react";
+import DiagnosticPanel from "@/components/DiagnosticPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +29,7 @@ type Result =
       esMenorDeEdad?: boolean;
       cusCompletado?: boolean;
       cusClasesPresentadas?: number;
+      clasesCusMargen?: number;
     }
   | "not-found"
   | null;
@@ -106,18 +109,348 @@ const estadoConfig: Record<
   },
 };
 
-async function verificarDNI(dni: string): Promise<Result> {
+// Funciones auxiliares offline para determinar estado
+function calcularEdad(fechaNacimiento: string): number {
+  if (!fechaNacimiento) return 0;
+  const hoy = new Date();
+  const cumpleanos = new Date(fechaNacimiento);
+  let edad = hoy.getFullYear() - cumpleanos.getFullYear();
+  const m = hoy.getMonth() - cumpleanos.getMonth();
+  if (m < 0 || (m === 0 && hoy.getDate() < cumpleanos.getDate())) {
+    edad--;
+  }
+  return edad;
+}
+
+function getFechaLocal(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function formatearFecha(fecha: string): string {
+  if (!fecha) return "Sin fecha";
+  const clean = fecha.split("T")[0];
+  const parts = clean.split("-");
+  if (parts.length === 3) {
+    const [y, m, d] = parts;
+    return `${d}/${m}/${y}`;
+  }
   try {
+    const date = new Date(fecha);
+    const dia = String(date.getUTCDate()).padStart(2, "0");
+    const mes = String(date.getUTCMonth() + 1).padStart(2, "0");
+    const anio = date.getUTCFullYear();
+    return `${dia}/${mes}/${anio}`;
+  } catch {
+    return fecha;
+  }
+}
+
+async function verificarDNILocal(
+  dni: string,
+  db: ReturnType<typeof usePowerSync>
+): Promise<Result | undefined> {
+  const hoy = getFechaLocal();
+
+  // Buscar alumno por DNI en SQLite local
+  const resAlumno = await db.execute(
+    `SELECT id, nombre, activo, es_prueba, actividad_interes, actividad_proximo_vencimiento, 
+            clases_gracia_disponibles, clases_gracia_usadas, fecha_proximo_vencimiento, 
+            fecha_nacimiento, cus_completado, cus_clases_presentadas 
+     FROM alumnos WHERE dni = ? LIMIT 1`,
+    [dni]
+  );
+
+  if (!resAlumno.rows || resAlumno.rows.length === 0) {
+    return undefined; // Alumno no encontrado localmente -> fallback
+  }
+
+  const alumno = resAlumno.rows.item(0);
+  const esActivo = alumno.activo !== 0;
+  const esPrueba = alumno.es_prueba !== 0;
+  const cusCompletado = alumno.cus_completado !== 0 && alumno.cus_completado !== null;
+
+  // 1. Alumno de prueba
+  if (esPrueba) {
+    const resAsistencia = await db.execute(
+      "SELECT id FROM asistencias WHERE alumno_id = ? LIMIT 1",
+      [alumno.id]
+    );
+
+    if (resAsistencia.rows && resAsistencia.rows.length > 0) {
+      return {
+        nombre: alumno.nombre,
+        estado: "vencido" as Estado,
+        vencimiento: "Clase de Prueba Utilizada",
+        actividad: alumno.actividad_interes || "Clase de Prueba",
+        esPrueba: true,
+        yaUsoClasePrueba: true,
+      };
+    }
+
+    // Registrar asistencia de prueba
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    const hours = String(now.getHours()).padStart(2, "0");
+    const minutes = String(now.getMinutes()).padStart(2, "0");
+    const seconds = String(now.getSeconds()).padStart(2, "0");
+
+    const fechaLocal = `${year}-${month}-${day}`;
+    const horaLocal = `${hours}:${minutes}:${seconds}`;
+    const fechaISO = `${fechaLocal}T${horaLocal}`;
+
+    await db.writeTransaction(async (tx) => {
+      await tx.execute(
+        "INSERT INTO asistencias (id, alumno_id, fecha, hora) VALUES (?, ?, ?, ?)",
+        [crypto.randomUUID(), alumno.id, fechaISO, horaLocal]
+      );
+      await tx.execute(
+        "UPDATE alumnos SET fecha_ultima_asistencia = ?, activo = 0 WHERE id = ?",
+        [fechaISO, alumno.id]
+      );
+    });
+
+    return {
+      nombre: alumno.nombre,
+      estado: "prueba" as Estado,
+      vencimiento: "Clase de Prueba",
+      actividad: alumno.actividad_interes || "Clase de Prueba",
+      esPrueba: true,
+    };
+  }
+
+  // 2. Alumno regular
+  const esMenorDeEdad = alumno.fecha_nacimiento
+    ? calcularEdad(alumno.fecha_nacimiento) < 18
+    : false;
+
+  // Validar CUS obligatorio
+  if (esMenorDeEdad && !cusCompletado && (alumno.cus_clases_presentadas ?? 0) >= 3) {
+    return {
+      nombre: alumno.nombre,
+      estado: "vencido" as Estado,
+      vencimiento: "Falta CUS obligatorio",
+      actividad: alumno.actividad_proximo_vencimiento || undefined,
+      razonBloqueo: "cus_vencido",
+      esMenorDeEdad,
+      cusCompletado,
+      cusClasesPresentadas: alumno.cus_clases_presentadas ?? 0,
+      clasesCusMargen: 0,
+    } as Result;
+  }
+
+  let estado: Estado = "vencido";
+  let clasesGracia: { usadas: number; disponibles: number } | undefined = undefined;
+  let razonBloqueo: "sin_plan" | "plan_no_iniciado" | undefined = undefined;
+  let fechaInicioPlan: string | undefined = undefined;
+  let planActivo: { fecha_inicio: string; fecha_vencimiento: string; actividad: string | null } | null = null;
+
+  if (!esActivo) {
+    estado = "vencido";
+  } else {
+    // Buscar planes del alumno
+    const dosAniosAtras = new Date();
+    dosAniosAtras.setFullYear(dosAniosAtras.getFullYear() - 2);
+    const fechaMinPlanes = dosAniosAtras.toISOString().split("T")[0];
+
+    const resPlanes = await db.execute(
+      "SELECT fecha_inicio, fecha_vencimiento, actividad FROM pagos WHERE alumno_id = ? AND fecha_vencimiento >= ? ORDER BY fecha_inicio ASC",
+      [alumno.id, fechaMinPlanes]
+    );
+
+    const todosLosPlanes: { fecha_inicio: string; fecha_vencimiento: string; actividad: string | null }[] = [];
+    if (resPlanes.rows) {
+      for (let i = 0; i < resPlanes.rows.length; i++) {
+        todosLosPlanes.push(resPlanes.rows.item(i));
+      }
+    }
+
+    // Sin ningún plan registrado
+    if (todosLosPlanes.length === 0) {
+      const disponibles = alumno.clases_gracia_disponibles ?? 0;
+      const usadas = alumno.clases_gracia_usadas ?? 0;
+
+      if (disponibles > 0 && usadas < disponibles) {
+        clasesGracia = { usadas: usadas + 1, disponibles };
+        estado = (esMenorDeEdad && !cusCompletado && (alumno.cus_clases_presentadas ?? 0) < 3)
+          ? "advertencia"
+          : "periodo_gracia";
+      } else {
+        estado = "vencido";
+        razonBloqueo = "sin_plan";
+      }
+    } else {
+      // Filtrar planes activos
+      const planesActivos = todosLosPlanes.filter(
+        (p) => p.fecha_inicio <= hoy && p.fecha_vencimiento >= hoy
+      );
+
+      const planesActivosOrdenados = [...planesActivos].sort(
+        (a, b) => new Date(b.fecha_vencimiento).getTime() - new Date(a.fecha_vencimiento).getTime()
+      );
+
+      planActivo = planesActivosOrdenados[0] || null;
+
+      if (planActivo) {
+        const vencimiento = new Date(planActivo.fecha_vencimiento);
+        const hoyDate = new Date(hoy);
+        const diasRestantes = (vencimiento.getTime() - hoyDate.getTime()) / (1000 * 60 * 60 * 24);
+
+        if (esMenorDeEdad && !cusCompletado && (alumno.cus_clases_presentadas ?? 0) < 3) {
+          estado = "advertencia";
+        } else if (diasRestantes <= 7) {
+          estado = "advertencia";
+        } else {
+          estado = "al-dia";
+        }
+      } else {
+        // Verificar planes futuros
+        const planesFuturos = todosLosPlanes.filter((p) => p.fecha_inicio > hoy);
+        if (planesFuturos.length > 0) {
+          const planProximo = planesFuturos[0];
+          estado = "vencido";
+          razonBloqueo = "plan_no_iniciado";
+          fechaInicioPlan = planProximo.fecha_inicio;
+        } else {
+          // Verificar período de gracia
+          const disponibles = alumno.clases_gracia_disponibles ?? 0;
+          const usadas = alumno.clases_gracia_usadas ?? 0;
+
+          if (disponibles > 0 && usadas < disponibles) {
+            clasesGracia = { usadas: usadas + 1, disponibles };
+            estado = (esMenorDeEdad && !cusCompletado && (alumno.cus_clases_presentadas ?? 0) < 3)
+              ? "advertencia"
+              : "periodo_gracia";
+          } else {
+            estado = "vencido";
+          }
+        }
+      }
+    }
+  }
+
+  // Registrar asistencia si el ingreso está permitido
+  const ingresoPermitido =
+    estado === "al-dia" ||
+    estado === "advertencia" ||
+    estado === "periodo_gracia";
+
+  if (ingresoPermitido) {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    const hours = String(now.getHours()).padStart(2, "0");
+    const minutes = String(now.getMinutes()).padStart(2, "0");
+    const seconds = String(now.getSeconds()).padStart(2, "0");
+
+    const fechaLocal = `${year}-${month}-${day}`;
+    const horaLocal = `${hours}:${minutes}:${seconds}`;
+    const fechaISO = `${fechaLocal}T${horaLocal}`;
+
+    let nuevoCusClasesPresentadas = alumno.cus_clases_presentadas ?? 0;
+    if (esMenorDeEdad && !cusCompletado) {
+      nuevoCusClasesPresentadas += 1;
+    }
+
+    let nuevasClasesGraciaUsadas = alumno.clases_gracia_usadas ?? 0;
+    let nuevoActivo = alumno.activo;
+    if (clasesGracia) {
+      nuevasClasesGraciaUsadas = clasesGracia.usadas;
+      if (nuevasClasesGraciaUsadas >= (alumno.clases_gracia_disponibles ?? 0)) {
+        nuevoActivo = 0;
+      }
+    }
+
+    await db.writeTransaction(async (tx) => {
+      await tx.execute(
+        "INSERT INTO asistencias (id, alumno_id, fecha, hora) VALUES (?, ?, ?, ?)",
+        [crypto.randomUUID(), alumno.id, fechaISO, horaLocal]
+      );
+      await tx.execute(
+        `UPDATE alumnos 
+         SET fecha_ultima_asistencia = ?, 
+             cus_clases_presentadas = ?, 
+             clases_gracia_usadas = ?, 
+             activo = ? 
+         WHERE id = ?`,
+        [
+          fechaISO,
+          nuevoCusClasesPresentadas,
+          nuevasClasesGraciaUsadas,
+          nuevoActivo,
+          alumno.id
+        ]
+      );
+    });
+  }
+
+  const finalCusClases = ingresoPermitido && esMenorDeEdad && !cusCompletado
+    ? (alumno.cus_clases_presentadas ?? 0) + 1
+    : (alumno.cus_clases_presentadas ?? 0);
+
+  return {
+    nombre: alumno.nombre,
+    estado,
+    vencimiento: planActivo?.fecha_vencimiento
+      ? formatearFecha(planActivo.fecha_vencimiento)
+      : razonBloqueo === "sin_plan"
+        ? "Sin plan registrado"
+        : razonBloqueo === "plan_no_iniciado" && fechaInicioPlan
+          ? `Inicia el ${formatearFecha(fechaInicioPlan)}`
+          : "Sin fecha",
+    actividad: planActivo?.actividad || alumno.actividad_proximo_vencimiento || undefined,
+    clasesGracia: clasesGracia ?? undefined,
+    razonBloqueo,
+    esMenorDeEdad,
+    cusCompletado,
+    cusClasesPresentadas: finalCusClases,
+    clasesCusMargen: esMenorDeEdad && !cusCompletado
+      ? Math.max(0, 3 - finalCusClases)
+      : undefined,
+  } as Result;
+}
+
+async function verificarDNI(
+  dni: string,
+  db: ReturnType<typeof usePowerSync>
+): Promise<Result> {
+  try {
+    // 1. Intentar verificación offline-first
+    const localResult = await verificarDNILocal(dni, db);
+    if (localResult !== undefined) {
+      console.log("Verificación offline exitosa:", localResult);
+      return localResult;
+    }
+    console.log("Alumno no encontrado localmente. Usando fallback online...");
+  } catch (error) {
+    console.error("Error en la verificación local (PowerSync):", error);
+  }
+
+  // 2. Fallback a la llamada de API online
+  try {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+
+    const bypassToken = process.env.NEXT_PUBLIC_BYPASS_RATE_LIMIT_TOKEN;
+    if (bypassToken) {
+      headers["x-bypass-rate-limit"] = bypassToken;
+    }
+
     const response = await fetch("/api/verificar-dni", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers,
       body: JSON.stringify({ dni }),
     });
 
     if (!response.ok) {
-      console.error("Error en la verificación:", response.statusText);
+      console.error("Error en la verificación online:", response.statusText);
       return "not-found";
     }
 
@@ -129,7 +462,7 @@ async function verificarDNI(dni: string): Promise<Result> {
 
     return data.alumno;
   } catch (error) {
-    console.error("Error al verificar DNI:", error);
+    console.error("Error al verificar DNI online:", error);
     return "not-found";
   }
 }
@@ -137,6 +470,7 @@ async function verificarDNI(dni: string): Promise<Result> {
 const RESET_DELAY_MS = 15000;
 
 function IngresoWebPageContent() {
+  const db = usePowerSync();
   const searchParams = useSearchParams();
   const isClientView = searchParams.get("view") === "client";
   const [dni, setDni] = useState("");
@@ -144,6 +478,19 @@ function IngresoWebPageContent() {
   const [result, setResult] = useState<Result>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const focusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Función para reiniciar el temporizador de inactividad de 4 horas
+  const resetInactivityTimer = () => {
+    if (inactivityTimerRef.current) {
+      clearTimeout(inactivityTimerRef.current);
+    }
+    inactivityTimerRef.current = setTimeout(() => {
+      console.log("Recarga preventiva por inactividad de 4 horas");
+      window.location.reload();
+    }, 4 * 60 * 60 * 1000); // 4 horas
+  };
 
   // Auto-focus input and maintain focus for physical scanners
   useEffect(() => {
@@ -177,18 +524,45 @@ function IngresoWebPageContent() {
     };
   }, []);
 
-  // Auto-abrir vista de cliente en nueva pestaña al cargar la página
+  // Auto-abrir vista de cliente en pestaña persistente al cargar la página
   useEffect(() => {
     if (typeof window !== "undefined" && !isClientView && !window.opener) {
       const clientURL = window.location.origin + "/ingreso-web?view=client";
-      window.open(clientURL, "_blank", "width=1024,height=768");
+      // Usar "AlfaClubClientView" en lugar de "_blank" para evitar duplicar pestañas al recargar
+      window.open(clientURL, "AlfaClubClientView", "width=1024,height=768");
     }
   }, [isClientView]);
 
-  // Cleanup timer on unmount
+  // Inicialización de timers de inactividad y recarga preventiva diaria a las 4:00 AM
+  useEffect(() => {
+    resetInactivityTimer();
+
+    // Chequeo periódico cada minuto para recarga preventiva a las 4:00 AM
+    const checkTimeIntervalId = setInterval(() => {
+      const now = new Date();
+      // Ventana de mantenimiento de madrugada: entre las 4:00 AM y las 4:05 AM
+      if (now.getHours() === 4 && now.getMinutes() >= 0 && now.getMinutes() <= 5) {
+        const lastReload = localStorage.getItem("lastPreventiveReloadDate");
+        const todayStr = now.toDateString();
+        if (lastReload !== todayStr) {
+          localStorage.setItem("lastPreventiveReloadDate", todayStr);
+          window.location.reload();
+        }
+      }
+    }, 60000);
+
+    return () => {
+      clearInterval(checkTimeIntervalId);
+      if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
+    };
+  }, []);
+
+  // Cleanup de todos los timers al desmontarse el componente
   useEffect(() => {
     return () => {
       if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
+      if (focusTimeoutRef.current) clearTimeout(focusTimeoutRef.current);
+      if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
     };
   }, []);
 
@@ -200,14 +574,19 @@ function IngresoWebPageContent() {
     setResult(null);
     // Clear input immediately after submission
     setDni("");
-    const res = await verificarDNI(trimmed);
+    const res = await verificarDNI(trimmed, db);
     setResult(res);
     setLoading(false);
+
+    // Reiniciar el timer de inactividad por escaneo exitoso/intento
+    resetInactivityTimer();
+
     // Start 15-second auto-reset timer
     if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
     resetTimerRef.current = setTimeout(() => {
       setResult(null);
-      setTimeout(() => inputRef.current?.focus(), 0);
+      if (focusTimeoutRef.current) clearTimeout(focusTimeoutRef.current);
+      focusTimeoutRef.current = setTimeout(() => inputRef.current?.focus(), 0);
     }, RESET_DELAY_MS);
   }
 
@@ -215,7 +594,8 @@ function IngresoWebPageContent() {
     if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
     setDni("");
     setResult(null);
-    setTimeout(() => inputRef.current?.focus(), 0);
+    if (focusTimeoutRef.current) clearTimeout(focusTimeoutRef.current);
+    focusTimeoutRef.current = setTimeout(() => inputRef.current?.focus(), 0);
   }
 
   // Paleta de colores por estado para la vista cliente
@@ -950,6 +1330,7 @@ function IngresoWebPageContent() {
           </div>
         )}
       </div>
+      <DiagnosticPanel />
     </main>
   );
 }

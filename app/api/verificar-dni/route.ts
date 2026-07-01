@@ -57,9 +57,15 @@ function getFechaLocal(): string {
 export async function POST(request: NextRequest) {
   try {
     // 30 escaneos por minuto por IP — más que suficiente para un scanner de gimnasio
-    const ip = getClientIp(request);
-    if (!checkRateLimit(`verificar-dni:${ip}`, 30, 60_000)) {
-      return NextResponse.json({ error: "Demasiadas solicitudes. Esperá un momento." }, { status: 429 });
+    const bypassToken = request.headers.get("x-bypass-rate-limit");
+    const systemBypassToken = process.env.BYPASS_RATE_LIMIT_TOKEN;
+    const isBypass = !!systemBypassToken && bypassToken === systemBypassToken;
+
+    if (!isBypass) {
+      const ip = getClientIp(request);
+      if (!checkRateLimit(`verificar-dni:${ip}`, 30, 60_000)) {
+        return NextResponse.json({ error: "Demasiadas solicitudes. Esperá un momento." }, { status: 429 });
+      }
     }
 
     const { dni } = await request.json();

@@ -61,9 +61,12 @@ function makeAlumno(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function makeRequest(body: Record<string, unknown>) {
+function makeRequest(body: Record<string, unknown>, headers: Record<string, string> = {}) {
+  const getHeader = (name: string) => {
+    return headers[name.toLowerCase()] || "127.0.0.1";
+  };
   return {
-    headers: { get: jest.fn().mockReturnValue("127.0.0.1") },
+    headers: { get: jest.fn().mockImplementation(getHeader) },
     json: jest.fn().mockResolvedValue(body),
   };
 }
@@ -121,8 +124,9 @@ function setupMock(alumno: Record<string, unknown>, planes: unknown[], asistenci
   });
 }
 
-// ─── Import POST after mocks are registered ───────────────────────────────
+// ─── Import POST and checkRateLimit after mocks are registered ───────────────────────────────
 import { POST } from "@/app/api/verificar-dni/route";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 // ─── Tests ────────────────────────────────────────────────────────────────
 
@@ -322,6 +326,63 @@ describe("POST /api/verificar-dni — determinarEstado", () => {
     const body = (res as unknown as { body: Record<string, unknown> }).body;
     const a = body.alumno as Record<string, unknown>;
     expect(a.estado).toBe("vencido");
+  });
+
+  // ── UV-14: bypass rate limit activo con token correcto ──────────────────
+  it("UV-14 — bypass de rate limit con token correcto → permite la solicitud sin aplicar rate limit", async () => {
+    const originalEnv = process.env.BYPASS_RATE_LIMIT_TOKEN;
+    process.env.BYPASS_RATE_LIMIT_TOKEN = "secreto123";
+    (checkRateLimit as jest.Mock).mockReturnValue(false); // Simula que el rate limit bloquea
+
+    const alumno = makeAlumno();
+    const planes = [{ fecha_inicio: makePastDate(10), fecha_vencimiento: makeFutureDate(30), actividad: "Boxeo" }];
+    setupMock(alumno, planes);
+
+    const req = makeRequest({ dni: "12345678" }, { "x-bypass-rate-limit": "secreto123" });
+    const res = await POST(req as never);
+    
+    // Debería responder 200 porque omitió el rate limit y procesó la petición
+    expect((res as unknown as { status: number }).status).toBe(200);
+    const body = (res as unknown as { body: Record<string, unknown> }).body;
+    expect((body.alumno as Record<string, unknown>).estado).toBe("al-dia");
+
+    // Limpieza
+    process.env.BYPASS_RATE_LIMIT_TOKEN = originalEnv;
+    (checkRateLimit as jest.Mock).mockReturnValue(true);
+  });
+
+  // ── UV-15: bypass rate limit activo con token incorrecto o faltante ───────
+  it("UV-15 — bypass de rate limit con token incorrecto o faltante → bloquea la solicitud por rate limit", async () => {
+    const originalEnv = process.env.BYPASS_RATE_LIMIT_TOKEN;
+    process.env.BYPASS_RATE_LIMIT_TOKEN = "secreto123";
+    (checkRateLimit as jest.Mock).mockReturnValue(false); // Simula que el rate limit bloquea
+
+    const reqIncorrecto = makeRequest({ dni: "12345678" }, { "x-bypass-rate-limit": "incorrecto" });
+    const resIncorrecto = await POST(reqIncorrecto as never);
+    expect((resIncorrecto as unknown as { status: number }).status).toBe(429);
+
+    const reqFaltante = makeRequest({ dni: "12345678" });
+    const resFaltante = await POST(reqFaltante as never);
+    expect((resFaltante as unknown as { status: number }).status).toBe(429);
+
+    // Limpieza
+    process.env.BYPASS_RATE_LIMIT_TOKEN = originalEnv;
+    (checkRateLimit as jest.Mock).mockReturnValue(true);
+  });
+
+  // ── UV-16: bypass rate limit inactivo (env var no configurada) ───────────
+  it("UV-16 — variable de entorno no configurada → bloquea incluso si se envía cabecera", async () => {
+    const originalEnv = process.env.BYPASS_RATE_LIMIT_TOKEN;
+    delete process.env.BYPASS_RATE_LIMIT_TOKEN;
+    (checkRateLimit as jest.Mock).mockReturnValue(false); // Simula que el rate limit bloquea
+
+    const req = makeRequest({ dni: "12345678" }, { "x-bypass-rate-limit": "cualquiera" });
+    const res = await POST(req as never);
+    expect((res as unknown as { status: number }).status).toBe(429);
+
+    // Limpieza
+    process.env.BYPASS_RATE_LIMIT_TOKEN = originalEnv;
+    (checkRateLimit as jest.Mock).mockReturnValue(true);
   });
 });
 

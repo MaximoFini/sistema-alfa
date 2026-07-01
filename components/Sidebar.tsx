@@ -240,11 +240,13 @@ export default function Sidebar() {
       {/* Ingreso Web placed just above the divider */}
       <div className="px-2 pb-1 shrink-0">
         <a
-          href="/ingreso-web"
-          target="_blank"
-          rel="noopener noreferrer"
+          href="/ingreso-web?view=client"
+          onClick={(e) => {
+            e.preventDefault();
+            window.open("/ingreso-web?view=client", "AlfaClubClientView", "width=1024,height=768");
+          }}
           className={cn(
-            "flex items-center rounded-lg transition-all duration-150",
+            "flex items-center rounded-lg transition-all duration-150 cursor-pointer",
             collapsed ? "justify-center px-2 py-3" : "gap-3 px-3 py-2.5",
             isIngresoActive
               ? "bg-[#111111] text-white shadow-sm shadow-black/20"
